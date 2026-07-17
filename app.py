@@ -596,6 +596,28 @@ class GenerateRequest(BaseModel):
     answers: Optional[dict] = None
 
 
+async def _get_param(request: Request, name: str) -> Optional[str]:
+    """Получает параметр из form-data, JSON, или query string (для совместимости с htmx)"""
+    # 1. Попробуем form-data
+    try:
+        form = await request.form()
+        if name in form:
+            return form[name]
+    except Exception:
+        pass
+    # 2. Попробуем JSON body
+    try:
+        body = await request.body()
+        if body:
+            data = json.loads(body)
+            if isinstance(data, dict) and name in data:
+                return data[name]
+    except Exception:
+        pass
+    # 3. Попробуем query string
+    return request.query_params.get(name)
+
+
 # Routes
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -639,8 +661,14 @@ async def detail(request: Request, detail_id: str):
 
 
 @app.post("/api/generate")
-async def generate(detail_id: str = Form(...)):
-    """Generate draft via LLM (or mock in demo mode). Accepts form-data (htmx default)."""
+async def generate(request: Request):
+    """Generate draft via LLM (or mock in demo mode). Accepts form-data, JSON, or URL param."""
+    detail_id = await _get_param(request, "detail_id")
+    if not detail_id:
+        return HTMLResponse(
+            '<span style="color:red">❌ Не указан detail_id</span>',
+            status_code=422
+        )
     detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
     if not detail_obj:
         return HTMLResponse(
@@ -1016,8 +1044,11 @@ async def export_excel(detail_id: str = Form(...)):
 
 
 @app.post("/api/export/pdf")
-async def export_pdf(detail_id: str = Form(...)):
+async def export_pdf(request: Request):
     """Export reasoning to PDF (for management)"""
+    detail_id = await _get_param(request, "detail_id")
+    if not detail_id:
+        return HTMLResponse('{"error":"detail_id required"}', status_code=422, media_type="application/json")
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -1280,13 +1311,18 @@ async def api_create_benchmark(detail_type: str = Form(...),
 # РЕДАКТОР ОПЕРАЦИЙ (правка черновика технологом)
 # ============================================
 @app.post("/api/edit/operation")
-async def api_edit_operation(detail_id: str = Form(...),
-                              op_index: int = Form(...),
-                              field: str = Form(...),
-                              value: str = Form(...),
-                              reason: str = Form(""),
-                              author: str = Form("technologist")):
+async def api_edit_operation(request: Request):
     """Правка одной операции в черновике (записывается как edit + version)"""
+    detail_id = await _get_param(request, "detail_id")
+    op_index_str = await _get_param(request, "op_index")
+    field = await _get_param(request, "field")
+    value = await _get_param(request, "value")
+    reason = await _get_param(request, "reason") or ""
+    author = await _get_param(request, "author") or "technologist"
+    if not all([detail_id, op_index_str, field, value is not None]):
+        return HTMLResponse('<span style="color:red">❌ Не хватает параметров</span>', status_code=422)
+    op_index = int(op_index_str)
+
     draft_data = get_draft(detail_id)
     if not draft_data:
         return HTMLResponse('<span style="color:red">❌ Нет черновика</span>', status_code=400)
@@ -1309,12 +1345,17 @@ async def api_edit_operation(detail_id: str = Form(...),
 
 
 @app.post("/api/edit/add-operation")
-async def api_add_operation(detail_id: str = Form(...),
-                             name: str = Form(...),
-                             equipment: str = Form(""),
-                             duration_hours: float = Form(0),
-                             author: str = Form("technologist")):
+async def api_add_operation(request: Request):
     """Добавляет новую операцию в черновик"""
+    detail_id = await _get_param(request, "detail_id")
+    name = await _get_param(request, "name")
+    equipment = await _get_param(request, "equipment") or ""
+    duration_str = await _get_param(request, "duration_hours") or "0"
+    author = await _get_param(request, "author") or "technologist"
+    if not detail_id or not name:
+        return HTMLResponse('<span style="color:red">❌ Не хватает параметров</span>', status_code=422)
+    duration_hours = float(duration_str)
+
     draft_data = get_draft(detail_id)
     if not draft_data:
         return HTMLResponse('<span style="color:red">❌ Нет черновика</span>', status_code=400)
@@ -1334,11 +1375,16 @@ async def api_add_operation(detail_id: str = Form(...),
 
 
 @app.post("/api/edit/delete-operation")
-async def api_delete_operation(detail_id: str = Form(...),
-                                op_index: int = Form(...),
-                                reason: str = Form(""),
-                                author: str = Form("technologist")):
+async def api_delete_operation(request: Request):
     """Удаляет операцию"""
+    detail_id = await _get_param(request, "detail_id")
+    op_index_str = await _get_param(request, "op_index")
+    reason = await _get_param(request, "reason") or ""
+    author = await _get_param(request, "author") or "technologist"
+    if not detail_id or op_index_str is None:
+        return HTMLResponse('<span style="color:red">❌ Не хватает параметров</span>', status_code=422)
+    op_index = int(op_index_str)
+
     draft_data = get_draft(detail_id)
     if not draft_data:
         return HTMLResponse('<span style="color:red">❌ Нет черновика</span>', status_code=400)
