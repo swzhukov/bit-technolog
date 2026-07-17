@@ -190,27 +190,34 @@
             </span>
         </div>
         <div class="op-card-body">
-            <p><strong>Название:</strong>
-                <span class="editable"
-                      hx-post="/api/edit/operation"
-                      hx-vals='{"detail_id": "{{ detail.id }}", "op_index": "{{ loop.index0 }}", "field": "name", "value": "PLACEHOLDER"}'
-                      hx-trigger="click once"
-                      onclick="this.setAttribute('hx-vals', this.getAttribute('hx-vals').replace('PLACEHOLDER', prompt('Новое название:', this.innerText))); htmx.process(this); htmx.trigger(this, 'click');">
-                    {{ op.name }}
-                </span>
-            </p>
-            <p><strong>Оборудование:</strong>
-                <span class="editable"
-                      onclick="let v=prompt('Новое оборудование:', this.innerText); if(v){fetch('/api/edit/operation',{method:'POST',body:new URLSearchParams({detail_id:'{{ detail.id }}',op_index:'{{ loop.index0 }}',field:'equipment',value:v,reason:'изменено вручную'})}).then(r=>r.text()).then(t=>{document.getElementById('edit-status').innerHTML=t;setTimeout(()=>location.reload(),500)})}">
-                    {{ op.equipment or "—" }}
-                </span>
-            </p>
-            <p><strong>Время (ч):</strong>
-                <span class="editable"
-                      onclick="let v=prompt('Новое время (часы):', this.innerText); if(v){fetch('/api/edit/operation',{method:'POST',body:new URLSearchParams({detail_id:'{{ detail.id }}',op_index:'{{ loop.index0 }}',field:'duration_hours',value:v,reason:'изменено вручную'})}).then(r=>r.text()).then(t=>{document.getElementById('edit-status').innerHTML=t;setTimeout(()=>location.reload(),500)})}">
-                    {{ op.duration_hours }}
-                </span>
-            </p>
+            <p><strong>Название:</strong> {{ op.name }}</p>
+            <form hx-post="/api/edit/operation"
+                  hx-vals='{"detail_id": "{{ detail.id }}", "op_index": "{{ loop.index0 }}", "field": "name"}'
+                  hx-target="#edit-status-{{ loop.index0 }}"
+                  hx-swap="innerHTML"
+                  class="inline-edit-form">
+                <input name="value" value="{{ op.name }}" placeholder="новое название">
+                <button type="submit" class="btn btn-small">✏️</button>
+                <span id="edit-status-{{ loop.index0 }}"></span>
+            </form>
+            <p><strong>Оборудование:</strong> {{ op.equipment or "—" }}</p>
+            <form hx-post="/api/edit/operation"
+                  hx-vals='{"detail_id": "{{ detail.id }}", "op_index": "{{ loop.index0 }}", "field": "equipment"}'
+                  hx-target="#edit-status-{{ loop.index0 }}"
+                  hx-swap="innerHTML"
+                  class="inline-edit-form">
+                <input name="value" value="{{ op.equipment or '' }}" placeholder="оборудование">
+                <button type="submit" class="btn btn-small">✏️</button>
+            </form>
+            <p><strong>Время (ч):</strong> {{ op.duration_hours }}</p>
+            <form hx-post="/api/edit/operation"
+                  hx-vals='{"detail_id": "{{ detail.id }}", "op_index": "{{ loop.index0 }}", "field": "duration_hours"}'
+                  hx-target="#edit-status-{{ loop.index0 }}"
+                  hx-swap="innerHTML"
+                  class="inline-edit-form">
+                <input name="value" type="number" step="0.01" value="{{ op.duration_hours }}" placeholder="часы">
+                <button type="submit" class="btn btn-small">✏️</button>
+            </form>
             <p><strong>Источник оценки:</strong> {{ op.duration_source }}</p>
             <p><strong>Цех/участок/РМ:</strong> {{ op.department or "—" }} / {{ op.workplace or "—" }}</p>
             {% if op.materials %}
@@ -223,7 +230,12 @@
             <p><strong>ГОСТы:</strong> {{ op.gosts | join(", ") }}</p>
             {% endif %}
             <button class="btn btn-small btn-danger"
-                    onclick="if(confirm('Удалить операцию?')){fetch('/api/edit/delete-operation',{method:'POST',body:new URLSearchParams({detail_id:'{{ detail.id }}',op_index:'{{ loop.index0 }}',reason:'удалено вручную'})}).then(r=>r.text()).then(t=>{document.getElementById('edit-status').innerHTML=t;setTimeout(()=>location.reload(),500)})}">
+                    hx-post="/api/edit/delete-operation"
+                    hx-vals='{"detail_id": "{{ detail.id }}", "op_index": "{{ loop.index0 }}", "reason": "удалено вручную"}'
+                    hx-target="#edit-status-{{ loop.index0 }}"
+                    hx-swap="innerHTML"
+                    hx-on::after-request="setTimeout(() => location.reload(), 500);"
+                    hx-confirm="Удалить операцию?">
                 🗑 Удалить
             </button>
         </div>

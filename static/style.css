@@ -204,3 +204,22 @@ code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; back
     color: #991b1b;
     border-color: #fecaca;
 }
+
+/* Inline edit form (in operations) */
+.inline-edit-form {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    margin-left: 4px;
+}
+.inline-edit-form input {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+    width: 200px;
+}
+.inline-edit-form input:focus {
+    outline: 2px solid var(--primary);
+    border-color: var(--primary);
+}

@@ -118,7 +118,7 @@ def test_edit_operation(client):
         "value": "0.5",
         "reason": "test"
     })
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
 
 
 def test_add_operation(client):
