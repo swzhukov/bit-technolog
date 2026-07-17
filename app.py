@@ -303,7 +303,7 @@ def get_detail(detail_id: str) -> Optional[dict]:
     conn.close()
     if not row:
         return None
-    cols = [d[0] for d in sqlite3.connect(DB_PATH).execute("PRAGMA table_info(details)").fetchall()]
+    cols = [d[1] for d in sqlite3.connect(DB_PATH).execute("PRAGMA table_info(details)").fetchall()]
     return dict(zip(cols, row))
 
 
