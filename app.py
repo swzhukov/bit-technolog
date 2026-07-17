@@ -596,16 +596,18 @@ class GenerateRequest(BaseModel):
     answers: Optional[dict] = None
 
 
-async def _get_param(request: Request, name: str) -> Optional[str]:
+async def _get_param(request: Request, name: str, log_name: str = "") -> Optional[str]:
     """Получает параметр из body (JSON или form-encoded) или query string.
     В FastAPI нельзя читать body дважды, поэтому читаем один раз и парсим руками."""
     from urllib.parse import parse_qs
     # 1. Query string
     qs_val = request.query_params.get(name)
     if qs_val:
+        if log_name: log.info(f"{log_name}: '{name}' from query = {qs_val!r}")
         return qs_val
     # 2. Body (form-encoded или JSON)
     body = await request.body()
+    if log_name: log.info(f"{log_name}: body={body!r}, content_type={request.headers.get('content-type')!r}")
     if not body:
         return None
     body_str = body.decode('utf-8', errors='ignore').strip()
@@ -615,14 +617,18 @@ async def _get_param(request: Request, name: str) -> Optional[str]:
     try:
         data = json.loads(body_str)
         if isinstance(data, dict) and name in data:
-            return str(data[name])
+            val = str(data[name])
+            if log_name: log.info(f"{log_name}: '{name}' from JSON = {val!r}")
+            return val
     except Exception:
         pass
     # Потом form-encoded
     try:
         parsed = parse_qs(body_str)
         if name in parsed and parsed[name]:
-            return parsed[name][0]
+            val = parsed[name][0]
+            if log_name: log.info(f"{log_name}: '{name}' from form = {val!r}")
+            return val
     except Exception:
         pass
     return None
@@ -673,7 +679,7 @@ async def detail(request: Request, detail_id: str):
 @app.post("/api/generate")
 async def generate(request: Request):
     """Generate draft via LLM (or mock in demo mode). Accepts form-data, JSON, or URL param."""
-    detail_id = await _get_param(request, "detail_id")
+    detail_id = await _get_param(request, "detail_id", log_name="/api/generate")
     if not detail_id:
         return HTMLResponse(
             '<span style="color:red">❌ Не указан detail_id</span>',
