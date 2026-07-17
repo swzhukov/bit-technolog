@@ -187,6 +187,22 @@ def init_db():
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             details TEXT
         );
+
+        -- 12. Лог LLM-вызовов (промпт + ответ + токены)
+        CREATE TABLE IF NOT EXISTS llm_calls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            detail_id TEXT,
+            model TEXT,
+            system_prompt TEXT,
+            user_prompt TEXT,
+            response_text TEXT,
+            response_parsed_ok INTEGER,
+            tokens_in INTEGER,
+            tokens_out INTEGER,
+            duration_ms INTEGER,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     conn.commit()
     conn.close()
@@ -447,6 +463,54 @@ def get_edits(detail_id: str = None) -> list:
 
 
 # Правила (обучение)
+def log_llm_call(detail_id: str, model: str, system_prompt: str, user_prompt: str,
+                 response_text: str = None, response_parsed_ok: bool = None,
+                 tokens_in: int = None, tokens_out: int = None,
+                 duration_ms: int = None, error: str = None):
+    """Записывает каждый LLM-вызов в БД для отладки"""
+    conn = get_conn()
+    conn.execute("""INSERT INTO llm_calls
+        (detail_id, model, system_prompt, user_prompt, response_text,
+         response_parsed_ok, tokens_in, tokens_out, duration_ms, error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (detail_id, model, system_prompt[:5000], user_prompt[:10000],
+         (response_text or "")[:10000],
+         1 if response_parsed_ok else (0 if response_parsed_ok is False else None),
+         tokens_in, tokens_out, duration_ms, error))
+    conn.commit()
+    conn.close()
+
+
+def get_llm_calls(detail_id: str = None, limit: int = 50) -> list:
+    """Получает последние LLM-вызовы (для UI)"""
+    conn = get_conn()
+    if detail_id:
+        rows = conn.execute("""SELECT id, detail_id, model, response_parsed_ok,
+            tokens_in, tokens_out, duration_ms, error, created_at
+            FROM llm_calls WHERE detail_id = ? ORDER BY id DESC LIMIT ?""",
+            (detail_id, limit)).fetchall()
+    else:
+        rows = conn.execute("""SELECT id, detail_id, model, response_parsed_ok,
+            tokens_in, tokens_out, duration_ms, error, created_at
+            FROM llm_calls ORDER BY id DESC LIMIT ?""", (limit,)).fetchall()
+    conn.close()
+    cols = ["id", "detail_id", "model", "response_parsed_ok", "tokens_in",
+            "tokens_out", "duration_ms", "error", "created_at"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+def get_llm_call_detail(call_id: int) -> Optional[dict]:
+    conn = get_conn()
+    row = conn.execute("""SELECT id, detail_id, model, system_prompt, user_prompt,
+        response_text, response_parsed_ok, tokens_in, tokens_out, duration_ms, error, created_at
+        FROM llm_calls WHERE id = ?""", (call_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    cols = ["id", "detail_id", "model", "system_prompt", "user_prompt",
+            "response_text", "response_parsed_ok", "tokens_in", "tokens_out",
+            "duration_ms", "error", "created_at"]
+    return dict(zip(cols, row))
 def extract_rule_from_edits():
     """Извлекает правила из частых правок"""
     conn = get_conn()
@@ -608,16 +672,32 @@ async def generate(detail_id: str = Form(...)):
             )
 
             log.info(f"Calling {LLM_MODEL} via {LLM_API_URL}...")
-            response = client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": "Ты — опытный технолог-сварщик. Генерируешь техкарты по свойствам деталей. Всегда возвращаешь валидный JSON без markdown-обёртки."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=8000
-            )
+            import time
+            t_start = time.time()
+            system_msg = "Ты — опытный технолог-сварщик. Генерируешь техкарты по свойствам деталей. Всегда возвращаешь валидный JSON без markdown-обёртки."
+            try:
+                response = client.chat.completions.create(
+                    model=LLM_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.2,
+                    max_tokens=8000
+                )
+            except Exception as llm_exc:
+                duration = int((time.time() - t_start) * 1000)
+                log_llm_call(detail_id, LLM_MODEL, system_msg, prompt,
+                             response_text=None, response_parsed_ok=False,
+                             duration_ms=duration, error=str(llm_exc))
+                raise
+            duration_ms = int((time.time() - t_start) * 1000)
             llm_output_text = response.choices[0].message.content
+            log_llm_call(detail_id, LLM_MODEL, system_msg, prompt,
+                         response_text=llm_output_text, response_parsed_ok=False,
+                         tokens_in=response.usage.prompt_tokens if response.usage else None,
+                         tokens_out=response.usage.completion_tokens if response.usage else None,
+                         duration_ms=duration_ms)
             # Strip markdown code fences if any
             llm_output_text = llm_output_text.strip()
             if llm_output_text.startswith("```"):
@@ -625,7 +705,21 @@ async def generate(detail_id: str = Form(...)):
                 llm_output_text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else llm_output_text
                 if llm_output_text.startswith("json"):
                     llm_output_text = llm_output_text[4:].lstrip()
-            llm_output = json.loads(llm_output_text)
+            try:
+                llm_output = json.loads(llm_output_text)
+                # Обновляем запись: parsed_ok=True
+                conn = get_conn()
+                conn.execute("UPDATE llm_calls SET response_parsed_ok=1 WHERE id=(SELECT MAX(id))")
+                conn.commit()
+                conn.close()
+            except json.JSONDecodeError as je:
+                log_llm_call(detail_id, LLM_MODEL, system_msg, prompt,
+                             response_text=llm_output_text, response_parsed_ok=False,
+                             duration_ms=duration_ms, error=f"JSON parse: {je}")
+                return HTMLResponse(
+                    f'<span style="color:red">❌ LLM вернул невалидный JSON. <a href="/llm-debug" target="_blank">Открыть отладку</a></span>',
+                    status_code=500
+                )
             add_history(detail_id, "generated", {
                 "model": LLM_MODEL,
                 "tokens_in": response.usage.prompt_tokens if response.usage else None,
@@ -635,7 +729,7 @@ async def generate(detail_id: str = Form(...)):
             log.error(f"LLM error: {e}")
             error_msg = str(e).replace("<", "&lt;").replace(">", "&gt;")[:200]
             return HTMLResponse(
-                f'<span style="color:red">❌ Ошибка LLM: {error_msg}</span>',
+                f'<span style="color:red">❌ Ошибка LLM: {error_msg} <a href="/llm-debug" target="_blank">лог</a></span>',
                 status_code=500
             )
 
@@ -1271,11 +1365,28 @@ async def learning_page(request: Request):
     metrics = get_metrics()
     rules = extract_rule_from_edits()
     all_edits = get_edits()
+    llm_calls = get_llm_calls(limit=20)
     return templates.TemplateResponse("learning.html", {
         "request": request,
         "metrics": metrics,
         "rules": rules,
-        "edits": all_edits
+        "edits": all_edits,
+        "llm_calls": llm_calls
+    })
+
+
+@app.get("/llm-debug", response_class=HTMLResponse)
+async def llm_debug_page(request: Request, detail_id: str = None, call_id: int = None):
+    calls = get_llm_calls(detail_id=detail_id, limit=100)
+    selected = None
+    if call_id:
+        selected = get_llm_call_detail(call_id)
+    elif calls:
+        selected = get_llm_call_detail(calls[0]["id"])
+    return templates.TemplateResponse("llm_debug.html", {
+        "request": request,
+        "calls": calls,
+        "selected": selected
     })
 
 

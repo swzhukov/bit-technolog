@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}LLM Debug — БИТ.Технолог{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="/learning">← К обучению</a> | <a href="/">Главная</a></div>
+<h1>🐛 Отладка LLM-вызовов</h1>
+<p class="lead">Каждый запрос к LLM логируется: промпт, ответ, токены, время, ошибки</p>
+
+<div style="display:flex; gap:20px; margin-top:20px;">
+    <div style="flex: 0 0 380px;">
+        <h3>История вызовов ({{ calls | length }})</h3>
+        <table class="data-table">
+            <thead><tr><th>#</th><th>Когда</th><th>Деталь</th><th>Статус</th><th>Время</th><th>In/Out</th></tr></thead>
+            <tbody>
+                {% for c in calls %}
+                <tr style="cursor:pointer; {% if selected and selected.id == c.id %}background:#fef3c7;{% endif %}"
+                    onclick="location.href='/llm-debug?call_id={{ c.id }}'">
+                    <td>#{{ c.id }}</td>
+                    <td><small>{{ c.created_at[:16] }}</small></td>
+                    <td>
+                        {% if c.detail_id %}
+                        <a href="/detail/{{ c.detail_id }}">{{ c.detail_id[:10] }}</a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if c.error %}🔴
+                        {% elif c.response_parsed_ok == 1 %}🟢
+                        {% else %}🟡{% endif %}
+                    </td>
+                    <td><small>{{ c.duration_ms or "?" }}мс</small></td>
+                    <td><small>{{ c.tokens_in or 0 }}/{{ c.tokens_out or 0 }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="flex: 1;">
+        {% if selected %}
+        <h3>Вызов #{{ selected.id }} <small style="color:#999;">{{ selected.created_at }}</small></h3>
+        <p>
+            <strong>Модель:</strong> <code>{{ selected.model }}</code> |
+            <strong>Токены:</strong> {{ selected.tokens_in or 0 }} → {{ selected.tokens_out or 0 }} |
+            <strong>Время:</strong> {{ selected.duration_ms or "?" }}мс
+            {% if selected.error %}<br><span style="color:red"><strong>Ошибка:</strong> {{ selected.error }}</span>{% endif %}
+        </p>
+
+        <details open>
+            <summary><strong>📤 System prompt</strong> ({{ (selected.system_prompt or "") | length }} chars)</summary>
+            <pre style="background:#f8f8f8; padding:10px; border-radius:4px; max-height:300px; overflow:auto; white-space:pre-wrap; font-size:12px;">{{ selected.system_prompt }}</pre>
+        </details>
+
+        <details open>
+            <summary><strong>📤 User prompt (промпт)</strong> ({{ (selected.user_prompt or "") | length }} chars)</summary>
+            <pre style="background:#f8f8f8; padding:10px; border-radius:4px; max-height:500px; overflow:auto; white-space:pre-wrap; font-size:12px;">{{ selected.user_prompt }}</pre>
+        </details>
+
+        <details open>
+            <summary><strong>📥 Ответ LLM</strong> ({{ (selected.response_text or "") | length }} chars)</summary>
+            <pre style="background:#f0f9ff; padding:10px; border-radius:4px; max-height:600px; overflow:auto; white-space:pre-wrap; font-size:12px;">{{ selected.response_text or "(пусто)" }}</pre>
+        </details>
+        {% else %}
+        <p>Выбери вызов слева чтобы посмотреть детали.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Обучение — БИТ.Технолог{% endblock %}
 {% block content %}
-<div class="breadcrumb"><a href="/">← На главную</a></div>
+<div class="breadcrumb"><a href="/">← На главную</a> | <a href="/llm-debug">🐛 LLM Debug</a></div>
 <h1>🎓 Обучение: метрики и правила</h1>
 <p class="lead">Что узнала система из правок технолога</p>
 
@@ -72,5 +72,30 @@
 </table>
 {% else %}
 <p>Правок пока нет. Сгенерируй черновик → открой деталь → поправь операцию → правка появится здесь.</p>
+{% endif %}
+
+<h2>🐛 Последние LLM-вызовы <a href="/llm-debug" style="font-size:14px;">→ полный лог</a></h2>
+{% if llm_calls %}
+<table class="data-table">
+    <thead><tr><th>#</th><th>Когда</th><th>Деталь</th><th>Статус</th><th>Время (мс)</th><th>In/Out токенов</th></tr></thead>
+    <tbody>
+        {% for c in llm_calls[:10] %}
+        <tr>
+            <td><a href="/llm-debug?call_id={{ c.id }}">#{{ c.id }}</a></td>
+            <td><small>{{ c.created_at[:16] }}</small></td>
+            <td>{{ c.detail_id[:12] if c.detail_id else "—" }}</td>
+            <td>
+                {% if c.error %}🔴 ошибка
+                {% elif c.response_parsed_ok == 1 %}🟢 ok
+                {% else %}🟡{% endif %}
+            </td>
+            <td>{{ c.duration_ms or "?" }}</td>
+            <td>{{ c.tokens_in or 0 }} / {{ c.tokens_out or 0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>LLM-вызовов пока нет.</p>
 {% endif %}
 {% endblock %}
