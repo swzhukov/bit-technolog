@@ -597,25 +597,35 @@ class GenerateRequest(BaseModel):
 
 
 async def _get_param(request: Request, name: str) -> Optional[str]:
-    """Получает параметр из form-data, JSON, или query string (для совместимости с htmx)"""
-    # 1. Попробуем form-data
+    """Получает параметр из body (JSON или form-encoded) или query string.
+    В FastAPI нельзя читать body дважды, поэтому читаем один раз и парсим руками."""
+    from urllib.parse import parse_qs
+    # 1. Query string
+    qs_val = request.query_params.get(name)
+    if qs_val:
+        return qs_val
+    # 2. Body (form-encoded или JSON)
+    body = await request.body()
+    if not body:
+        return None
+    body_str = body.decode('utf-8', errors='ignore').strip()
+    if not body_str:
+        return None
+    # Сначала пробуем JSON
     try:
-        form = await request.form()
-        if name in form:
-            return form[name]
+        data = json.loads(body_str)
+        if isinstance(data, dict) and name in data:
+            return str(data[name])
     except Exception:
         pass
-    # 2. Попробуем JSON body
+    # Потом form-encoded
     try:
-        body = await request.body()
-        if body:
-            data = json.loads(body)
-            if isinstance(data, dict) and name in data:
-                return data[name]
+        parsed = parse_qs(body_str)
+        if name in parsed and parsed[name]:
+            return parsed[name][0]
     except Exception:
         pass
-    # 3. Попробуем query string
-    return request.query_params.get(name)
+    return None
 
 
 # Routes
