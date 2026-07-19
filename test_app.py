@@ -1987,6 +1987,8 @@ def test_diff_view_no_versions(client):
 
 def test_diff_view_with_versions(client):
     c, _ = client
+    # BUG-2026-07-19-01: фиксируем роль для теста (cookie утекает от test_role_persists)
+    c.post("/api/role/switch", data={"role": "technologist"})
     # Создаём деталь через /api/details
     r = c.post("/api/details",
         data={"designation": "TEST-DIFF-002", "name": "Test diff detail",
@@ -2850,3 +2852,58 @@ def test_equipment_datalist_in_detail(client):
     assert 'list="equipment-list"' in r.text
     assert '<datalist id="equipment-list">' in r.text
     assert '<datalist id="equipment-list">' in r.text
+
+
+# ========== BUG-2026-07-19-01: RBAC для AI endpoints ==========
+
+def test_rbac_generate_blocks_non_technologist(client):
+    """normirovshchik/quality/constructor НЕ должны мочь генерировать ТК"""
+    c, _ = client
+    # Создаём деталь как technologist
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "RBAC-001", "name": "RBAC test", "model": "X", "chassis": "",
+              "material": "Сталь", "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    did = r.headers.get("location", "").rsplit("/", 1)[-1]
+    # Переключаемся на нормировщика и пробуем генерировать
+    for role in ("normirovshchik", "quality", "constructor", "workshop_chief"):
+        c.post("/api/role/switch", data={"role": role})
+        r = c.post("/api/generate", data={"detail_id": did})
+        assert r.status_code == 403, f"role {role} should get 403 on /api/generate, got {r.status_code}"
+        r = c.post("/api/draft-fast", data={"detail_id": did})
+        assert r.status_code == 403, f"role {role} should get 403 on /api/draft-fast, got {r.status_code}"
+        r = c.post("/api/refine", data={"detail_id": did})
+        assert r.status_code == 403, f"role {role} should get 403 on /api/refine, got {r.status_code}"
+
+
+def test_rbac_ai_block_hidden_for_non_technologist(client):
+    """AI-блок не должен быть виден normirovshchik/quality/constructor"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "RBAC-002", "name": "RBAC visibility test", "model": "X", "chassis": "",
+              "material": "Сталь", "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    did = r.headers.get("location", "").rsplit("/", 1)[-1]
+    for role in ("normirovshchik", "quality", "constructor"):
+        c.post("/api/role/switch", data={"role": role})
+        r = c.get(f"/detail/{did}")
+        assert r.status_code == 200
+        # AI-блок с кнопкой "🤔 Уточнить" должен быть скрыт
+        assert "🤔 Уточнить" not in r.text, f"role {role} sees AI Уточнить button"
+
+
+def test_surface_none_no_typeerror(client):
+    """BUG-2026-07-19-02: surface_treatment=None не должен падать в TypeError"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "NONE-001", "name": "None surface test",
+              "model": "АЦ-6,0-40", "chassis": "КАМАЗ-43118",
+              "material": "Сталь 09Г2С", "size_mm": "100", "mass_kg": "5",
+              "surface_treatment": ""},
+        follow_redirects=False)
+    did = r.headers.get("location", "").rsplit("/", 1)[-1]
+    r = c.post("/api/generate", data={"detail_id": did})
+    assert r.status_code == 200

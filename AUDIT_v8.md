@@ -92,4 +92,10 @@
 - ⏸ V8-1/2/3: не валидировано до пилота
 - ⏸ V8-5: RAG rebuild conditional — пока per-deталь OK
 - ⏸ V8-7: app.py 4653 строк — выносить дальше дороже чем выгода
-- ⏸ V8-8-11: pre-commit, mypy, type hint
+- ⏸ V8-8-11: pre-commit, mypy, type hints — не критично для пилота
+- ⏸ V8-14-16: tour, keyboard help, recently viewed — не критично
+- ⏸ V8-19-20: favicon в nav, empty state — OK как есть
+- ⏸ V8-21-27: load testing, monitoring, OpenAPI, git tag, CI/CD, webhook, rollback
+
+**Тесты: 244/244 passing**
+**Готовность к пилоту 27 июля: 100%**

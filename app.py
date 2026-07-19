@@ -2510,6 +2510,10 @@ async def detail(request: Request, detail_id: str):
 @app.post("/api/analyze")
 async def api_analyze(request: Request):
     """Sprint 1: AI задаёт 3-5 уточняющих вопросов перед генерацией (blueprint.io pattern)"""
+    # BUG-2026-07-19-01: RBAC — нормировщик/ОТК/конструктор не должны генерировать
+    role = request.cookies.get("bit_role", "technologist")
+    if role not in ("technologist", "main_technologist", "admin"):
+        return err("role_not_allowed: только технолог/гл.технолог/админ могут генерировать", 403)
     detail_id = await _get_param(request, "detail_id", log_name="/api/analyze")
     if not detail_id:
         return err("detail_id required", 422)
@@ -2577,6 +2581,10 @@ async def api_analyze(request: Request):
 @app.post("/api/draft-fast")
 async def api_draft_fast(request: Request):
     """Sprint 1: быстрый дешёвый draft (короткий промт, 3 операции, ~30 сек, ~1₽)"""
+    # BUG-2026-07-19-01: RBAC
+    role = request.cookies.get("bit_role", "technologist")
+    if role not in ("technologist", "main_technologist", "admin"):
+        return err("role_not_allowed", 403)
     detail_id = await _get_param(request, "detail_id", log_name="/api/draft-fast")
     if not detail_id:
         return err("detail_id required", 422)
@@ -2636,6 +2644,10 @@ async def api_draft_fast(request: Request):
 @app.post("/api/refine")
 async def api_refine(request: Request):
     """Sprint 1: уточнение draft'а до полного маршрута (с учётом ответов на уточнения)"""
+    # BUG-2026-07-19-01: RBAC
+    role = request.cookies.get("bit_role", "technologist")
+    if role not in ("technologist", "main_technologist", "admin"):
+        return err("role_not_allowed", 403)
     detail_id = await _get_param(request, "detail_id", log_name="/api/refine")
     if not detail_id:
         return err("detail_id required", 422)
@@ -2748,6 +2760,13 @@ async def api_feedback(request: Request):
 @app.post("/api/generate")
 async def generate(request: Request):
     """Generate draft via LLM (or mock in demo mode). Accepts form-data, JSON, or URL param."""
+    # BUG-2026-07-19-01: RBAC — нормировщик/ОТК/конструктор не должны генерировать
+    role = request.cookies.get("bit_role", "technologist")
+    if role not in ("technologist", "main_technologist", "admin"):
+        return HTMLResponse(
+            f'<span style="color:red">❌ Доступ запрещён: роль «{role}» не может генерировать</span>',
+            status_code=403
+        )
     detail_id = await _get_param(request, "detail_id", log_name="/api/generate")
     if not detail_id:
         return HTMLResponse(
@@ -2876,7 +2895,7 @@ def generate_mock_draft(detail_obj: dict, op_type: str = "general") -> dict:
     material = detail_obj.get("material", "")
     model = detail_obj.get("model", "")
     mass = detail_obj.get("mass_kg", 0)
-    surface = detail_obj.get("surface_treatment", "")
+    surface = detail_obj.get("surface_treatment", "") or ""  # None-safe
 
     # Heuristic: welding operations for steel details
     is_steel = material and "Сталь" in material

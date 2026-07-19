@@ -75,6 +75,8 @@
 </details>
 
 {# M4 fix: 3-step flow с прогрессом и localStorage для answers #}
+{# BUG-2026-07-19-01: AI-блок виден только технологу/гл.технологу/админу #}
+{% if current_role_from_request(request) in ('technologist', 'main_technologist', 'admin') %}
 {# F16.8: A4-6 — AI-блок открыт по умолчанию для status=new #}
 <details class="add-form" style="margin-bottom: 16px;" {% if status == "new" %}open{% endif %}>
     <summary>🤖 AI-помощник: полная генерация техкарты</summary>
@@ -100,6 +102,7 @@
     </div>
     <p class="hint">💡 Или используй старую кнопку «✨ Сгенерировать» (полный вызов без уточнений, ~3₽).</p>
 </details>
+{% endif %}
 
 <script>
 {# M4 fix: 3-step flow использует localStorage для передачи answers между шагами #}
