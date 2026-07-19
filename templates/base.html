@@ -17,6 +17,9 @@
             <a href="/iot" class="navlink">⚠ ИОТ</a>
             <a href="/benchmarks" class="navlink">📊 Бенчмарки</a>
             <a href="/learning" class="navlink">🎓 Обучение</a>
+            {% if is_admin_from_request(request) %}
+            <a href="/admin" class="navlink" style="color:#dc2626;">🛡 Админ</a>
+            {% endif %}
             <a href="/pilot" class="navlink">📊 Пилот</a>
             <a href="/pilot/report" class="navlink">📈 Отчёт</a>
             <a href="/audit" class="navlink">📋 Audit</a>
@@ -29,6 +32,7 @@
                 <option value="constructor">📐 Конструктор</option>
                 <option value="workshop_chief">🏭 Нач. цеха</option>
                 <option value="quality">🔍 ОТК</option>
+                <option value="admin">🛡 Админ</option>
             </select>
             {% set dc = daily_cost() %}
             {% if dc.total_rub >= dc.limit_rub %}

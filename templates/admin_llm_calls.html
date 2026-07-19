@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}LLM-вызовы — Admin{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="/admin">← К дашборду</a></div>
+<h1>🤖 LLM-вызовы</h1>
+
+<form method="GET" action="/admin/llm-calls" style="background:#f9fafb; padding:12px; border-radius:6px; margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <label>Модель:
+        <select name="model" style="padding:4px;">
+            <option value="">все</option>
+            {% for m in models %}
+            <option value="{{ m }}" {% if filters.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Дни: <input name="days" type="number" value="{{ filters.days }}" style="width:60px; padding:4px;"></label>
+    <label><input type="checkbox" name="errors_only" value="1" {% if filters.errors_only %}checked{% endif %}> только ошибки</label>
+    <label>Лимит: <input name="limit" type="number" value="{{ filters.limit }}" style="width:80px; padding:4px;"></label>
+    <button type="submit" class="btn btn-primary">Применить</button>
+    <span style="margin-left:auto; font-size:14px;">
+        <strong>{{ total_count }}</strong> вызовов на <strong>{{ total_cost }}₽</strong>
+    </span>
+</form>
+
+{% if calls %}
+<table class="data-table">
+    <thead><tr>
+        <th>Когда</th><th>Деталь</th><th>Модель</th>
+        <th>Tokens in/out</th><th>Стоимость</th><th>Время</th><th>OK</th>
+    </tr></thead>
+    <tbody>
+    {% for c in calls %}
+        <tr>
+            <td>{{ c.ts[:19] }}</td>
+            <td><code>{{ c.detail_id or "—" }}</code></td>
+            <td style="font-size:11px;">{{ c.model or "—" }}</td>
+            <td>{{ c.tokens_in or 0 }} / {{ c.tokens_out or 0 }}</td>
+            <td>{{ c.cost_rub }}₽</td>
+            <td>{{ c.duration_ms or 0 }}мс</td>
+            <td>{% if c.parsed %}✅{% elif c.error %}<span style="color:red;" title="{{ c.error }}">❌</span>{% else %}—{% endif %}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Нет данных по фильтру.</p>
+{% endif %}
+{% endblock %}

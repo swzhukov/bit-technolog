@@ -145,6 +145,8 @@ footer { text-align: center; padding: 20px 0; color: var(--text-light); font-siz
 
 code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
 
+.stat-bar { background: #f3f4f6; height: 24px; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+
 .role-select {
     background: #f0f9ff;
     color: var(--primary);

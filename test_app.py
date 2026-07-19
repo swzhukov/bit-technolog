@@ -1335,3 +1335,195 @@ def test_telegram_dryrun():
     from app import send_telegram
     result = send_telegram("test message")
     assert result is True
+
+
+# ========== Admin role & functionality (v0.4.2) ==========
+def test_admin_role_exists():
+    """Роль admin есть в ROLES"""
+    from app import ROLES
+    assert "admin" in ROLES
+    assert ROLES["admin"]["can_admin"] is True
+    assert ROLES["admin"]["can_edit"] is True
+    assert ROLES["admin"]["can_approve"] is True
+
+
+def test_admin_dashboard_requires_admin(client):
+    """GET /admin без роли admin = 403"""
+    c, _ = client
+    r = c.get("/admin")
+    assert r.status_code == 403
+
+
+def test_admin_dashboard_as_admin(client):
+    """GET /admin с ролью admin = 200, есть метрики"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.get("/admin")
+    assert r.status_code == 200
+    assert "Админ" in r.text or "admin" in r.text.lower()
+
+
+def test_admin_users_page(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.get("/admin/users")
+    assert r.status_code == 200
+    assert "Пользователи" in r.text
+
+
+def test_admin_create_user(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.post("/api/admin/users/create",
+               data={"username": "test_tech_1", "password": "secret123",
+                     "role": "technologist", "display_name": "Тестовый Технолог"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["username"] == "test_tech_1"
+
+
+def test_admin_create_user_duplicate(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    c.post("/api/admin/users/create",
+           data={"username": "dup_user", "password": "secret123", "role": "technologist"})
+    r = c.post("/api/admin/users/create",
+               data={"username": "dup_user", "password": "secret123", "role": "technologist"})
+    assert r.status_code == 409
+
+
+def test_admin_create_user_short_password(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.post("/api/admin/users/create",
+               data={"username": "short_pw", "password": "abc", "role": "technologist"})
+    assert r.status_code == 400
+
+
+def test_admin_create_user_invalid_role(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.post("/api/admin/users/create",
+               data={"username": "bad_role", "password": "secret123", "role": "hacker"})
+    assert r.status_code == 400
+
+
+def test_admin_change_password(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    c.post("/api/admin/users/create",
+           data={"username": "pw_user", "password": "old12345", "role": "technologist"})
+    r = c.post("/api/admin/users/1/password", data={"password": "new12345"})
+    assert r.status_code == 200
+
+
+def test_admin_toggle_user(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    c.post("/api/admin/users/create",
+           data={"username": "tog_user", "password": "secret123", "role": "technologist"})
+    r = c.post("/api/admin/users/1/toggle")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["is_active"] is False  # только что создан, теперь deactivated
+    r2 = c.post("/api/admin/users/1/toggle")
+    assert r2.json()["is_active"] is True
+
+
+def test_admin_delete_user(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    c.post("/api/admin/users/create",
+           data={"username": "del_user", "password": "secret123", "role": "technologist"})
+    r = c.post("/api/admin/users/1/delete")
+    assert r.status_code == 200
+
+
+def test_admin_login_log_page(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.get("/admin/login-log")
+    assert r.status_code == 200
+    assert "Лог входов" in r.text or "вход" in r.text.lower()
+
+
+def test_admin_llm_calls_page(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.get("/admin/llm-calls")
+    assert r.status_code == 200
+    assert "LLM" in r.text or "вызов" in r.text.lower()
+
+
+def test_admin_llm_calls_filter_errors(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.get("/admin/llm-calls?errors_only=1&days=30")
+    assert r.status_code == 200
+
+
+def test_admin_system_page(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.get("/admin/system")
+    assert r.status_code == 200
+    assert "Систем" in r.text or "Память" in r.text or "system" in r.text.lower()
+
+
+def test_admin_rag_rebuild(client):
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "admin"})
+    r = c.post("/api/admin/rag-rebuild")
+    assert r.status_code in (200, 500)  # 500 если rag пустой
+    data = r.json()
+    # ok или ошибка с понятным текстом
+    assert "ok" in data or "error" in data
+
+
+def test_admin_endpoints_require_admin(client):
+    """Все /api/admin/* возвращают 403 без admin-роли"""
+    c, _ = client
+    # Принудительно переключаемся на не-admin роль
+    c.post("/api/role/switch", data={"role": "technologist"})
+    # Создаём пользователя — должно быть 403
+    r1 = c.post("/api/admin/users/create", data={"username": "x_noadmin", "password": "yyyyyy", "role": "technologist"})
+    r2 = c.post("/api/admin/backup")
+    r3 = c.post("/api/admin/rag-rebuild")
+    assert r1.status_code == 403, f"expected 403, got {r1.status_code}: {r1.text}"
+    assert r2.status_code == 403, f"expected 403, got {r2.status_code}: {r2.text}"
+    assert r3.status_code == 403, f"expected 403, got {r3.status_code}: {r3.text}"
+
+
+def test_hash_password_and_verify():
+    """bcrypt/sha256 round-trip"""
+    from app import hash_password, verify_password
+    h = hash_password("secret123")
+    assert h
+    assert verify_password("secret123", h) is True
+    assert verify_password("wrong", h) is False
+
+
+def test_log_login_records_attempt():
+    """log_login() записывает в audit_logins"""
+    from app import log_login, get_conn
+    log_login("test_user", "127.0.0.1", "test-ua", True)
+    log_login("test_user", "127.0.0.1", "test-ua", False)
+    conn = get_conn()
+    rows = conn.execute("SELECT username, success FROM audit_logins WHERE username='test_user' ORDER BY id DESC LIMIT 2").fetchall()
+    conn.close()
+    assert len(rows) == 2
+    assert rows[0][1] == 0  # последний — false
+    assert rows[1][1] == 1
+
+
+def test_admin_link_in_nav_for_admin_role(client):
+    """Ссылка /admin в навигации только для admin"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r1 = c.get("/", follow_redirects=True)
+    assert "/admin" not in r1.text or "🛡" not in r1.text
+    c.post("/api/role/switch", data={"role": "admin"})
+    r2 = c.get("/", follow_redirects=True)
+    assert "/admin" in r2.text
+    assert "🛡" in r2.text

@@ -125,6 +125,34 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
+# ========== Middleware: request.state.current_role для шаблонов ==========
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+
+class RoleStateMiddleware(BaseHTTPMiddleware):
+    """Добавляет request.state.current_role = 'admin' / 'technologist' / etc"""
+
+    async def dispatch(self, request, call_next):
+        role = request.cookies.get("bit_role", "technologist")
+        if role not in ROLES:
+            role = "technologist"
+        request.state.current_role = role
+        response = await call_next(request)
+        return response
+
+
+app.add_middleware(RoleStateMiddleware)
+
+
+# Глобальные функции в Jinja: current_role, is_admin, role_name
+templates.env.globals.update({
+    "current_role_from_request": lambda request: getattr(request.state, "current_role", "technologist"),
+    "is_admin_from_request": lambda request: getattr(request.state, "current_role", "") == "admin",
+    "role_name_lookup": lambda r: ROLES.get(r, {}).get("name", r)
+})
+
+
 # ========== Helpers v3 (NC5, NC7, OB3) ==========
 def err(msg: str, code: int = 400, **extra) -> JSONResponse:
     """NC7: единый helper для JSON-ошибок"""
@@ -458,6 +486,29 @@ def init_db():
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             uploaded_by TEXT
         );
+
+        -- 17. Пользователи пилота (БД, не .env)
+        CREATE TABLE IF NOT EXISTS pilot_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'technologist',
+            display_name TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP,
+            created_by TEXT
+        );
+
+        -- 18. Лог входов (успех/ошибка, IP, user-agent)
+        CREATE TABLE IF NOT EXISTS audit_logins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip TEXT,
+            user_agent TEXT,
+            success INTEGER NOT NULL  -- 0 или 1
+        );
     """)
     # Миграция: добавляем колонку cost_rub если её нет (для старых БД)
     try:
@@ -565,7 +616,7 @@ async def api_workflow_assign(request: Request):
     assignee = await _get_param(request, "assignee")
     if not detail_id or not role or not assignee:
         return err("detail_id, role, assignee required", 422)
-    valid_roles = ("constructor", "technologist", "normirovshchik", "workshop_chief", "quality", "main_technologist")
+    valid_roles = ("constructor", "technologist", "normirovshchik", "workshop_chief", "quality", "main_technologist", "admin")
     if role not in valid_roles:
         return err(f"role must be one of {valid_roles}", 400)
     conn = get_conn()
@@ -642,6 +693,14 @@ ROLES = {
         "can_edit": True,
         "can_approve": False,
         "can_manage_workflow": False
+    },
+    "admin": {
+        "name": "Администратор",
+        "default_view": "admin_dashboard",
+        "can_edit": True,
+        "can_approve": True,
+        "can_manage_workflow": True,
+        "can_admin": True
     }
 }
 
@@ -652,6 +711,76 @@ def get_current_role(request: Request) -> str:
     if role not in ROLES:
         role = "technologist"
     return role
+
+
+def is_admin(request: Request) -> bool:
+    """Проверка что текущий пользователь — администратор"""
+    return get_current_role(request) == "admin"
+
+
+# ========== Аутентификация и пользователи пилота (БД) ==========
+def hash_password(password: str) -> str:
+    """bcrypt хеш пароля. Если bcrypt недоступен — fallback на sha256+salt."""
+    try:
+        import bcrypt
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    except ImportError:
+        import hashlib
+        import secrets
+        salt = secrets.token_hex(16)
+        h = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+        return f"sha256${salt}${h}"
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Проверка пароля"""
+    if not password_hash:
+        return False
+    try:
+        import bcrypt
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ImportError:
+        if password_hash.startswith("sha256$"):
+            import hashlib
+            parts = password_hash.split("$", 2)
+            if len(parts) != 3:
+                return False
+            salt, h = parts[1], parts[2]
+            return hashlib.sha256((salt + password).encode("utf-8")).hexdigest() == h
+    return False
+
+
+def authenticate_pilot_user(username: str, password: str) -> dict | None:
+    """Аутентификация пользователя из БД. Возвращает dict или None."""
+    conn = get_conn()
+    try:
+        row = conn.execute("""SELECT id, username, password_hash, role, display_name, is_active
+            FROM pilot_users WHERE username=? AND is_active=1""", (username,)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    if not verify_password(password, row[2]):
+        return None
+    # update last_login
+    conn = get_conn()
+    try:
+        conn.execute("UPDATE pilot_users SET last_login=CURRENT_TIMESTAMP WHERE id=?", (row[0],))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"id": row[0], "username": row[1], "role": row[3], "display_name": row[4]}
+
+
+def log_login(username: str, ip: str, user_agent: str, success: bool):
+    """Логирование попытки входа"""
+    conn = get_conn()
+    try:
+        conn.execute("""INSERT INTO audit_logins (username, ip, user_agent, success)
+            VALUES (?, ?, ?, ?)""", (username, ip, user_agent, 1 if success else 0))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 @app.get("/detail/{detail_id}/diff/{v_from}/{v_to}", response_class=HTMLResponse)
@@ -766,6 +895,327 @@ async def api_role_switch(request: Request):
     response = JSONResponse({"ok": True, "role": role, "name": ROLES[role]["name"]})
     response.set_cookie("bit_role", role, max_age=86400 * 365, httponly=True, samesite="lax")
     return response
+
+
+# ========== Admin: дашборд, пользователи, лог входов, LLM-лог, бэкапы, система ==========
+def _require_admin_or_json(request: Request):
+    """Возвращает JSON-ошибку 403 если не admin, иначе None"""
+    if get_current_role(request) != "admin":
+        return JSONResponse(
+            {"ok": False, "error": "admin only", "current_role": get_current_role(request)},
+            status_code=403
+        )
+    return None
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """Дашборд администратора"""
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403 — Доступ только администратору</h1>", status_code=403)
+    conn = get_conn()
+    # Базовые счётчики
+    counts = {
+        "users_total": conn.execute("SELECT COUNT(*) FROM pilot_users").fetchone()[0] or 0,
+        "users_active": conn.execute("SELECT COUNT(*) FROM pilot_users WHERE is_active=1").fetchone()[0] or 0,
+        "logins_today": conn.execute("SELECT COUNT(*) FROM audit_logins WHERE date(ts)=date('now')").fetchone()[0] or 0,
+        "logins_failed_today": conn.execute("SELECT COUNT(*) FROM audit_logins WHERE date(ts)=date('now') AND success=0").fetchone()[0] or 0,
+        "llm_calls_today": conn.execute("SELECT COUNT(*) FROM llm_calls WHERE date(created_at)=date('now')").fetchone()[0] or 0,
+        "llm_cost_today": conn.execute("SELECT COALESCE(SUM(cost_rub), 0) FROM llm_calls WHERE date(created_at)=date('now')").fetchone()[0] or 0,
+        "details_total": conn.execute("SELECT COUNT(*) FROM details").fetchone()[0] or 0,
+        "drafts_total": conn.execute("SELECT COUNT(*) FROM drafts").fetchone()[0] or 0,
+        "rag_chunks": conn.execute("SELECT COUNT(*) FROM draft_versions").fetchone()[0] or 0,
+    }
+    # Последние 5 входов
+    recent_logins = conn.execute("""SELECT username, ts, ip, success FROM audit_logins
+        ORDER BY ts DESC LIMIT 5""").fetchall()
+    recent_logins = [{"username": r[0], "ts": r[1], "ip": r[2], "success": r[3]} for r in recent_logins]
+    # Последние 5 LLM ошибок
+    recent_errors = conn.execute("""SELECT detail_id, error, created_at FROM llm_calls
+        WHERE error IS NOT NULL AND error != ''
+        ORDER BY created_at DESC LIMIT 5""").fetchall()
+    recent_errors = [{"detail_id": r[0], "error": r[1][:200], "ts": r[2]} for r in recent_errors]
+    # Размер БД (если существует)
+    db_size = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
+    conn.close()
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "counts": counts,
+        "recent_logins": recent_logins,
+        "recent_errors": recent_errors,
+        "db_size_mb": round(db_size / 1024 / 1024, 2)
+    })
+
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(request: Request):
+    """Список пользователей пилота"""
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403</h1>", status_code=403)
+    conn = get_conn()
+    users = conn.execute("""SELECT id, username, role, display_name, is_active, created_at, last_login
+        FROM pilot_users ORDER BY id""").fetchall()
+    users = [{
+        "id": r[0], "username": r[1], "role": r[2], "display_name": r[3],
+        "is_active": bool(r[4]), "created_at": r[5], "last_login": r[6]
+    } for r in users]
+    conn.close()
+    return templates.TemplateResponse("admin_users.html", {
+        "request": request,
+        "users": users,
+        "roles": ROLES
+    })
+
+
+@app.post("/api/admin/users/create")
+async def api_admin_create_user(request: Request):
+    """Создать пользователя пилота"""
+    err_resp = _require_admin_or_json(request)
+    if err_resp: return err_resp
+    username = await _get_param(request, "username")
+    password = await _get_param(request, "password")
+    role = (await _get_param(request, "role")) or "technologist"
+    display_name = (await _get_param(request, "display_name")) or ""
+    if not username or not password:
+        return err("username and password required", 422)
+    if role not in ROLES:
+        return err(f"role must be one of {list(ROLES.keys())}", 400)
+    if len(password) < 6:
+        return err("password too short (min 6)", 400)
+    conn = get_conn()
+    try:
+        conn.execute("""INSERT INTO pilot_users (username, password_hash, role, display_name, created_by)
+            VALUES (?, ?, ?, ?, ?)""",
+            (username, hash_password(password), role, display_name, "admin"))
+        conn.commit()
+    except Exception as e:
+        if "UNIQUE" in str(e):
+            return err(f"user '{username}' already exists", 409)
+        return err(f"create failed: {e}", 500)
+    finally:
+        conn.close()
+    return JSONResponse({"ok": True, "username": username, "role": role})
+
+
+@app.post("/api/admin/users/{user_id}/password")
+async def api_admin_change_password(request: Request, user_id: int):
+    """Сменить пароль пользователя"""
+    err_resp = _require_admin_or_json(request)
+    if err_resp: return err_resp
+    password = await _get_param(request, "password")
+    if not password or len(password) < 6:
+        return err("password required (min 6)", 400)
+    conn = get_conn()
+    cur = conn.execute("UPDATE pilot_users SET password_hash=? WHERE id=?",
+                       (hash_password(password), user_id))
+    conn.commit()
+    if cur.rowcount == 0:
+        conn.close()
+        return err("user not found", 404)
+    conn.close()
+    return JSONResponse({"ok": True, "user_id": user_id})
+
+
+@app.post("/api/admin/users/{user_id}/toggle")
+async def api_admin_toggle_user(request: Request, user_id: int):
+    """Активировать/деактивировать пользователя"""
+    err_resp = _require_admin_or_json(request)
+    if err_resp: return err_resp
+    conn = get_conn()
+    conn.execute("UPDATE pilot_users SET is_active = 1 - is_active WHERE id=?", (user_id,))
+    conn.commit()
+    new_state = conn.execute("SELECT is_active FROM pilot_users WHERE id=?", (user_id,)).fetchone()
+    conn.close()
+    if not new_state:
+        return err("user not found", 404)
+    return JSONResponse({"ok": True, "user_id": user_id, "is_active": bool(new_state[0])})
+
+
+@app.post("/api/admin/users/{user_id}/delete")
+async def api_admin_delete_user(request: Request, user_id: int):
+    """Удалить пользователя"""
+    err_resp = _require_admin_or_json(request)
+    if err_resp: return err_resp
+    conn = get_conn()
+    conn.execute("DELETE FROM pilot_users WHERE id=?", (user_id,))
+    conn.commit()
+    conn.close()
+    return JSONResponse({"ok": True, "user_id": user_id})
+
+
+@app.get("/admin/login-log", response_class=HTMLResponse)
+async def admin_login_log(request: Request, limit: int = 100):
+    """Лог входов"""
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403</h1>", status_code=403)
+    conn = get_conn()
+    rows = conn.execute("""SELECT username, ts, ip, user_agent, success
+        FROM audit_logins ORDER BY ts DESC LIMIT ?""", (limit,)).fetchall()
+    logins = [{
+        "username": r[0], "ts": r[1], "ip": r[2],
+        "user_agent": r[3] or "", "success": bool(r[4])
+    } for r in rows]
+    conn.close()
+    return templates.TemplateResponse("admin_login_log.html", {
+        "request": request, "logins": logins, "limit": limit
+    })
+
+
+@app.get("/admin/llm-calls", response_class=HTMLResponse)
+async def admin_llm_calls(request: Request,
+                          model: str = "", errors_only: int = 0,
+                          days: int = 7, limit: int = 200):
+    """Лог LLM-вызовов с фильтрами"""
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403</h1>", status_code=403)
+    conn = get_conn()
+    where = [f"created_at > datetime('now', '-{int(days)} day')"]
+    params = []
+    if model:
+        where.append("model = ?")
+        params.append(model)
+    if errors_only:
+        where.append("(error IS NOT NULL AND error != '' OR response_parsed_ok = 0)")
+    sql = f"SELECT detail_id, model, tokens_in, tokens_out, cost_rub, duration_ms, response_parsed_ok, error, created_at FROM llm_calls WHERE {' AND '.join(where)} ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+    rows = conn.execute(sql, params).fetchall()
+    calls = [{
+        "detail_id": r[0], "model": r[1], "tokens_in": r[2], "tokens_out": r[3],
+        "cost_rub": round(r[4] or 0, 4), "duration_ms": r[5],
+        "parsed": bool(r[6]), "error": (r[7] or "")[:200], "ts": r[8]
+    } for r in rows]
+    # Сумма стоимости
+    cost_sql = f"SELECT COALESCE(SUM(cost_rub), 0), COUNT(*) FROM llm_calls WHERE {' AND '.join(where)}"
+    cost_row = conn.execute(cost_sql, params[:-1]).fetchone()
+    total_cost = round(cost_row[0] or 0, 2)
+    total_count = cost_row[1] or 0
+    # Доступные модели для фильтра
+    models = [r[0] for r in conn.execute("SELECT DISTINCT model FROM llm_calls WHERE model IS NOT NULL").fetchall() if r[0]]
+    conn.close()
+    return templates.TemplateResponse("admin_llm_calls.html", {
+        "request": request, "calls": calls, "models": models,
+        "filters": {"model": model, "errors_only": errors_only, "days": days, "limit": limit},
+        "total_cost": total_cost, "total_count": total_count
+    })
+
+
+@app.post("/api/admin/backup")
+async def api_admin_backup(request: Request):
+    """Запустить backup.sh"""
+    err_resp = _require_admin_or_json(request)
+    if err_resp: return err_resp
+    backup_script = "/opt/beget/bit-technolog/backup.sh"
+    if not os.path.exists(backup_script):
+        return err(f"backup script not found: {backup_script}", 404)
+    try:
+        import subprocess
+        out = subprocess.run(
+            ["bash", backup_script],
+            capture_output=True, text=True, timeout=300
+        )
+        return JSONResponse({
+            "ok": out.returncode == 0,
+            "returncode": out.returncode,
+            "stdout": out.stdout[-1000:],
+            "stderr": out.stderr[-500:]
+        })
+    except Exception as e:
+        return err(f"backup failed: {e}", 500)
+
+
+@app.post("/api/admin/rag-rebuild")
+async def api_admin_rag_rebuild(request: Request):
+    """Переиндексировать RAG"""
+    err_resp = _require_admin_or_json(request)
+    if err_resp: return err_resp
+    try:
+        from rag import rebuild_index
+        result = rebuild_index()
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as e:
+        log.exception(f"rag rebuild failed: {e}")
+        return err(f"rag rebuild failed: {e}", 500)
+
+
+@app.get("/admin/system", response_class=HTMLResponse)
+async def admin_system(request: Request):
+    """Системные метрики"""
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403</h1>", status_code=403)
+    import shutil
+    import platform
+    # Диск (для текущей директории или /opt)
+    disk_path = DB_PATH if os.path.exists(os.path.dirname(DB_PATH) or ".") else "."
+    try:
+        disk = shutil.disk_usage(disk_path if os.path.isdir(disk_path) else ".")
+    except Exception:
+        disk = shutil.disk_usage(".")
+    # Память через /proc/meminfo
+    mem_info = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    mem_info[k.strip()] = int(v.strip().split()[0])  # KB
+        mem_total_mb = mem_info.get("MemTotal", 0) / 1024
+        mem_avail_mb = mem_info.get("MemAvailable", 0) / 1024
+        mem_used_mb = mem_total_mb - mem_avail_mb
+        mem_pct = round(mem_used_mb / mem_total_mb * 100, 1) if mem_total_mb else 0
+    except Exception:
+        mem_total_mb = mem_avail_mb = mem_used_mb = mem_pct = 0
+    # Uptime через /proc/uptime
+    try:
+        with open("/proc/uptime") as f:
+            uptime_sec = float(f.read().split()[0])
+    except Exception:
+        uptime_sec = 0
+    # Сервис bit-technolog
+    svc_status = "unknown"
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["systemctl", "is-active", "bit-technolog"],
+            capture_output=True, text=True, timeout=5
+        )
+        svc_status = r.stdout.strip()
+    except Exception:
+        pass
+    # Размер каталогов
+    def du(path):
+        if not os.path.exists(path):
+            return 0
+        if os.path.isfile(path):
+            return round(os.path.getsize(path) / 1024 / 1024, 2)
+        try:
+            total = 0
+            for root, dirs, files in os.walk(path):
+                for f in files:
+                    try:
+                        total += os.path.getsize(os.path.join(root, f))
+                    except OSError:
+                        pass
+            return round(total / 1024 / 1024, 2)
+        except Exception:
+            return 0
+    db_size_mb = du(DB_PATH)
+    sizes = {
+        "db_mb": db_size_mb,
+        "drawings_mb": du("drawings"),
+        "rag_mb": du(".rag"),
+        "venv_mb": du("venv"),
+    }
+    return templates.TemplateResponse("admin_system.html", {
+        "request": request,
+        "disk": {"total_gb": round(disk.total / 1024**3, 1) if disk.total else 0, "used_gb": round(disk.used / 1024**3, 1) if disk.used else 0, "free_gb": round(disk.free / 1024**3, 1) if disk.free else 0, "pct": disk.percent if hasattr(disk, 'percent') else 0},
+        "mem": {"total_mb": round(mem_total_mb, 0), "used_mb": round(mem_used_mb, 0), "avail_mb": round(mem_avail_mb, 0), "pct": mem_pct},
+        "uptime_sec": uptime_sec,
+        "uptime_human": f"{int(uptime_sec//3600)}ч {int((uptime_sec%3600)//60)}м",
+        "platform": platform.platform(),
+        "python": platform.python_version(),
+        "svc_status": svc_status,
+        "sizes": sizes
+    })
 
 
 # ========== Импорт ТК (Excel/PDF/JSON/Word) ==========

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Лог входов — Admin{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="/admin">← К дашборду</a></div>
+<h1>📋 Лог входов (последние {{ limit }})</h1>
+
+{% if logins %}
+<table class="data-table">
+    <thead><tr><th>Когда</th><th>Кто</th><th>IP</th><th>User-Agent</th><th>Статус</th></tr></thead>
+    <tbody>
+    {% for l in logins %}
+        <tr>
+            <td>{{ l.ts[:19] }}</td>
+            <td><strong>{{ l.username }}</strong></td>
+            <td><code>{{ l.ip or "—" }}</code></td>
+            <td style="font-size:11px; color:gray; max-width:300px; overflow:hidden; text-overflow:ellipsis;">{{ l.user_agent or "—" }}</td>
+            <td>{% if l.success %}<span style="color:green;">✅ OK</span>{% else %}<span style="color:red;">❌ FAIL</span>{% endif %}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Пока нет данных.</p>
+{% endif %}
+{% endblock %}
