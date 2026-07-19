@@ -18,28 +18,28 @@
 
 <h2>📈 Текущие метрики</h2>
 <div class="stats">
-    <div class="stat">
+    <a href="/?status=" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Все детали">
         <div class="stat-value">{{ metrics.total_details_processed }}</div>
-        <div class="stat-label">деталей прошло</div>
-    </div>
-    <div class="stat">
+        <div class="stat-label">деталей прошло 🔍</div>
+    </a>
+    <a href="/?status=approved" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Утверждённые ТК">
         <div class="stat-value {% if metrics.edits_per_card > metrics.kpi.edits_target %}cost-exceeded{% endif %}">
             {{ metrics.edits_per_card }}
         </div>
         <div class="stat-label">корректировок / проект ТК<br><small>(цель &lt; {{ metrics.kpi.edits_target }})</small></div>
-    </div>
-    <div class="stat">
+    </a>
+    <a href="/?status=approved" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Список утверждённых">
         <div class="stat-value {% if metrics.accepted_pct < metrics.kpi.accepted_target %}cost-exceeded{% endif %}">
             {{ metrics.accepted_pct }}%
         </div>
-        <div class="stat-label">% принятых<br><small>(цель &gt; {{ metrics.kpi.accepted_target }}%)</small></div>
-    </div>
-    <div class="stat">
+        <div class="stat-label">% принятых 🔍<br><small>(цель &gt; {{ metrics.kpi.accepted_target }}%)</small></div>
+    </a>
+    <a href="/?status=draft" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Проекты ТК в работе">
         <div class="stat-value {% if metrics.avg_time_to_card_min > metrics.kpi.time_target %}cost-warn{% endif %}">
             {{ metrics.avg_time_to_card_min }}
         </div>
-        <div class="stat-label">мин / техкарта<br><small>(цель &lt; {{ metrics.kpi.time_target }})</small></div>
-    </div>
+        <div class="stat-label">мин / техкарта 🔍<br><small>(цель &lt; {{ metrics.kpi.time_target }})</small></div>
+    </a>
     <div class="stat">
         <div class="stat-value">{{ metrics.total_llm_cost_rub }}₽</div>
         <div class="stat-label">потрачено на LLM</div>

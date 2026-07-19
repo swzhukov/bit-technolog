@@ -2466,6 +2466,11 @@ async def detail(request: Request, detail_id: str):
         if row and row[0]:
             status_ext = row[0]
 
+    # Экономика (расчёт себестоимости) — U8 fix: показываем в карточке
+    economics = calc_cost_estimate(detail_id)
+    # U12 fix: список оборудования для datalist в inline-edit
+    all_equipment = get_all_equipment()[:50]  # топ-50 для производительности
+
     return templates.TemplateResponse("detail.html", {
         "request": request,
         "detail": detail_obj,
@@ -2474,6 +2479,8 @@ async def detail(request: Request, detail_id: str):
         "status_ext": status_ext,
         "versions": versions,
         "edits": edits,
+        "economics": economics,
+        "all_equipment": all_equipment,
         "demo_mode": DEMO_MODE,
         "llm_model": LLM_MODEL
     })

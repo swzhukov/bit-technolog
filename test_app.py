@@ -2006,3 +2006,144 @@ def test_role_switch_actually_changes_ui(client):
     c.post("/api/role/switch", data={"role": "admin"})
     r_admin = c.get(f"/detail/{detail_id}").text
     assert r_tech != r_admin, "UI не меняется при смене роли — БАГ"
+
+
+# ========== Audit Cycle v14: U1-U12 фиксы ==========
+def test_open_questions_doc_updated():
+    """U1: docs/09-open-questions.md содержит ответы Сергея"""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "docs", "09-open-questions.md")
+    with open(path) as f:
+        content = f.read()
+    # Все 9 вопросов должны быть помечены как решенные
+    assert "ВСЕ 9 вопросов решены" in content or "ВСЕ 9" in content
+    # Новые ответы (о Watcher, mobile, админ, терминология)
+    assert "Watcher" in content or "КОМПАС" in content
+    assert "mobile" in content.lower() or "Mobile" in content
+
+
+def test_demo_html_updated(client):
+    """U2: /demo упоминает все роли (не только Баранова)"""
+    c, _ = client
+    r = c.get("/demo")
+    assert r.status_code == 200
+    text = r.text
+    # Должен упоминать Голубева (раньше только Баранов)
+    assert "Голубев" in text
+    # Должен упомянуть что нужно переключить роль
+    assert "переключ" in text.lower() or "роль" in text.lower()
+
+
+def test_mobile_responsive_css():
+    """U3: static/style.css содержит media queries для mobile"""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "static", "style.css")
+    with open(path) as f:
+        content = f.read()
+    assert "@media" in content
+    assert "max-width: 768px" in content
+    assert "max-width: 480px" in content
+
+
+def test_hotkeys_in_detail_page(client):
+    """U4: на странице детали есть JS-обработчик Ctrl+S и Esc"""
+    c, _ = client
+    c.post("/api/details",
+        data={"designation": "HK-001", "name": "Test",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = c.post("/api/details",
+        data={"designation": "HK-002", "name": "Test",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False).headers.get("location", "").rsplit("/", 1)[-1]
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    text = r.text
+    # JS-обработчик горячих клавиш
+    assert "keydown" in text
+    assert "Escape" in text or "Esc" in text
+    assert "Ctrl" in text or "ctrlKey" in text
+
+
+def test_guide_no_false_hotkeys():
+    """U4: docs/11-tehnolog-guide.md больше не врёт про Ctrl+G/Ctrl+Enter"""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "docs", "11-tehnolog-guide.md")
+    with open(path) as f:
+        content = f.read()
+    # Раньше обещал Ctrl+G и Ctrl+Enter — теперь должно быть исправлено
+    # Если они еще есть, то с пометкой "в плане после пилота"
+    if "Ctrl+G" in content:
+        # Должна быть пометка "в плане"
+        assert "в плане" in content.lower() or "после пилота" in content.lower()
+
+
+def test_economics_in_detail(client):
+    """U8: экономика отображается в карточке детали"""
+    import app as app_module
+    c, app = client
+    c.post("/api/details",
+        data={"designation": "ECON-001", "name": "Test",
+              "model": "АЦ-6,0-40", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = c.post("/api/details",
+        data={"designation": "ECON-002", "name": "Test",
+              "model": "АЦ-6,0-40", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False).headers.get("location", "").rsplit("/", 1)[-1]
+    # Создаём draft с операциями
+    import json
+    ops = [{'name': '010 Тест', 'equipment': 'Кедр-300', 'duration_hours': 1.5, 'department': 'Цех 1', 'workplace': 'РМ 1', 'materials': ['Сталь 09Г2С'], 'gosts': [], 'control_points': [], 'confidence': 85, 'duration_source': 'demo'}]
+    draft_data = {'operations': ops, 'summary': {'total_operations': 1, 'total_hours': 1.5, 'prep_hours': 0.5, 'complexity': 'средняя'}, 'warnings': []}
+    conn = app_module.get_conn()
+    conn.execute('INSERT OR REPLACE INTO drafts (detail_id, llm_output, status, author) VALUES (?, ?, "draft", "admin")', (detail_id, json.dumps(draft_data, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert "Экономика" in r.text or "экономика" in r.text
+    assert "себестоимость" in r.text
+
+
+def test_pilot_dashboard_drilldown(client):
+    """U9: стат-карточки на /pilot кликабельные (drill-down)"""
+    c, _ = client
+    r = c.get("/pilot")
+    assert r.status_code == 200
+    text = r.text
+    # Drill-down ссылки
+    assert 'href="/?status=' in text or 'href="/?status=approved"' in text
+    # Должны быть ссылки на стат-карточки
+    assert "🔍" in text  # иконка кликабельности
+
+
+def test_equipment_datalist_in_detail(client):
+    """U12: datalist со справочником оборудования в inline-edit"""
+    import app as app_module
+    c, _ = client
+    c.post("/api/details",
+        data={"designation": "DL-001", "name": "Test",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = c.post("/api/details",
+        data={"designation": "DL-002", "name": "Test",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False).headers.get("location", "").rsplit("/", 1)[-1]
+    # Создаём draft
+    import json
+    ops = [{'name': '010 Тест', 'equipment': 'Кедр-300', 'duration_hours': 1.5, 'department': 'Цех 1', 'workplace': 'РМ 1', 'materials': [], 'gosts': [], 'control_points': [], 'confidence': 85, 'duration_source': 'demo'}]
+    draft_data = {'operations': ops, 'summary': {'total_operations': 1, 'total_hours': 1.5, 'prep_hours': 0.5, 'complexity': 'средняя'}, 'warnings': []}
+    conn = app_module.get_conn()
+    conn.execute('INSERT OR REPLACE INTO drafts (detail_id, llm_output, status, author) VALUES (?, ?, "draft", "admin")', (detail_id, json.dumps(draft_data, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert 'list="equipment-list"' in r.text
+    assert '<datalist id="equipment-list">' in r.text
+    assert '<datalist id="equipment-list">' in r.text

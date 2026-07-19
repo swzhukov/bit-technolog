@@ -253,3 +253,44 @@ code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; back
 .toast-warning { border-left-color: #f59e0b; }
 .toast-error { border-left-color: #dc2626; }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ========== Mobile responsive (U3 — basic, v0.4.8) ========== */
+@media (max-width: 768px) {
+    body { font-size: 15px; }
+    nav { flex-wrap: wrap; padding: 8px 12px; }
+    nav .brand { font-size: 18px; }
+    nav .navlink, nav select { font-size: 12px; padding: 4px 6px; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 18px; }
+    /* Таблицы: горизонтальный скролл */
+    .details-table, .data-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    /* Формы: одна колонка вместо flex-row */
+    form.form[style*="display:flex"] { flex-direction: column !important; align-items: stretch !important; }
+    form.form[style*="display:flex"] > * { width: 100% !important; margin-bottom: 6px; }
+    /* Карточка детали: меньше padding */
+    .detail-meta { flex-wrap: wrap; gap: 4px; }
+    .detail-meta .badge, .detail-meta .meta-item { font-size: 11px; }
+    /* Кнопки: больше для тач-интерфейса */
+    .btn { min-height: 36px; padding: 8px 12px; }
+    .btn-large { min-height: 44px; font-size: 16px; }
+    /* Action bar: перенос кнопок */
+    .action-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+    .action-bar .btn, .action-bar button, .action-bar a { flex: 1 1 45%; min-width: 0; }
+    /* Tabs: горизонтальный скролл */
+    .tabs { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { white-space: nowrap; flex-shrink: 0; }
+    /* Модал: на всю ширину */
+    [id$="-modal"] > div { max-width: 95% !important; margin: 20px auto !important; }
+    /* Toast: на всю ширину */
+    .toast { right: 10px; left: 10px; max-width: none; }
+    /* Stats: одна колонка */
+    .stats { grid-template-columns: 1fr !important; }
+    /* Скрыть длинные meta на мобиле */
+    .meta-item { font-size: 11px; }
+}
+@media (max-width: 480px) {
+    /* Самые узкие экраны: всё в одну колонку */
+    .stats { grid-template-columns: 1fr !important; }
+    h1 { font-size: 18px; }
+    .role-select { font-size: 11px; }
+}

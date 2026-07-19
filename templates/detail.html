@@ -418,6 +418,55 @@ function step3_refine(did) {
     </div>
     {% endif %}
 
+    {# U8 fix: экономика в карточке детали #}
+    {% if economics %}
+    <h3>💰 Экономика (себестоимость)</h3>
+    <div class="metrics">
+        <div class="metric">
+            <div class="metric-value">{{ economics.total_hours }} <small>ч</small></div>
+            <div class="metric-label">трудоёмкость</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{{ economics.labor_cost }}₽</div>
+            <div class="metric-label">труд</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{{ economics.material_cost }}₽</div>
+            <div class="metric-label">материал</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{{ economics.overhead }}₽</div>
+            <div class="metric-label">накладные ({{ economics.overhead_pct }}%)</div>
+        </div>
+        <div class="metric" style="background:#fef2f2; padding:8px; border-radius:6px;">
+            <div class="metric-value" style="color:#dc2626;">{{ economics.total_cost }}₽</div>
+            <div class="metric-label">себестоимость</div>
+        </div>
+        <div class="metric" style="background:#f0fdf4; padding:8px; border-radius:6px;">
+            <div class="metric-value" style="color:#16a34a;">{{ economics.price }}₽</div>
+            <div class="metric-label">цена (наценка 30%)</div>
+        </div>
+    </div>
+    {% if economics.by_department %}
+    <h4>По цехам</h4>
+    <table class="data-table">
+        <thead><tr><th>Цех</th><th>Операций</th><th>Часы</th><th>Труд (₽)</th><th>Материал (₽)</th><th>Итого (₽)</th></tr></thead>
+        <tbody>
+        {% for d in economics.by_department %}
+            <tr>
+                <td><strong>{{ d.department }}</strong></td>
+                <td>{{ d.operations }}</td>
+                <td>{{ d.hours }}</td>
+                <td>{{ d.labor_cost }}₽</td>
+                <td>{{ d.material_cost }}₽</td>
+                <td><strong>{{ d.labor_cost + d.material_cost }}₽</strong></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% endif %}
+
     <h3>Операции (кратко)</h3>
     <table class="op-table">
         <thead>
@@ -513,7 +562,14 @@ function step3_refine(did) {
                   hx-target="#edit-status-{{ loop.index0 }}"
                   hx-swap="innerHTML"
                   class="inline-edit-form">
-                <input name="value" value="{{ op.equipment or '' }}" placeholder="оборудование">
+                <input name="value" value="{{ op.equipment or '' }}" placeholder="оборудование" list="equipment-list">
+                <datalist id="equipment-list">
+                    {% if all_equipment %}
+                    {% for e in all_equipment %}
+                    <option value="{{ e.name }}">{{ e.type or '' }} — {{ e.code or '' }}</option>
+                    {% endfor %}
+                    {% endif %}
+                </datalist>
                 <button type="submit" class="btn btn-small">✏️</button>
             </form>
             <p><strong>Время (ч):</strong> {{ op.duration_hours }}</p>
@@ -720,5 +776,41 @@ function submitApprove() {
         })
         .catch(e => { alert('Сеть: ' + e); btn.disabled = false; btn.textContent = '✅ Да, утвердить'; });
 }
+</script>
+
+<!-- U4 fix: горячие клавиши для inline-edit -->
+<script>
+(function() {
+    let lastFocus = null;
+    // Запоминаем последний сфокусированный inline-edit input
+    document.addEventListener('focusin', (e) => {
+        if (e.target.matches('.inline-edit-form input[name="value"]')) {
+            lastFocus = e.target;
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        // Esc — отменить inline-edit (вернуть оригинальное значение)
+        if (e.key === 'Escape' && lastFocus) {
+            e.preventDefault();
+            const original = lastFocus.defaultValue || '';
+            lastFocus.value = original;
+            lastFocus.blur();
+            lastFocus = null;
+        }
+        // Ctrl+S / Cmd+S — сохранить активный inline-edit
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (lastFocus) {
+                const form = lastFocus.closest('form');
+                if (form) {
+                    form.requestSubmit();
+                }
+            } else {
+                // Нет активного inline-edit — сохранить approve (как в модале)
+                showApprovePreview();
+            }
+        }
+    });
+})();
 </script>
 {% endblock %}
