@@ -157,3 +157,13 @@
 ---
 
 *Создано: 2026-07-19, после фидбека Сергея. Будет пополняться.*
+
+## M14 (v0.4.9 — закрыто) — admin.py рефакторинг
+**Lesson:** 300 строк admin endpoint'ов в app.py были "забыты" в F15. APIRouter позволил вынести чисто и быстро.
+**Fix:** F15.7 — admin.py (434 строки, 14 endpoint'ов через APIRouter). 116 строк убрано из app.py (4769 → 4653).
+**Lesson:** APIRouter нужен сразу, не откладывать.
+
+## M15 (v0.4.9 — закрыто) — RAG rebuild использовал несуществующую функцию
+**Lesson:** В app.py-версии /api/admin/rag-rebuild был `from rag import rebuild_index` — но такой функции не было. Был только `get_rag().rebuild_from_db()`.
+**Fix:** admin.py использует правильный путь: `from rag import get_rag; get_rag().rebuild_from_db()`.
+**Lesson:** Проверять имена функций при рефакторинге.
