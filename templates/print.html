@@ -5,14 +5,14 @@
     <title>Техкарта {{ detail.designation }} — Печатная форма</title>
     <style>
         @page { size: A4; margin: 15mm; }
-        body { font-family: "Times New Roman", serif; font-size: 12pt; color: #000; max-width: 180mm; margin: 0 auto; padding: 10mm; }
+        body { font-family: "Times New Roman", serif; font-size: 16pt; color: #000; max-width: 180mm; margin: 0 auto; padding: 10mm; }
         h1 { font-size: 16pt; text-align: center; margin: 0 0 4pt; }
         h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
         .meta { display: flex; flex-wrap: wrap; gap: 4pt 16pt; margin: 4pt 0 12pt; font-size: 11pt; }
         .meta-item { padding: 0; }
         .meta-label { color: #555; font-size: 9pt; }
         table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-        th, td { border: 1px solid #000; padding: 4pt 6pt; font-size: 11pt; text-align: left; vertical-align: top; }
+        th, td { border: 1px solid #000; padding: 4pt 6pt; font-size: 12pt; text-align: left; vertical-align: top; }
         th { background: #f0f0f0; font-weight: bold; }
         .signature { margin-top: 32pt; display: flex; gap: 24pt; }
         .signature-block { flex: 1; }
@@ -37,6 +37,30 @@
         <div><strong>ПК «Техинком-Центр»</strong><br><small>Технологическая карта</small></div>
         <div style="text-align:right;"><small>Дата: {{ draft.created_at[:10] if draft and draft.created_at else '—' }}<br>ID: {{ detail.id }}</small></div>
     </div>
+    <div style="text-align:right; margin-bottom:8pt;">
+        <svg id="qr-code" width="60" height="60" style="border:1px solid #ccc;"></svg>
+        <br><small style="font-size:8pt;">QR для проверки</small>
+    </div>
+    <script>
+    // UX3: QR-код ссылки на digital версию ТК
+    (function() {
+        var url = window.location.origin + '/detail/{{ detail.id }}';
+        // Простой QR через Google Chart API (внешка, но работает)
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+            var c = document.createElement('canvas');
+            c.width = 60; c.height = 60;
+            c.getContext('2d').drawImage(img, 0, 0, 60, 60);
+            document.getElementById('qr-code').innerHTML = '';
+            document.getElementById('qr-code').appendChild(c);
+        };
+        img.onerror = function() {
+            document.getElementById('qr-code').innerHTML = '<text x="5" y="20" font-size="6">{{ detail.id }}</text>';
+        };
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(url);
+    })();
+    </script>
 
     <h1>Техкарта № {{ detail.designation }}</h1>
     <div style="text-align:center; font-size:13pt; margin-bottom:8pt;">{{ detail.name }}</div>

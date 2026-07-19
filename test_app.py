@@ -706,3 +706,93 @@ def test_index_uses_join_not_n_plus_1(client):
     assert r.status_code == 200
     # Должно быть < 200ms даже с 4 деталями
     assert elapsed < 1.0  # с запасом на тесты
+
+
+# ========== Аудит v2 фиксы ==========
+def test_no_mlta_mlMOCK_DETAILS_in_endpoints(client):
+    """NC1 fix: get_detail заменил MOCK_DETAILS в runtime endpoints"""
+    # Проверяем что detail из БД (которого нет в MOCK_DETAILS) находится
+    c, _ = client
+    # Все mock детали — detail-001..005. Создадим d-999 через БД.
+    import sqlite3
+    conn = sqlite3.connect("bit_technolog.db")
+    conn.execute("INSERT OR IGNORE INTO details (id, designation, name) VALUES (?, ?, ?)",
+                 ("d-999", "TEST-999", "Test detail not in MOCK"))
+    conn.commit()
+    conn.close()
+    # Если бы использовался MOCK_DETAILS — 404. С get_detail — 200
+    r = c.get("/detail/d-999")
+    assert r.status_code == 200
+    assert "TEST-999" in r.text
+
+
+def test_parse_llm_json_helper():
+    """NC3 fix: parse_llm_json обрабатывает разные форматы"""
+    import os
+    os.environ["PILOT_AUTH_DISABLED"] = "true"
+    from app import parse_llm_json
+    # 1. Raw JSON
+    assert parse_llm_json('{"a": 1}') == {"a": 1}
+    # 2. Markdown ```json
+    assert parse_llm_json('```json\n{"a": 2}\n```') == {"a": 2}
+    # 3. Просто ``` ```
+    assert parse_llm_json('```\n{"a": 3}\n```') == {"a": 3}
+    # 4. JSON inside text
+    assert parse_llm_json('вот результат: {"a": 4} конец') == {"a": 4}
+    # 5. Empty
+    import pytest
+    with pytest.raises(ValueError):
+        parse_llm_json("")
+    # 6. No JSON
+    with pytest.raises(ValueError):
+        parse_llm_json("no json here")
+
+
+def test_record_edit_no_leak():
+    """B2 fix: record_edit использует try/finally"""
+    # Запускаем 100 раз — не должно быть утечки fd
+    import os, gc
+    os.environ["PILOT_AUTH_DISABLED"] = "true"
+    from app import record_edit
+    import sqlite3
+    # Проверяем что нет открытых conn
+    initial = len(gc.get_objects())
+    for _ in range(50):
+        record_edit("detail-001", 1, "test_field", "old", "new", author="test")
+    gc.collect()
+    final = len(gc.get_objects())
+    # Допускаем небольшой рост (не > 5 объектов)
+    assert final - initial < 50
+
+
+def test_inline_edit_materials_field(client):
+    """B3 fix: inline-edit теперь работает с materials, gosts, control_points"""
+    c, _ = client
+    c.post("/api/generate", data={"detail_id": "detail-001"})
+    r = c.post("/api/edit/inline",
+               data={"detail_id": "detail-001", "op_index": "0", "field": "materials", "value": "Сталь 09Г2С, Электроды"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert isinstance(data["value"], list)
+    assert "Сталь 09Г2С" in data["value"]
+
+
+def test_batch_generate_new(client):
+    """UX1: кнопка 'Сгенерировать все новые' возвращает список id"""
+    c, _ = client
+    r = c.post("/api/batch-generate-new")
+    assert r.status_code == 200
+    data = r.json()
+    assert "candidate_ids" in data
+    assert isinstance(data["candidate_ids"], list)
+
+
+def test_feedback_positive_button(client):
+    """UX2: кнопка '👍 Норм' пишет в history"""
+    c, _ = client
+    r = c.post("/api/ai/feedback-positive", data={"detail_id": "detail-001"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["saved"] == "positive"

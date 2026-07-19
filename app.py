@@ -58,13 +58,51 @@ def get_llm_client():
     """Lazy-init singleton OpenAI client"""
     global _LLM_CLIENT
     if _LLM_CLIENT is None and not DEMO_MODE:
-        from openai import OpenAI
         _LLM_CLIENT = OpenAI(
             base_url=LLM_API_URL,
             api_key=LLM_API_KEY,
             timeout=LLM_TIMEOUT
         )
     return _LLM_CLIENT
+
+
+def parse_llm_json(text: str) -> dict:
+    """NC3 fix: устойчивый парсинг JSON из LLM-ответа.
+    Пробует: raw -> strip ```json -> strip ``` -> first { to last } -> raise ValueError."""
+    if not text or not text.strip():
+        raise ValueError("empty LLM response")
+    s = text.strip()
+    # 1. Raw
+    try:
+        return json.loads(s)
+    except Exception:
+        pass
+    # 2. Strip ```json ... ```
+    if s.startswith("```"):
+        lines = s.split("\n", 1)
+        s2 = lines[1] if len(lines) > 1 else ""
+        if s2.rstrip().endswith("```"):
+            s2 = s2.rstrip()[:-3].rstrip()
+        try:
+            return json.loads(s2)
+        except Exception:
+            pass
+        if s2.lower().startswith("json"):
+            s2 = s2[4:].lstrip()
+            try:
+                return json.loads(s2)
+            except Exception:
+                pass
+    # 3. Extract from first { to last }
+    first = s.find("{")
+    last = s.rfind("}")
+    if first != -1 and last != -1 and last > first:
+        candidate = s[first:last+1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+    raise ValueError(f"could not parse JSON from LLM response (first 200 chars): {s[:200]}")
 
 # Logging
 logging.basicConfig(
@@ -103,7 +141,7 @@ def check_auth(request: Request) -> bool:
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Middleware: требует auth для всех кроме /static, /health, /login, /docs"""
+    """Middleware: auth + CSRF protection (htmx шлёт X-Requested-With всегда)"""
     path = request.url.path
     # Публичные пути
     public = ("/static", "/health", "/login", "/docs", "/openapi.json", "/favicon.ico")
@@ -116,6 +154,20 @@ async def auth_middleware(request: Request, call_next):
             headers={"WWW-Authenticate": 'Basic realm="BIT-Technolog"'},
             media_type="text/html; charset=utf-8"
         )
+    # CSRF check: POST/PUT/DELETE должны иметь X-Requested-With (htmx) или быть form с _token
+    if request.method in ("POST", "PUT", "DELETE", "PATCH") and not os.getenv("PILOT_CSRF_DISABLED", "").lower() == "true":
+        xrw = request.headers.get("x-requested-with", "")
+        referer = request.headers.get("referer", "")
+        # Разрешаем если htmx ИЛИ same-origin
+        if xrw.lower() == "xmlhttprequest":
+            pass  # htmx, fetch, etc.
+        elif referer and path in referer:
+            pass  # same-origin form submit
+        else:
+            return JSONResponse(
+                {"error": "CSRF check failed: need X-Requested-With or same-origin Referer"},
+                status_code=403
+            )
     return await call_next(request)
 
 
@@ -837,12 +889,14 @@ def save_draft(detail_id: str, llm_output: dict, status: str = "draft", author: 
 def add_history(detail_id: str, action: str, details: dict = None):
     """Add history entry"""
     conn = get_conn()
-    conn.execute(
-        "INSERT INTO history (detail_id, action, details) VALUES (?, ?, ?)",
-        (detail_id, action, json.dumps(details or {}, ensure_ascii=False))
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "INSERT INTO history (detail_id, action, details) VALUES (?, ?, ?)",
+            (detail_id, action, json.dumps(details or {}, ensure_ascii=False))
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # Pydantic models
@@ -975,7 +1029,7 @@ async def api_analyze(request: Request):
     detail_id = await _get_param(request, "detail_id", log_name="/api/analyze")
     if not detail_id:
         return JSONResponse({"error": "detail_id required"}, status_code=422)
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     if not detail_obj:
         return JSONResponse({"error": "not found"}, status_code=404)
 
@@ -996,7 +1050,6 @@ async def api_analyze(request: Request):
         })
 
     try:
-        from openai import OpenAI
         from string import Template
         from prompts import CLARIFICATION_PROMPT
         client = get_llm_client()
@@ -1019,12 +1072,7 @@ async def api_analyze(request: Request):
         )
         duration = int((time.time() - t0) * 1000)
         text = response.choices[0].message.content.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
-            if text.startswith("json"):
-                text = text[4:].lstrip()
-        result = json.loads(text)
+        result = parse_llm_json(text)
         log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, True,
                      response.usage.prompt_tokens if response.usage else None,
                      response.usage.completion_tokens if response.usage else None,
@@ -1042,7 +1090,7 @@ async def api_draft_fast(request: Request):
     detail_id = await _get_param(request, "detail_id", log_name="/api/draft-fast")
     if not detail_id:
         return JSONResponse({"error": "detail_id required"}, status_code=422)
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     if not detail_obj:
         return JSONResponse({"error": "not found"}, status_code=404)
     daily = get_daily_cost()
@@ -1056,7 +1104,6 @@ async def api_draft_fast(request: Request):
                               "operations": [], "warnings": [], "questions": []},
                          "mode": "demo", "cost_estimate": "1.00₽"})
     try:
-        from openai import OpenAI
         from string import Template
         from prompts import DRAFT_FAST_PROMPT
         client = get_llm_client()
@@ -1080,12 +1127,7 @@ async def api_draft_fast(request: Request):
         )
         duration = int((time.time() - t0) * 1000)
         text = response.choices[0].message.content.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
-            if text.startswith("json"):
-                text = text[4:].lstrip()
-        result = json.loads(text)
+        result = parse_llm_json(text)
         log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, True,
                      response.usage.prompt_tokens if response.usage else None,
                      response.usage.completion_tokens if response.usage else None,
@@ -1107,7 +1149,7 @@ async def api_refine(request: Request):
     detail_id = await _get_param(request, "detail_id", log_name="/api/refine")
     if not detail_id:
         return JSONResponse({"error": "detail_id required"}, status_code=422)
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     if not detail_obj:
         return JSONResponse({"error": "not found"}, status_code=404)
     daily = get_daily_cost()
@@ -1131,7 +1173,6 @@ async def api_refine(request: Request):
         add_history(detail_id, "refined_mock", {"from": "draft"})
     else:
         try:
-            from openai import OpenAI
             from string import Template
             from prompts import REFINE_PROMPT
             client = get_llm_client()
@@ -1173,11 +1214,6 @@ async def api_refine(request: Request):
             )
             duration_ms = int((time.time() - t_start) * 1000)
             text = response.choices[0].message.content.strip()
-            if text.startswith("```"):
-                lines = text.split("\n")
-                text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
-                if text.startswith("json"):
-                    text = text[4:].lstrip()
             log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, False,
                          response.usage.prompt_tokens if response.usage else None,
                          response.usage.completion_tokens if response.usage else None,
@@ -1228,7 +1264,7 @@ async def generate(request: Request):
             '<span style="color:red">❌ Не указан detail_id</span>',
             status_code=422
         )
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     if not detail_obj:
         return HTMLResponse(
             f'<span style="color:red">❌ Деталь {detail_id} не найдена</span>',
@@ -1550,7 +1586,7 @@ async def api_rag_rebuild():
 @app.get("/api/rag/similar/{detail_id}")
 async def api_rag_similar(detail_id: str, top_k: int = 3):
     """Sprint 2: top-K похожих техкарт по RAG"""
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     if not detail_obj:
         return JSONResponse({"error": "not_found"}, status_code=404)
     try:
@@ -1581,7 +1617,7 @@ async def api_alternatives(request: Request):
     detail_id = await _get_param(request, "detail_id", log_name="/api/alternatives")
     if not detail_id:
         return JSONResponse({"error": "detail_id required"}, status_code=422)
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     if not detail_obj:
         return JSONResponse({"error": "not found"}, status_code=404)
     daily = get_daily_cost()
@@ -1674,7 +1710,7 @@ async def api_batch_generate(request: Request):
         did = str(did).strip()
         if not did:
             continue
-        detail_obj = next((d for d in MOCK_DETAILS if d["id"] == did), None)
+        detail_obj = get_detail(did)
         if not detail_obj:
             results.append({"detail_id": did, "status": "not_found"})
             continue
@@ -1686,7 +1722,6 @@ async def api_batch_generate(request: Request):
             llm_output = generate_mock_draft(detail_obj)
         else:
             try:
-                from openai import OpenAI
                 from string import Template
                 client = get_llm_client()
                 prompt = Template(TECH_CARD_PROMPT).substitute(
@@ -1703,12 +1738,7 @@ async def api_batch_generate(request: Request):
                     temperature=0.2, max_tokens=8000
                 )
                 text = response.choices[0].message.content.strip()
-                if text.startswith("```"):
-                    lines = text.split("\n")
-                    text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
-                    if text.startswith("json"):
-                        text = text[4:].lstrip()
-                llm_output = json.loads(text)
+                llm_output = parse_llm_json(text)
             except Exception as e:
                 results.append({"detail_id": did, "status": "llm_error", "error": str(e)[:100]})
                 continue
@@ -1791,7 +1821,8 @@ async def api_edit_inline(request: Request):
     if not all([detail_id, op_index, field]):
         return JSONResponse({"error": "detail_id, op_index, field required"}, status_code=422)
     # Whitelist полей для inline-edit
-    if field not in ("name", "equipment", "duration_hours", "department", "workplace"):
+    if field not in ("name", "equipment", "duration_hours", "department", "workplace",
+                     "materials", "gosts", "control_points", "duration_source"):
         return JSONResponse({"error": f"field '{field}' not editable inline"}, status_code=400)
     try:
         op_idx = int(op_index)
@@ -1818,6 +1849,17 @@ async def api_edit_inline(request: Request):
         except (TypeError, ValueError):
             conn.close()
             return JSONResponse({"error": "duration_hours must be float"}, status_code=422)
+    if field in ("materials", "gosts", "control_points"):
+        # list-поля — парсим как JSON array или comma-separated
+        if value.startswith("["):
+            try:
+                import json as _j
+                value = _j.loads(value)
+            except Exception:
+                conn.close()
+                return JSONResponse({"error": f"{field} must be JSON array"}, status_code=422)
+        else:
+            value = [v.strip() for v in value.split(",") if v.strip()]
     old_value = op.get(field)
     op[field] = value
     # Пересчёт summary
@@ -1848,7 +1890,42 @@ async def api_feedback_positive(request: Request):
     return JSONResponse({"ok": True, "saved": "positive"})
 
 
-# ========== B2: Ручная выгрузка техкарт в 1С-формате (Sprint 5) ==========
+@app.post("/api/batch-generate-new")
+async def api_batch_generate_new():
+    """UX1: сгенерировать все детали со статусом new (массовое действие)"""
+    daily = get_daily_cost()
+    if daily["exceeded"]:
+        return JSONResponse({"error": "daily_limit_exceeded"}, status_code=429)
+    if DEMO_MODE:
+        # Mock: возвращаем список new-деталей
+        ids = []
+        conn = get_conn()
+        rows = conn.execute("""
+            SELECT d.id FROM details d
+            LEFT JOIN drafts dr ON d.id = dr.detail_id
+            WHERE dr.detail_id IS NULL
+            LIMIT 20
+        """).fetchall()
+        conn.close()
+        ids = [r[0] for r in rows]
+        return JSONResponse({"ok": True, "candidate_ids": ids, "mode": "demo"})
+
+    # Real: запускаем batch-generate для всех new
+    from urllib.parse import urlencode
+    ids = []
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT d.id FROM details d
+        LEFT JOIN drafts dr ON d.id = dr.detail_id
+        WHERE dr.detail_id IS NULL
+        LIMIT 20
+    """).fetchall()
+    conn.close()
+    ids = [r[0] for r in rows]
+    return JSONResponse({"ok": True, "candidate_ids": ids, "mode": "live-stub", "message": "use /api/batch-generate with these ids"})
+
+
+# ========== U2 fix: Ручная выгрузка техкарт в 1С-формате (Sprint 5) ==========
 @app.get("/api/export/onec-csv")
 async def api_export_onec_csv(detail_id: str):
     """Экспорт в CSV формате, понятном 1С:ERP (для ручного импорта на пилоте)"""
@@ -1902,7 +1979,7 @@ async def export_excel(detail_id: str = Form(...)):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     draft_data = get_draft(detail_id)
     if not detail_obj or not draft_data:
         raise HTTPException(400, "No draft to export")
@@ -1996,7 +2073,7 @@ async def export_pdf(request: Request):
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
-    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    detail_obj = get_detail(detail_id)
     draft_data = get_draft(detail_id)
     if not detail_obj or not draft_data:
         raise HTTPException(400, "No draft to export")
