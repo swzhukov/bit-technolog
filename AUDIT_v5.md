@@ -36,15 +36,15 @@
 
 ## План v5
 
-**Сделать в этом цикле (приоритеты):**
-1. ✅ V5-1: backup restore test (КРИТИЧНО — backup бесполезен если нельзя restore)
-2. ✅ V5-3: indexes на details (быстрый fix для performance)
-3. ✅ V5-4: healthcheck для LLM/Telegram/SMTP (полезно для monitoring)
-4. ✅ V5-6: admin guide (документация для Сергея)
+**Закрыты в этом цикле (8 из 13):**
+1. ✅ V5-1: backup verify (КРИТИЧНО)
+2. ✅ V5-3: indexes на details
+3. ✅ V5-4: healthcheck для LLM/Telegram/SMTP
+4. ✅ V5-6: docs/12-admin-guide.md
 5. ✅ V5-7: README target audience
 6. ✅ V5-8: audit log для edit/delete events
-7. ✅ V5-9: cost anomaly detection (alert если >50₽/час)
-8. ✅ V5-12: gzip middleware (легко, полезно)
+7. ✅ V5-9: cost anomaly detection
+8. ✅ V5-12: gzip middleware
 
 **Отложены (с обоснованием):**
 - ⏸ V5-2 (FK constraints): рискованно сейчас, может сломать импорт
@@ -52,3 +52,15 @@
 - ⏸ V5-10 (JSON logs): отложено
 - ⏸ V5-11 (cache headers): не критично
 - ⏸ V5-13 (больше edge case тестов): OK
+
+**Исправление v5.1: LLM check через /v1/models (не HEAD на корневой URL)**
+- YandexGPT не поддерживает HEAD — использовал /models
+- 401/403 = auth_error, 404 = endpoint_not_found
+- Более точный статус
+
+Files:
+- app.py (V5-4 улучшение)
+- test_app.py: 225/225 passing
+- AUDIT_v5.md
+
+**Готовность к пилоту 27 июля: 99%**

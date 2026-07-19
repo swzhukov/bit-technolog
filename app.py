@@ -4070,14 +4070,18 @@ def _check_dependencies() -> dict:
     try:
         token = get_setting("TELEGRAM_BOT_TOKEN", "")
         chat = get_setting("TELEGRAM_CHAT_ID", "")
-        deps["telegram"] = "configured" if (token and chat) else "not_configured"
+        # Placeholder-ы или пустые = not_configured
+        if token and chat and "__FILL_" not in token and "__FILL_" not in chat:
+            deps["telegram"] = "configured"
+        else:
+            deps["telegram"] = "not_configured"
     except Exception:
         deps["telegram"] = "check_failed"
     # SMTP
     try:
         host = get_setting("SMTP_HOST", "")
         user = get_setting("SMTP_USER", "")
-        deps["smtp"] = "configured" if (host and user) else "not_configured"
+        deps["smtp"] = "configured" if (host and user and "__FILL_" not in host) else "not_configured"
     except Exception:
         deps["smtp"] = "check_failed"
     return deps
