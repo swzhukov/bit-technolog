@@ -150,6 +150,20 @@ def init_db():
             details TEXT,
             ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        -- F16.8: A4-11 — soft-delete для операций (с возможностью restore)
+        CREATE TABLE IF NOT EXISTS deleted_operations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            detail_id TEXT NOT NULL,
+            op_index INTEGER,
+            op_name TEXT,
+            op_json TEXT,
+            deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            deleted_by TEXT,
+            reason TEXT,
+            restored_at TIMESTAMP,
+            restored_by TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_deleted_ops_detail ON deleted_operations(detail_id);
         CREATE TABLE IF NOT EXISTS pilot_metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             detail_id TEXT,

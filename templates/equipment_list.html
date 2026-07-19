@@ -5,6 +5,16 @@
 <h1>🔧 Справочник оборудования</h1>
 <p class="lead">Импортируется из 1С:ERP. Здесь можно только добавить локальные параметры (заметки, ограничения), которых нет в 1С.</p>
 
+{# F16.8: A4-22 — поиск по умолчанию #}
+<form method="get" action="/equipment" class="form" style="display:flex; gap:8px; margin-bottom:16px;">
+    <input type="search" name="q" value="{{ q or '' }}"
+           placeholder="🔍 Поиск: название, тип, код..."
+           style="flex:1; min-width:240px;" autocomplete="off"
+           autofocus>
+    <button type="submit" class="btn btn-primary">Найти</button>
+    {% if q %}<a href="/equipment" class="btn">Сбросить</a>{% endif %}
+</form>
+
 <div class="info-block">
     <strong>ℹ Источник:</strong> 1С:ERP (мастер-система). Кнопка "Добавить" для новых позиций — только для импорта из 1С.
     Для локальных параметров (max_thickness_mm, max_mass_kg, notes) — редактируй существующие.

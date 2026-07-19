@@ -4065,6 +4065,77 @@ async def api_edit_operation(request: Request):
     return HTMLResponse(f'<span style="color:green">✅ Операция {op_index+1} обновлена (v{new_v})</span>')
 
 
+# F16.8: A4-11 — получить список удалённых операций
+def get_deleted_operations(detail_id: str) -> list:
+    """Возвращает удалённые операции (с возможностью restore)."""
+    from db import get_conn
+    conn = get_conn()
+    try:
+        rows = conn.execute("""SELECT id, op_index, op_name, deleted_at, deleted_by, reason, restored_at
+            FROM deleted_operations WHERE detail_id=? ORDER BY deleted_at DESC LIMIT 20""",
+            (detail_id,)).fetchall()
+        return [{
+            "id": r[0], "op_index": r[1], "op_name": r[2],
+            "deleted_at": r[3], "deleted_by": r[4], "reason": r[5],
+            "restored_at": r[6]
+        } for r in rows]
+    except Exception as e:
+        log.debug(f"get_deleted_operations({detail_id}): {e}")
+        return []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+# F16.8: A4-11 — restore удалённой операции
+@app.post("/api/edit/restore-operation")
+async def api_restore_operation(request: Request):
+    """Восстанавливает последнюю удалённую операцию (или по id)."""
+    detail_id = await _get_param(request, "detail_id")
+    del_id = await _get_param(request, "del_id")  # опционально
+    author = await _get_param(request, "author") or "technologist"
+    if not detail_id:
+        return err("detail_id required", 422)
+    from db import get_conn
+    conn = get_conn()
+    try:
+        if del_id:
+            row = conn.execute("""SELECT id, op_json, op_name FROM deleted_operations
+                WHERE id=? AND detail_id=? AND restored_at IS NULL""",
+                (int(del_id), detail_id)).fetchone()
+        else:
+            # Последняя не восстановленная
+            row = conn.execute("""SELECT id, op_json, op_name FROM deleted_operations
+                WHERE detail_id=? AND restored_at IS NULL
+                ORDER BY deleted_at DESC LIMIT 1""", (detail_id,)).fetchone()
+        if not row:
+            return err("no deleted operations to restore", 404)
+        try:
+            op = json.loads(row[1])
+        except Exception:
+            return err("corrupted op_json", 500)
+        # Добавить обратно в operations
+        draft_data = get_draft(detail_id)
+        if not draft_data:
+            return err("no draft", 404)
+        ops = draft_data["output"].get("operations", [])
+        ops.append(op)
+        draft_data["output"]["operations"] = ops
+        save_draft(detail_id, draft_data["output"], status="draft", author=author)
+        new_v = save_version(detail_id, ops, author=author, source="human_restore",
+                             notes=f"Restored: {row[2]}")
+        # Пометить как восстановленную
+        conn.execute("""UPDATE deleted_operations
+            SET restored_at=CURRENT_TIMESTAMP, restored_by=?
+            WHERE id=?""", (author, row[0]))
+        conn.commit()
+        return {"ok": True, "restored": row[2], "version": new_v}
+    finally:
+        conn.close()
+
+
 @app.post("/api/edit/add-operation")
 async def api_add_operation(request: Request):
     """Добавляет новую операцию в черновик"""
@@ -4097,7 +4168,8 @@ async def api_add_operation(request: Request):
 
 @app.post("/api/edit/delete-operation")
 async def api_delete_operation(request: Request):
-    """Удаляет операцию"""
+    """F16.8: A4-11 — soft-delete операции (восстанавливаемо).
+    Раньше удаляло безвозвратно. Теперь: помечает как удалённую, можно восстановить."""
     detail_id = await _get_param(request, "detail_id")
     op_index_str = await _get_param(request, "op_index")
     reason = await _get_param(request, "reason") or ""
@@ -4120,6 +4192,21 @@ async def api_delete_operation(request: Request):
     new_v = save_version(detail_id, operations, author=author, source="human_delete",
                          notes=f"Deleted: {removed.get('name', '')}")
     record_edit(detail_id, new_v, f"op{op_index}", removed.get("name", ""), "", reason, author)
+    # F16.8: A4-11 — soft-delete: сохраняем для возможного restore
+    from db import get_conn
+    conn = get_conn()
+    try:
+        conn.execute("""INSERT INTO deleted_operations
+            (detail_id, op_index, op_name, op_json, deleted_at, deleted_by, reason)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)""",
+            (detail_id, op_index, removed.get("name", ""),
+             json.dumps(removed, ensure_ascii=False), author, reason))
+        conn.commit()
+    except Exception as e:
+        # Если таблица не существует — это не критично (миграция может быть не применена)
+        log.warning(f"soft-delete save failed (table may not exist): {e}")
+    finally:
+        conn.close()
 
     return HTMLResponse(f'<span style="color:green">✅ Операция удалена (v{new_v})</span>')
 

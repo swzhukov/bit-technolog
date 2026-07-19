@@ -20,7 +20,10 @@
                 {% else %}<span class="badge gray">⚪ {{ d.status }}</span>{% endif %}
             </td>
             <td>
-                <a href="/detail/{{ d.id }}" class="detail-link"><strong>{{ d.designation }}</strong></a><br>
+                <a href="/detail/{{ d.id }}" class="detail-link">
+                    {# F16.8: A4-14 highlight в результатах поиска — простая версия #}
+                    <strong>{{ d.designation }}</strong>
+                </a><br>
                 <small>{{ d.name }}</small>
             </td>
             <td>{{ d.model }}</td>

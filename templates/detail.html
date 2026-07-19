@@ -71,7 +71,8 @@
 </details>
 
 {# M4 fix: 3-step flow с прогрессом и localStorage для answers #}
-<details class="add-form" style="margin-bottom: 16px;">
+{# F16.8: A4-6 — AI-блок открыт по умолчанию для status=new #}
+<details class="add-form" style="margin-bottom: 16px;" {% if status == "new" %}open{% endif %}>
     <summary>🤖 AI-помощник: полная генерация техкарты</summary>
     <div class="step-flow" id="step-flow-{{ detail.id }}">
         <div class="step" id="step-analyze-{{ detail.id }}">
@@ -247,6 +248,31 @@ function step3_refine(did) {
     <p class="hint">Файл сохраняется в /drawings/, регистрируется в БД, привязывается к детали.</p>
 </details>
 {% endif %}
+{% endif %}
+
+{# F16.8: A4-11 — список удалённых операций с кнопкой restore #}
+{% if draft and deleted_ops %}
+<div class="action-bar" style="background:#fef3c7; padding:12px; border-radius:6px; margin-bottom:16px;">
+    <strong>🗑 Удалённые операции ({{ deleted_ops|length }}):</strong>
+    <ul style="margin:8px 0 0 0; padding-left:20px;">
+        {% for d in deleted_ops %}
+        <li>
+            <code>{{ d.op_name }}</code> — удалено {{ d.deleted_at[:16] }}
+            {% if d.reason %}<small style="color:#6b7280;">({{ d.reason }})</small>{% endif %}
+            {% if not d.restored_at %}
+            <button class="btn btn-small"
+                    hx-post="/api/edit/restore-operation"
+                    hx-vals='{"detail_id": "{{ detail.id }}", "del_id": "{{ d.id }}"}'
+                    hx-on::after-request="if(event.detail.xhr.status==200){showToast('Операция восстановлена', 'success');setTimeout(()=>location.reload(), 600);}else{showToast('Ошибка восстановления', 'error');}">
+                ↩️ Восстановить
+            </button>
+            {% else %}
+            <span style="color:#10b981;">✅ восстановлено</span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
 {% endif %}
 
 {% if not draft %}
