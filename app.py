@@ -1017,6 +1017,20 @@ async def api_refine(request: Request):
             client = OpenAI(base_url=LLM_API_URL, api_key=LLM_API_KEY, timeout=LLM_TIMEOUT)
             tech_rules_text = detail_obj.get("tech_rules") or ""
             rules_block = f"\nВАЖНО: Технолог указал следующие правила и нюансы — ОБЯЗАТЕЛЬНО учти их:\n{tech_rules_text}\n" if tech_rules_text.strip() else ""
+            # Sprint 2: добавляем top-K похожих техкарт из RAG
+            similar_block = "(похожих техкарт пока нет)"
+            try:
+                from rag import rag_search
+                similar = rag_search(detail_obj, top_k=3)
+                if similar:
+                    lines = []
+                    for s in similar:
+                        meta = s.get("metadata", {})
+                        lines.append(f"- {meta.get('designation', '?')} '{meta.get('name', '?')}' "
+                                     f"({meta.get('material', '?')}, score={s['score']})")
+                    similar_block = "\n".join(lines)
+            except Exception as e:
+                log.warning(f"RAG search failed in /api/refine: {e}")
             prompt = Template(REFINE_PROMPT).substitute(
                 properties_json=json.dumps(detail_obj, indent=2, ensure_ascii=False),
                 equipment_json=json.dumps(EQUIPMENT, indent=2, ensure_ascii=False),
@@ -1025,7 +1039,8 @@ async def api_refine(request: Request):
                 tech_rules="(правила не указаны)",
                 rules_block=rules_block,
                 draft_json=json.dumps(draft_dict, indent=2, ensure_ascii=False),
-                answers_json=json.dumps(answers_dict, indent=2, ensure_ascii=False)
+                answers_json=json.dumps(answers_dict, indent=2, ensure_ascii=False),
+                similar_block=similar_block
             )
             import time
             t_start = time.time()
@@ -1374,7 +1389,7 @@ def generate_mock_draft(detail_obj: dict) -> dict:
 
 @app.post("/api/approve")
 async def approve(request: Request):
-    """Approve draft"""
+    """Approve draft + Sprint 2: auto-index in RAG"""
     detail_id = await _get_param(request, "detail_id")
     if not detail_id:
         return JSONResponse({"error": "detail_id required"}, status_code=422)
@@ -1386,11 +1401,242 @@ async def approve(request: Request):
     conn.commit()
     conn.close()
     add_history(detail_id, "approved")
-    # Пилотные метрики
     edits = get_edits(detail_id)
     record_metric(detail_id, "approved", 1, {"edits_count": len(edits)})
     record_metric(detail_id, "edits_count", len(edits))
+    # Sprint 2: автоиндексация в RAG
+    try:
+        from rag import rag_index_detail
+        rag_index_detail(detail_id)
+    except Exception as e:
+        log.warning(f"RAG auto-index failed: {e}")
     return {"status": "approved"}
+
+
+@app.post("/api/rag/rebuild")
+async def api_rag_rebuild():
+    """Sprint 2: перестроить RAG-индекс из БД (admin action)"""
+    try:
+        from rag import get_rag
+        rag = get_rag()
+        n = rag.rebuild_from_db()
+        return JSONResponse({"ok": True, "indexed": n})
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:200]}, status_code=500)
+
+
+@app.get("/api/rag/similar/{detail_id}")
+async def api_rag_similar(detail_id: str, top_k: int = 3):
+    """Sprint 2: top-K похожих техкарт по RAG"""
+    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    if not detail_obj:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    try:
+        from rag import rag_search
+        results = rag_search(detail_obj, top_k=min(top_k, 10))
+        return JSONResponse({"detail_id": detail_id, "similar": results})
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:200]}, status_code=500)
+
+
+@app.get("/api/rag/status")
+async def api_rag_status():
+    try:
+        from rag import get_rag
+        rag = get_rag()
+        return JSONResponse({
+            "loaded": rag.loaded,
+            "documents": len(rag.ids) if rag.loaded else 0,
+            "vocabulary_size": len(rag.vectorizer.vocabulary_) if rag.loaded and rag.vectorizer else 0
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:200]}, status_code=500)
+
+
+# ========== Sprint 3: Альтернативные маршруты + Apply similar + Batch ==========
+@app.post("/api/alternatives")
+async def api_alternatives(request: Request):
+    detail_id = await _get_param(request, "detail_id", log_name="/api/alternatives")
+    if not detail_id:
+        return JSONResponse({"error": "detail_id required"}, status_code=422)
+    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    if not detail_obj:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    daily = get_daily_cost()
+    if daily["exceeded"]:
+        return JSONResponse({"error": "daily_limit_exceeded"}, status_code=429)
+    if DEMO_MODE:
+        alts = [
+            {"variant": "A", "approach": "Сварка Кедр-300 + отпуск", "total_hours": 2.5, "n_ops": 5,
+             "route": [{"step": 1, "operation": "010 Подготовительная", "duration_hours": 0.2},
+                       {"step": 2, "operation": "015 Сварка", "duration_hours": 1.0},
+                       {"step": 3, "operation": "020 Контроль ОТК", "duration_hours": 0.3},
+                       {"step": 4, "operation": "025 Отпуск", "duration_hours": 0.5},
+                       {"step": 5, "operation": "030 Финальный контроль", "duration_hours": 0.5}]},
+            {"variant": "B", "approach": "TIG-сварка (аргон)", "total_hours": 3.5, "n_ops": 4,
+             "route": [{"step": 1, "operation": "010 Зачистка", "duration_hours": 0.3},
+                       {"step": 2, "operation": "015 TIG-сварка", "duration_hours": 1.5},
+                       {"step": 3, "operation": "020 Контроль", "duration_hours": 0.7},
+                       {"step": 4, "operation": "025 ТО", "duration_hours": 1.0}]},
+            {"variant": "C", "approach": "Минимум операций (без ТО)", "total_hours": 1.8, "n_ops": 3,
+             "route": [{"step": 1, "operation": "010 Сборка", "duration_hours": 0.5},
+                       {"step": 2, "operation": "015 Сварка", "duration_hours": 0.8},
+                       {"step": 3, "operation": "020 Контроль", "duration_hours": 0.5}]}
+        ]
+        return JSONResponse({"alternatives": alts, "mode": "demo", "cost": "1.50₽"})
+    return JSONResponse({"alternatives": [], "mode": "live-stub", "message": "real LLM for alternatives — в v0.5"})
+
+
+@app.post("/api/apply-similar")
+async def api_apply_similar(request: Request):
+    detail_id = await _get_param(request, "detail_id", log_name="/api/apply-similar")
+    source_id = await _get_param(request, "source_id")
+    if not detail_id or not source_id:
+        return JSONResponse({"error": "detail_id and source_id required"}, status_code=422)
+    if detail_id == source_id:
+        return JSONResponse({"error": "cannot apply to self"}, status_code=400)
+    conn = get_conn()
+    source_draft = conn.execute("SELECT * FROM drafts WHERE detail_id=?", (source_id,)).fetchone()
+    if not source_draft:
+        conn.close()
+        return JSONResponse({"error": "source has no draft"}, status_code=404)
+    try:
+        source_output = json.loads(source_draft[1])
+    except Exception:
+        conn.close()
+        return JSONResponse({"error": "source draft corrupt"}, status_code=500)
+    target_draft = conn.execute("SELECT * FROM drafts WHERE detail_id=?", (detail_id,)).fetchone()
+    if target_draft:
+        try:
+            target_output = json.loads(target_draft[1])
+            target_output["operations"] = source_output.get("operations", [])
+            target_output["route"] = source_output.get("route", [])
+            target_output["reasoning"] = {
+                "operations_choice": f"Скопировано из {source_id} (1-click apply similar)",
+                "duration_estimates": "Скопировано",
+                "equipment_choice": "Скопировано",
+                "risks": "Требует верификации технологом"
+            }
+            target_output["applied_from"] = source_id
+            conn.execute("UPDATE drafts SET llm_output=?, updated_at=? WHERE detail_id=?",
+                         (json.dumps(target_output, ensure_ascii=False), datetime.now().isoformat(), detail_id))
+        except Exception as e:
+            conn.close()
+            return JSONResponse({"error": f"failed to update: {e}"}, status_code=500)
+    else:
+        new_output = source_output.copy()
+        new_output["applied_from"] = source_id
+        conn.execute("INSERT INTO drafts (detail_id, llm_output, status, author) VALUES (?, ?, 'draft', 'rag-apply')",
+                     (detail_id, json.dumps(new_output, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
+    add_history(detail_id, "applied_similar", {"source_id": source_id})
+    return JSONResponse({"ok": True, "applied_from": source_id})
+
+
+@app.post("/api/batch-generate")
+async def api_batch_generate(request: Request):
+    detail_ids_raw = await _get_param(request, "detail_ids", log_name="/api/batch-generate")
+    if not detail_ids_raw:
+        return JSONResponse({"error": "detail_ids required (JSON array)"}, status_code=422)
+    try:
+        detail_ids = json.loads(detail_ids_raw)
+    except Exception:
+        return JSONResponse({"error": "detail_ids must be JSON array"}, status_code=422)
+    if not isinstance(detail_ids, list) or len(detail_ids) == 0:
+        return JSONResponse({"error": "detail_ids must be non-empty array"}, status_code=422)
+    if len(detail_ids) > 20:
+        return JSONResponse({"error": "max 20 details per batch"}, status_code=400)
+    results = []
+    for did in detail_ids:
+        did = str(did).strip()
+        if not did:
+            continue
+        detail_obj = next((d for d in MOCK_DETAILS if d["id"] == did), None)
+        if not detail_obj:
+            results.append({"detail_id": did, "status": "not_found"})
+            continue
+        daily = get_daily_cost()
+        if daily["exceeded"]:
+            results.append({"detail_id": did, "status": "daily_limit_exceeded"})
+            continue
+        if DEMO_MODE:
+            llm_output = generate_mock_draft(detail_obj)
+        else:
+            try:
+                from openai import OpenAI
+                from string import Template
+                client = OpenAI(base_url=LLM_API_URL, api_key=LLM_API_KEY, timeout=LLM_TIMEOUT)
+                prompt = Template(TECH_CARD_PROMPT).substitute(
+                    properties_json=json.dumps(detail_obj, indent=2, ensure_ascii=False),
+                    equipment_json=json.dumps(EQUIPMENT, indent=2, ensure_ascii=False),
+                    structure_json=json.dumps(STRUCTURE, indent=2, ensure_ascii=False),
+                    few_shot_json=json.dumps(FEW_SHOT_4C85941A, indent=2, ensure_ascii=False),
+                    tech_rules="(правила не указаны)",
+                    rules_block=""
+                )
+                response = client.chat.completions.create(
+                    model=LLM_MODEL,
+                    messages=[{"role": "system", "content": "Ты — технолог. Генерируй JSON."}, {"role": "user", "content": prompt}],
+                    temperature=0.2, max_tokens=8000
+                )
+                text = response.choices[0].message.content.strip()
+                if text.startswith("```"):
+                    lines = text.split("\n")
+                    text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
+                    if text.startswith("json"):
+                        text = text[4:].lstrip()
+                llm_output = json.loads(text)
+            except Exception as e:
+                results.append({"detail_id": did, "status": "llm_error", "error": str(e)[:100]})
+                continue
+        save_draft(did, llm_output, "draft", author="batch")
+        results.append({"detail_id": did, "status": "generated", "ops": len(llm_output.get("operations", []))})
+    return JSONResponse({"ok": True, "processed": len(results), "results": results})
+
+
+# ========== Sprint 5: Audit log + Export ==========
+@app.get("/audit", response_class=HTMLResponse)
+async def audit_page(request: Request, limit: int = 100):
+    conn = get_conn()
+    cols = [d[1] for d in conn.execute("PRAGMA table_info(history)").fetchall()]
+    rows = conn.execute("SELECT * FROM history ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    entries = [dict(zip(cols, r)) for r in rows]
+    return templates.TemplateResponse("audit.html", {
+        "request": request, "entries": entries, "limit": limit
+    })
+
+
+@app.get("/api/audit/export")
+async def api_audit_export():
+    conn = get_conn()
+    cols = [d[1] for d in conn.execute("PRAGMA table_info(history)").fetchall()]
+    rows = conn.execute("SELECT * FROM history ORDER BY id").fetchall()
+    conn.close()
+    entries = [dict(zip(cols, r)) for r in rows]
+    return JSONResponse({
+        "exported_at": datetime.now().isoformat(),
+        "total_entries": len(entries),
+        "entries": entries
+    })
+
+
+@app.get("/api/export/all")
+async def api_export_all():
+    conn = get_conn()
+    tables = ["details", "drafts", "draft_versions", "edits", "rules", "equipment",
+              "materials", "iot", "benchmarks", "history", "llm_calls", "pilot_metrics"]
+    dump = {"exported_at": datetime.now().isoformat(), "version": "v0.4", "tables": {}}
+    for t in tables:
+        try:
+            cols = [d[1] for d in conn.execute(f"PRAGMA table_info({t})").fetchall()]
+            rows = conn.execute(f"SELECT * FROM {t}").fetchall()
+            dump["tables"][t] = {"columns": cols, "rows": [dict(zip(cols, r)) for r in rows]}
+        except Exception as e:
+            dump["tables"][t] = {"error": str(e)}
+    conn.close()
+    return JSONResponse(dump)
 
 
 @app.post("/api/send-to-1c")

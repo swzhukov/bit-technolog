@@ -83,6 +83,21 @@
     </div>
     <p class="hint">💡 Или используй старую кнопку «✨ Сгенерировать» (полный вызов, ~3₽).</p>
 </details>
+
+{# Sprint 2: Похожие техкарты (RAG) #}
+<details class="add-form" style="margin-bottom: 16px;">
+    <summary>🤖 Sprint 2: Похожие техкарты (RAG)</summary>
+    <div id="rag-similar" hx-get="/api/rag/similar/{{ detail.id }}?top_k=5" hx-trigger="load" hx-swap="innerHTML">
+        ⏳ Загрузка похожих техкарт...
+    </div>
+</details>
+
+{# Sprint 3: Альтернативные маршруты #}
+<details class="add-form" style="margin-bottom: 16px;">
+    <summary>✨ Sprint 3: Альтернативные маршруты (2-3 варианта)</summary>
+    <button hx-post="/api/alternatives" hx-vals='{"detail_id": "{{ detail.id }}"}' hx-target="#alts-area" hx-swap="innerHTML" class="btn btn-sm">🔀 Показать альтернативы</button>
+    <div id="alts-area"></div>
+</details>
 {% endif %}
 
 {% if not draft %}

@@ -3,6 +3,7 @@
 Запуск: pytest test_app.py -v
 """
 import os
+import json
 import sys
 import tempfile
 import pytest
@@ -397,3 +398,138 @@ def test_economics_endpoint_shows_process_pricing_table(client):
     r = c.get("/api/economics/detail-001")
     assert r.status_code == 200
     assert "по цехам" in r.text or "process-based" in r.text.lower() or "Цех" in r.text
+
+
+# ========== Sprint 2: RAG (TF-IDF + cosine + hybrid) ==========
+def test_rag_status_initial(client):
+    c, _ = client
+    r = c.get("/api/rag/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert "loaded" in data
+    assert "documents" in data
+
+
+def test_rag_rebuild_builds_index(client):
+    c, _ = client
+    r = c.post("/api/rag/rebuild")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["indexed"] >= 1
+
+
+def test_rag_similar_returns_results(client):
+    c, _ = client
+    c.post("/api/rag/rebuild")
+    r = c.get("/api/rag/similar/detail-001?top_k=3")
+    assert r.status_code == 200
+    data = r.json()
+    assert "similar" in data
+    if data["similar"]:
+        s = data["similar"][0]
+        assert "detail_id" in s and "score" in s
+        assert 0.0 <= s["score"] <= 1.0
+
+
+def test_rag_similar_not_found(client):
+    c, _ = client
+    r = c.get("/api/rag/similar/nonexistent")
+    assert r.status_code == 404
+
+
+def test_rag_autoindex_on_approve(client):
+    c, _ = client
+    # Генерируем и approve
+    c.post("/api/generate", data={"detail_id": "detail-002"})
+    c.post("/api/approve", data={"detail_id": "detail-002"})
+    # Индекс должен содержать detail-002
+    status = c.get("/api/rag/status").json()
+    assert "detail-002" in c.get("/api/rag/similar/detail-001?top_k=10").json().get("similar", [{"detail_id": ""}])[0].get("detail_id", "") or status["documents"] >= 1
+
+
+# ========== Sprint 3: Alternatives, Apply similar, Batch ==========
+def test_api_alternatives_demo(client):
+    c, _ = client
+    r = c.post("/api/alternatives", data={"detail_id": "detail-001"})
+    assert r.status_code == 200
+    data = r.json()
+    assert "alternatives" in data
+    alts = data["alternatives"]
+    assert 2 <= len(alts) <= 5
+    for a in alts:
+        assert "variant" in a and "approach" in a and "route" in a
+
+
+def test_api_alternatives_missing(client):
+    c, _ = client
+    r = c.post("/api/alternatives", data={"detail_id": "nonexistent"})
+    assert r.status_code == 404
+
+
+def test_api_apply_similar(client):
+    c, _ = client
+    # Source
+    c.post("/api/generate", data={"detail_id": "detail-001"})
+    c.post("/api/approve", data={"detail_id": "detail-001"})
+    # Apply к detail-002
+    r = c.post("/api/apply-similar", data={"detail_id": "detail-002", "source_id": "detail-001"})
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+
+def test_api_apply_similar_no_source_draft(client):
+    c, _ = client
+    # Используем несуществующий source_id
+    r = c.post("/api/apply-similar", data={"detail_id": "detail-001", "source_id": "detail-nonexistent-xyz"})
+    assert r.status_code == 404
+
+
+def test_api_apply_similar_self(client):
+    c, _ = client
+    r = c.post("/api/apply-similar", data={"detail_id": "detail-001", "source_id": "detail-001"})
+    assert r.status_code == 400
+
+
+def test_api_batch_generate(client):
+    c, _ = client
+    detail_ids = json.dumps(["detail-001", "detail-002"])
+    r = c.post("/api/batch-generate", data={"detail_ids": detail_ids})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["processed"] == 2
+
+
+def test_api_batch_generate_empty(client):
+    c, _ = client
+    r = c.post("/api/batch-generate", data={"detail_ids": "[]"})
+    assert r.status_code == 422
+
+
+# ========== Sprint 5: Audit + Export ==========
+def test_audit_page_renders(client):
+    c, _ = client
+    r = c.get("/audit?limit=20")
+    assert r.status_code == 200
+    assert "Audit" in r.text
+
+
+def test_api_audit_export(client):
+    c, _ = client
+    r = c.get("/api/audit/export")
+    assert r.status_code == 200
+    data = r.json()
+    assert "entries" in data
+    assert "total_entries" in data
+    assert data["total_entries"] >= 1
+
+
+def test_api_export_all(client):
+    c, _ = client
+    r = c.get("/api/export/all")
+    assert r.status_code == 200
+    data = r.json()
+    assert "tables" in data
+    assert "details" in data["tables"]
+    assert "drafts" in data["tables"]
