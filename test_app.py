@@ -322,3 +322,78 @@ def test_economics_endpoint(client):
     r = c.get("/api/economics/detail-001")
     assert r.status_code == 200
     assert "труд" in r.text or "себестоимость" in r.text
+
+
+# ========== Sprint 1: analyze / draft-fast / refine / economics by dept ==========
+def test_api_analyze_demo(client):
+    c, _ = client
+    r = c.post("/api/analyze", data={"detail_id": "detail-001"})
+    assert r.status_code == 200
+    data = r.json()
+    assert "questions" in data
+    assert 3 <= len(data["questions"]) <= 5
+    for q in data["questions"]:
+        assert "id" in q and "question" in q
+        assert "options" in q and len(q["options"]) >= 2
+
+
+def test_api_analyze_missing_detail(client):
+    c, _ = client
+    r = c.post("/api/analyze", data={"detail_id": "nonexistent"})
+    assert r.status_code == 404
+
+
+def test_api_analyze_missing_id(client):
+    c, _ = client
+    r = c.post("/api/analyze", data={})
+    assert r.status_code == 422
+
+
+def test_api_draft_fast_demo(client):
+    c, _ = client
+    r = c.post("/api/draft-fast", data={"detail_id": "detail-001", "answers": "{}"})
+    assert r.status_code == 200
+    data = r.json()
+    assert "draft" in data
+    draft = data["draft"]
+    assert "summary" in draft
+    assert "route" in draft
+    assert 1 <= len(draft["route"]) <= 5
+
+
+def test_api_refine_demo(client):
+    c, _ = client
+    r = c.post("/api/refine", data={"detail_id": "detail-001", "draft": "{}", "answers": "{}"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("ok") is True
+    assert "total_ops" in data
+
+
+def test_api_feedback(client):
+    c, _ = client
+    r = c.post("/api/feedback", data={"detail_id": "detail-001", "reason": "некорректный маршрут"})
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+
+def test_economics_includes_by_department(client):
+    c, app = client
+    c.post("/api/generate", data={"detail_id": "detail-001"})
+    c.post("/api/details/detail-001/economics",
+           data={"cost_per_hour": "500", "overhead_pct": "15", "material_cost_rub": "1000"})
+    econ = app.calc_cost_estimate("detail-001")
+    assert "by_department" in econ
+    assert len(econ["by_department"]) >= 1
+    for d in econ["by_department"]:
+        assert "department" in d and "hours" in d and "labor_cost" in d
+
+
+def test_economics_endpoint_shows_process_pricing_table(client):
+    c, _ = client
+    c.post("/api/generate", data={"detail_id": "detail-001"})
+    c.post("/api/details/detail-001/economics",
+           data={"cost_per_hour": "500", "overhead_pct": "15", "material_cost_rub": "1000"})
+    r = c.get("/api/economics/detail-001")
+    assert r.status_code == 200
+    assert "по цехам" in r.text or "process-based" in r.text.lower() or "Цех" in r.text

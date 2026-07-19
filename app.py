@@ -849,6 +849,241 @@ async def detail(request: Request, detail_id: str):
     })
 
 
+@app.post("/api/analyze")
+async def api_analyze(request: Request):
+    """Sprint 1: AI задаёт 3-5 уточняющих вопросов перед генерацией (blueprint.io pattern)"""
+    detail_id = await _get_param(request, "detail_id", log_name="/api/analyze")
+    if not detail_id:
+        return JSONResponse({"error": "detail_id required"}, status_code=422)
+    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    if not detail_obj:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    daily = get_daily_cost()
+    if daily["exceeded"]:
+        return JSONResponse({"error": "daily_limit_exceeded", "limit": daily["limit_rub"]}, status_code=429)
+
+    if DEMO_MODE:
+        return JSONResponse({
+            "questions": [
+                {"id": "Q1", "topic": "материал", "question": "Какой материал заготовки?", "options": ["лист 09Г2С", "труба Ст20", "поковка 40Х", "другое"], "default": "лист 09Г2С", "impact_if_changed": "изменит режим сварки и нормы"},
+                {"id": "Q2", "topic": "толщина", "question": "Толщина металла в мм?", "options": ["3", "5", "8", "10+"], "default": "5", "impact_if_changed": "изменит параметры сварки"},
+                {"id": "Q3", "topic": "термообработка", "question": "Требуется ли термообработка после сварки?", "options": ["да, отпуск", "да, закалка+отпуск", "нет"], "default": "да, отпуск", "impact_if_changed": "добавит 1.5ч в маршрут"},
+                {"id": "Q4", "topic": "покрытие", "question": "Какое покрытие?", "options": ["порошковая покраска", "жидкая краска", "горячее цинкование", "без покрытия"], "default": "порошковая покраска", "impact_if_changed": "изменит финишные операции"},
+                {"id": "Q5", "topic": "приёмка", "question": "Нужна ли военная приёмка?", "options": ["да", "нет"], "default": "нет", "impact_if_changed": "добавит операции ОТК"}
+            ],
+            "mode": "demo"
+        })
+
+    try:
+        from openai import OpenAI
+        from string import Template
+        from prompts import CLARIFICATION_PROMPT
+        client = OpenAI(base_url=LLM_API_URL, api_key=LLM_API_KEY, timeout=LLM_TIMEOUT)
+        prompt = Template(CLARIFICATION_PROMPT).substitute(
+            properties_json=json.dumps(detail_obj, indent=2, ensure_ascii=False),
+            material=detail_obj.get("material", ""),
+            mass_kg=detail_obj.get("mass_kg", 0),
+            surface_treatment=detail_obj.get("surface_treatment", ""),
+            chassis=detail_obj.get("chassis", ""),
+            model=detail_obj.get("model", "")
+        )
+        import time
+        t0 = time.time()
+        system_msg = "Ты — опытный технолог. Задай 3-5 КРАТКИХ уточняющих вопросов перед генерацией техкарты. Возвращай только JSON без markdown."
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        duration = int((time.time() - t0) * 1000)
+        text = response.choices[0].message.content.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
+            if text.startswith("json"):
+                text = text[4:].lstrip()
+        result = json.loads(text)
+        log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, True,
+                     response.usage.prompt_tokens if response.usage else None,
+                     response.usage.completion_tokens if response.usage else None,
+                     duration)
+        result["mode"] = "live"
+        return JSONResponse(result)
+    except Exception as e:
+        log.error(f"/api/analyze error: {e}")
+        return JSONResponse({"error": str(e)[:200]}, status_code=500)
+
+
+@app.post("/api/draft-fast")
+async def api_draft_fast(request: Request):
+    """Sprint 1: быстрый дешёвый draft (короткий промт, 3 операции, ~30 сек, ~1₽)"""
+    detail_id = await _get_param(request, "detail_id", log_name="/api/draft-fast")
+    if not detail_id:
+        return JSONResponse({"error": "detail_id required"}, status_code=422)
+    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    if not detail_obj:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    daily = get_daily_cost()
+    if daily["exceeded"]:
+        return JSONResponse({"error": "daily_limit_exceeded"}, status_code=429)
+    if DEMO_MODE:
+        return JSONResponse({"draft": {"summary": {"total_operations": 3, "total_hours": 1.5, "complexity": "средняя", "closest_analog": "4c85941a (упор продольный)"},
+                              "route": [{"step": 1, "operation": "010 Подготовительная", "duration_hours": 0.2},
+                                       {"step": 2, "operation": "015 Сварка", "duration_hours": 0.7},
+                                       {"step": 3, "operation": "020 Контроль", "duration_hours": 0.6}],
+                              "operations": [], "warnings": [], "questions": []},
+                         "mode": "demo", "cost_estimate": "1.00₽"})
+    try:
+        from openai import OpenAI
+        from string import Template
+        from prompts import DRAFT_FAST_PROMPT
+        client = OpenAI(base_url=LLM_API_URL, api_key=LLM_API_KEY, timeout=LLM_TIMEOUT)
+        answers = await _get_param(request, "answers") or "{}"
+        try:
+            answers_dict = json.loads(answers) if answers else {}
+        except Exception:
+            answers_dict = {}
+        prompt = Template(DRAFT_FAST_PROMPT).substitute(
+            properties_json=json.dumps(detail_obj, indent=2, ensure_ascii=False),
+            answers_json=json.dumps(answers_dict, indent=2, ensure_ascii=False)
+        )
+        import time
+        t0 = time.time()
+        system_msg = "Сгенерируй КРАТКИЙ draft маршрута (3 операции) для этой детали. Только JSON без markdown."
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        duration = int((time.time() - t0) * 1000)
+        text = response.choices[0].message.content.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
+            if text.startswith("json"):
+                text = text[4:].lstrip()
+        result = json.loads(text)
+        log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, True,
+                     response.usage.prompt_tokens if response.usage else None,
+                     response.usage.completion_tokens if response.usage else None,
+                     duration)
+        result["mode"] = "live"
+        tokens_in = response.usage.prompt_tokens if response.usage else 0
+        tokens_out = response.usage.completion_tokens if response.usage else 0
+        cost = (tokens_in/1000)*LLM_PRICE_INPUT_RUB_PER_1K + (tokens_out/1000)*LLM_PRICE_OUTPUT_RUB_PER_1K
+        result["cost_estimate"] = f"{cost:.2f}₽"
+        return JSONResponse({"draft": result, "mode": "live", "cost_estimate": f"{cost:.2f}₽"})
+    except Exception as e:
+        log.error(f"/api/draft-fast error: {e}")
+        return JSONResponse({"error": str(e)[:200]}, status_code=500)
+
+
+@app.post("/api/refine")
+async def api_refine(request: Request):
+    """Sprint 1: уточнение draft'а до полного маршрута (с учётом ответов на уточнения)"""
+    detail_id = await _get_param(request, "detail_id", log_name="/api/refine")
+    if not detail_id:
+        return JSONResponse({"error": "detail_id required"}, status_code=422)
+    detail_obj = next((d for d in MOCK_DETAILS if d["id"] == detail_id), None)
+    if not detail_obj:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    daily = get_daily_cost()
+    if daily["exceeded"]:
+        return JSONResponse({"error": "daily_limit_exceeded"}, status_code=429)
+    draft_json = await _get_param(request, "draft")
+    answers = await _get_param(request, "answers")
+    if draft_json:
+        try:
+            draft_dict = json.loads(draft_json)
+        except Exception:
+            draft_dict = {}
+    else:
+        draft_dict = {}
+    try:
+        answers_dict = json.loads(answers) if answers else {}
+    except Exception:
+        answers_dict = {}
+    if DEMO_MODE:
+        llm_output = generate_mock_draft(detail_obj)
+        add_history(detail_id, "refined_mock", {"from": "draft"})
+    else:
+        try:
+            from openai import OpenAI
+            from string import Template
+            from prompts import REFINE_PROMPT
+            client = OpenAI(base_url=LLM_API_URL, api_key=LLM_API_KEY, timeout=LLM_TIMEOUT)
+            tech_rules_text = detail_obj.get("tech_rules") or ""
+            rules_block = f"\nВАЖНО: Технолог указал следующие правила и нюансы — ОБЯЗАТЕЛЬНО учти их:\n{tech_rules_text}\n" if tech_rules_text.strip() else ""
+            prompt = Template(REFINE_PROMPT).substitute(
+                properties_json=json.dumps(detail_obj, indent=2, ensure_ascii=False),
+                equipment_json=json.dumps(EQUIPMENT, indent=2, ensure_ascii=False),
+                structure_json=json.dumps(STRUCTURE, indent=2, ensure_ascii=False),
+                few_shot_json=json.dumps(FEW_SHOT_4C85941A, indent=2, ensure_ascii=False),
+                tech_rules="(правила не указаны)",
+                rules_block=rules_block,
+                draft_json=json.dumps(draft_dict, indent=2, ensure_ascii=False),
+                answers_json=json.dumps(answers_dict, indent=2, ensure_ascii=False)
+            )
+            import time
+            t_start = time.time()
+            system_msg = "Ты — опытный технолог-сварщик. Доработай draft маршрута до полной техкарты. Всегда возвращай валидный JSON без markdown-обёртки."
+            response = client.chat.completions.create(
+                model=LLM_MODEL,
+                messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=8000
+            )
+            duration_ms = int((time.time() - t_start) * 1000)
+            text = response.choices[0].message.content.strip()
+            if text.startswith("```"):
+                lines = text.split("\n")
+                text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else text
+                if text.startswith("json"):
+                    text = text[4:].lstrip()
+            log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, False,
+                         response.usage.prompt_tokens if response.usage else None,
+                         response.usage.completion_tokens if response.usage else None,
+                         duration_ms)
+            try:
+                llm_output = json.loads(text)
+                conn = get_conn()
+                last_id = conn.execute("SELECT MAX(id) FROM llm_calls").fetchone()[0]
+                if last_id:
+                    conn.execute("UPDATE llm_calls SET response_parsed_ok=1 WHERE id=?", (last_id,))
+                    conn.commit()
+                conn.close()
+            except json.JSONDecodeError as je:
+                log_llm_call(detail_id, LLM_MODEL, system_msg, prompt, text, False, duration_ms=duration_ms, error=f"JSON parse: {je}")
+                return JSONResponse({"error": "JSON parse"}, status_code=500)
+            add_history(detail_id, "refined", {"model": LLM_MODEL,
+                                              "tokens_in": response.usage.prompt_tokens if response.usage else None,
+                                              "tokens_out": response.usage.completion_tokens if response.usage else None})
+        except Exception as e:
+            log.error(f"/api/refine LLM error: {e}")
+            return JSONResponse({"error": str(e)[:200]}, status_code=500)
+    save_draft(detail_id, llm_output, "draft")
+    total_ops = len(llm_output.get("operations", []))
+    record_metric(detail_id, "total_ops", total_ops, {"source": "refine"})
+    tokens_in = response.usage.prompt_tokens if 'response' in dir() and response.usage else 0
+    tokens_out = response.usage.completion_tokens if 'response' in dir() and response.usage else 0
+    cost = (tokens_in/1000)*LLM_PRICE_INPUT_RUB_PER_1K + (tokens_out/1000)*LLM_PRICE_OUTPUT_RUB_PER_1K
+    return JSONResponse({"ok": True, "total_ops": total_ops, "cost": f"{cost:.2f}₽"})
+
+
+@app.post("/api/feedback")
+async def api_feedback(request: Request):
+    """Sprint 3 placeholder: кнопка 'Пожаловаться' на AI-результат"""
+    detail_id = await _get_param(request, "detail_id", log_name="/api/feedback")
+    reason = await _get_param(request, "reason") or ""
+    if not detail_id or not reason:
+        return JSONResponse({"error": "detail_id and reason required"}, status_code=422)
+    add_history(detail_id, "ai_feedback", {"reason": reason[:500]})
+    return {"ok": True}
+
+
 @app.post("/api/generate")
 async def generate(request: Request):
     """Generate draft via LLM (or mock in demo mode). Accepts form-data, JSON, or URL param."""
@@ -1826,7 +2061,7 @@ async def api_save_economics(detail_id: str,
 
 
 def calc_cost_estimate(detail_id: str) -> dict:
-    """Расчёт себестоимости: труд (ставка * часы) + материал + накладные"""
+    """Sprint 1: Process-based pricing (CADDi pattern) — разбивка по этапам маршрута"""
     draft = get_draft(detail_id)
     detail = get_detail(detail_id)
     if not draft or not detail:
@@ -1836,6 +2071,24 @@ def calc_cost_estimate(detail_id: str) -> dict:
     cost_per_hour = detail.get("cost_per_hour") or 0
     material_cost = detail.get("material_cost_rub") or 0
     overhead_pct = detail.get("overhead_pct") or 0
+
+    # Process-based breakdown: группируем по department
+    breakdown_by_dept = {}
+    for op in operations:
+        dept = op.get("department") or "Без цеха"
+        if dept not in breakdown_by_dept:
+            breakdown_by_dept[dept] = {"hours": 0.0, "operations": 0, "labor_cost": 0.0}
+        breakdown_by_dept[dept]["hours"] += op.get("duration_hours", 0)
+        breakdown_by_dept[dept]["operations"] += 1
+    for d in breakdown_by_dept.values():
+        d["hours"] = round(d["hours"], 2)
+        d["labor_cost"] = round(d["hours"] * cost_per_hour, 2)
+
+    # Распределяем материал по этапам пропорционально часам
+    material_by_dept = {}
+    for dept, d in breakdown_by_dept.items():
+        share = (d["hours"] / total_hours) if total_hours else 0
+        material_by_dept[dept] = round(material_cost * share, 2)
 
     labor_cost = total_hours * cost_per_hour
     direct_cost = labor_cost + material_cost
@@ -1851,7 +2104,12 @@ def calc_cost_estimate(detail_id: str) -> dict:
         "overhead_pct": overhead_pct,
         "overhead": round(overhead, 2),
         "total_cost": round(total_cost, 2),
-        "price": round(price, 2)
+        "price": round(price, 2),
+        "by_department": [
+            {"department": dept, "hours": d["hours"], "operations": d["operations"],
+             "labor_cost": d["labor_cost"], "material_cost": material_by_dept[dept]}
+            for dept, d in sorted(breakdown_by_dept.items(), key=lambda x: -x[1]["hours"])
+        ]
     }
 
 
@@ -1890,10 +2148,20 @@ async def api_approve_chief(request: Request):
 
 @app.get("/api/economics/{detail_id}")
 async def api_economics(detail_id: str):
-    """Возвращает HTML-блок с расчётом себестоимости"""
+    """Sprint 1: HTML с метриками + process-based breakdown по цехам (CADDi pattern)"""
     econ = calc_cost_estimate(detail_id)
     if not econ:
         return HTMLResponse('<p>Нет черновика для расчёта.</p>')
+    by_dept_rows = ""
+    for d in econ.get("by_department", []):
+        by_dept_rows += f"""<tr>
+            <td>{d['department']}</td>
+            <td>{d['operations']}</td>
+            <td>{d['hours']}</td>
+            <td>{d['labor_cost']}₽</td>
+            <td>{d['material_cost']}₽</td>
+            <td>{d['labor_cost'] + d['material_cost']}₽</td>
+        </tr>"""
     html = f"""
     <div class="metrics">
         <div class="metric"><div class="metric-value">{econ['total_hours']}</div><div class="metric-label">часов всего</div></div>
@@ -1904,6 +2172,15 @@ async def api_economics(detail_id: str):
         <div class="metric"><div class="metric-value" style="color:#16a34a">{econ['price']}₽</div><div class="metric-label">цена (наценка 30%)</div></div>
     </div>
     <p class="lead">Расчёт: {econ['total_hours']} ч × ставка + {econ['material_cost']}₽ материал + {econ['overhead_pct']}% накладные = {econ['total_cost']}₽</p>
+
+    <h3 style="margin-top: 24px;">📊 Разбивка по цехам (process-based pricing)</h3>
+    <p class="lead"><small>Сколько часов и денег уходит в каждом цехе — CADDi-паттерн для прозрачности себестоимости.</small></p>
+    <table class="data-table">
+        <thead><tr><th>Цех</th><th>Операций</th><th>Часы</th><th>Труд</th><th>Материал</th><th>Итого</th></tr></thead>
+        <tbody>
+        {by_dept_rows}
+        </tbody>
+    </table>
     """
     return HTMLResponse(html)
 

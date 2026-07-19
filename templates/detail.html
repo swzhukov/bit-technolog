@@ -60,6 +60,29 @@
         <span id="econ-status"></span>
     </form>
 </details>
+
+{# Sprint 1: 3-step flow (analyze → draft-fast → refine) #}
+<details class="add-form" style="margin-bottom: 16px;" open>
+    <summary>🤖 Sprint 1: 3-step generation (уточнения → draft → refine)</summary>
+    <div class="step-flow">
+        <div class="step" id="step-analyze">
+            <strong>Шаг 1.</strong> AI задаёт 3-5 уточняющих вопросов
+            <button hx-post="/api/analyze" hx-vals='{"detail_id": "{{ detail.id }}"}' hx-target="#questions-area" hx-swap="innerHTML" class="btn btn-sm">🤔 Уточнить</button>
+            <div id="questions-area"></div>
+        </div>
+        <div class="step" id="step-draft">
+            <strong>Шаг 2.</strong> Быстрый draft (3 операции, ~1₽)
+            <button hx-post="/api/draft-fast" hx-vals='{"detail_id": "{{ detail.id }}", "answers": "{}"}' hx-target="#draft-area" hx-swap="innerHTML" class="btn btn-sm">⚡ Draft</button>
+            <div id="draft-area"></div>
+        </div>
+        <div class="step" id="step-refine">
+            <strong>Шаг 3.</strong> Refine до полного маршрута (с учётом уточнений)
+            <button hx-post="/api/refine" hx-vals='{"detail_id": "{{ detail.id }}", "draft": "{}", "answers": "{}"}' hx-target="#refine-status" hx-swap="innerHTML" class="btn btn-sm btn-primary" onclick="setTimeout(() => location.reload(), 3000);">✨ Refine</button>
+            <div id="refine-status"></div>
+        </div>
+    </div>
+    <p class="hint">💡 Или используй старую кнопку «✨ Сгенерировать» (полный вызов, ~3₽).</p>
+</details>
 {% endif %}
 
 {% if not draft %}
@@ -371,7 +394,7 @@
 
 <div class="tab-content" id="tab-economics" style="display:none">
     <h2>💰 Экономика</h2>
-    <p class="lead">Себестоимость и рекомендуемая цена продажи (с наценкой 30%)</p>
+    <p class="lead">Себестоимость и рекомендуемая цена продажи (с наценкой 30%). Sprint 1: process-based pricing по цехам.</p>
     <div id="econ-data"
          hx-get="/api/economics/{{ detail.id }}"
          hx-trigger="load"
