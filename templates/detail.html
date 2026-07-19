@@ -14,11 +14,20 @@
         {% if status_ext == "review" %}<span class="badge yellow">👀 На проверке</span>
         {% elif status_ext == "approved_chief" %}<span class="badge green">👑 Утверждён начальником</span>
         {% endif %}
-        <span class="meta-item">{{ detail.model }}</span>
-        <span class="meta-item">{{ detail.chassis }}</span>
+        {% if detail.model %}<span class="badge blue" style="background:#dbeafe;color:#1e40af;font-weight:600;">🚒 {{ detail.model }}</span>{% endif %}
+        {% if detail.chassis %}<span class="badge" style="background:#fef3c7;color:#92400e;">🛻 {{ detail.chassis }}</span>{% endif %}
         <span class="meta-item">{{ detail.material }}</span>
         <span class="meta-item">{{ detail.mass_kg }} кг</span>
         <span class="meta-item">{{ detail.surface_treatment }}</span>
+    </div>
+    {# M2 fix: показ версии + уровня иерархии #}
+    <div style="margin-top:8px; font-size:12px; color:#6b7280;">
+        {% if detail.level == 'product' %}<span style="background:#7c3aed;color:white;padding:2px 6px;border-radius:3px;font-size:11px;font-weight:600;">📦 ИЗДЕЛИЕ</span>
+        {% elif detail.level == 'assembly' %}<span style="background:#a855f7;color:white;padding:2px 6px;border-radius:3px;font-size:11px;font-weight:600;">🧩 УЗЕЛ</span>
+        {% elif detail.level == 'detail' %}<span style="background:#3b82f6;color:white;padding:2px 6px;border-radius:3px;font-size:11px;font-weight:600;">🔩 ДЕТАЛЬ</span>
+        {% endif %}
+        <span style="margin-left:8px;">📋 Версия КД: <code>{{ detail.version or '1.0' }}</code></span>
+        {% if detail.parent_id %}<span style="margin-left:8px;">↑ Входит в: <a href="/detail/{{ detail.parent_id }}"><code>{{ detail.parent_id }}</code></a></span>{% endif %}
     </div>
 </div>
 
@@ -241,6 +250,8 @@ function step3_refine(did) {
 {% endif %}
 
 {% if not draft %}
+{% set cur_role = current_role_from_request(request) %}
+{% if cur_role in ('technologist', 'main_technologist', 'admin') %}
 <div class="action-bar">
     <form hx-post="/api/generate"
           hx-target="#generate-status"
@@ -298,8 +309,17 @@ function step3_refine(did) {
     </script>
 </div>
 {% else %}
+{# только для ролей, которые могут генерировать #}
+<div class="info-block" style="color:#6b7280;">
+    <p>Проект ТК ещё не сгенерирован. Только технолог или гл. технолог могут запустить генерацию.</p>
+    <p style="font-size:12px;">Ваша роль: <strong>{{ current_role_from_request(request) }}</strong></p>
+</div>
+{% endif %}
+{% else %}
 <div class="action-bar">
+    {% set cur_role = current_role_from_request(request) %}
     {% if status != "approved" %}
+    {% if cur_role in ('technologist', 'main_technologist', 'admin') %}
     <button onclick="showApprovePreview()"
             class="btn btn-primary">
         ✅ Утвердить
@@ -311,12 +331,16 @@ function step3_refine(did) {
         👀 Отправить на проверку
     </button>
     {% endif %}
+    {% endif %}
+    {% if cur_role in ('main_technologist', 'workshop_chief', 'admin') %}
     <button hx-post="/api/approve-chief"
             hx-vals='{"detail_id": "{{ detail.id }}", "chief": "Баранов"}'
             hx-on::after-request="location.reload()"
             class="btn">
         👑 Утвердить как начальник
     </button>
+    {% endif %}
+    {% if cur_role in ('main_technologist', 'admin') %}
     <button hx-post="/api/send-to-1c"
             hx-vals='{"detail_id": "{{ detail.id }}"}'
             hx-confirm="Записать РС в 1С:ERP?"
@@ -324,6 +348,7 @@ function step3_refine(did) {
             class="btn">
         📤 Записать в 1С
     </button>
+    {% endif %}
     <form action="/api/export/excel" method="post" style="display:inline">
         <input type="hidden" name="detail_id" value="{{ detail.id }}">
         <button type="submit" class="btn">📊 Excel</button>
@@ -412,10 +437,10 @@ function step3_refine(did) {
                 <td>{{ op.equipment or "—" }}</td>
                 <td>{{ op.duration_hours }} ч</td>
                 <td>
-                    {% if op.confidence >= 80 %}🟢
-                    {% elif op.confidence >= 60 %}🟡
+                    {% if op.confidence is defined and op.confidence >= 80 %}🟢
+                    {% elif op.confidence is defined and op.confidence >= 60 %}🟡
                     {% else %}🔴{% endif %}
-                    {{ op.confidence }}%
+                    {{ op.confidence if op.confidence is defined else '—' }}%
                 </td>
             </tr>
             {% endfor %}
@@ -465,10 +490,10 @@ function step3_refine(did) {
         <div class="op-card-header">
             <h3>Операция {{ loop.index }}</h3>
             <span class="op-confidence">
-                {% if op.confidence >= 80 %}🟢
-                {% elif op.confidence >= 60 %}🟡
+                {% if op.confidence is defined and op.confidence >= 80 %}🟢
+                {% elif op.confidence is defined and op.confidence >= 60 %}🟡
                 {% else %}🔴{% endif %}
-                {{ op.confidence }}%
+                {{ op.confidence if op.confidence is defined else '—' }}%
             </span>
         </div>
         <div class="op-card-body">
@@ -529,10 +554,14 @@ function step3_refine(did) {
 <div class="tab-content" id="tab-reasoning" style="display:none">
     <h2>Обоснование (для руководства)</h2>
     <div class="info-block">
+        {% if draft.reasoning is defined and draft.reasoning %}
         {% for key, value in draft.reasoning.items() %}
         <h4>{{ key | replace('_', ' ') | title }}</h4>
         <p>{{ value }}</p>
         {% endfor %}
+        {% else %}
+        <p style="color:#9ca3af;font-style:italic;">Обоснование не предоставлено AI (демо-режим).</p>
+        {% endif %}
     </div>
 </div>
 

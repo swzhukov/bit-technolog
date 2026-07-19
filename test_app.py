@@ -1914,3 +1914,95 @@ def test_tehnolog_guide_exists():
     assert "Технолог" in content or "технолог" in content
     assert "5 шагов" in content or "Утверди" in content
     assert len(content) > 1000  # не пустой
+
+
+# ========== Audit Cycle v13: M1 (role-based actions), M2 (model/version display) ==========
+def test_mistakes_file_exists():
+    """M4: MISTAKES.md существует в репо"""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "MISTAKES.md")
+    assert os.path.exists(path), f"MISTAKES.md not found: {path}"
+    with open(path) as f:
+        content = f.read()
+    assert "M1" in content
+    assert "M2" in content
+
+
+def test_role_based_actions_in_detail(client):
+    """M1 fix: разные кнопки для разных ролей в detail.html"""
+    c, _ = client
+    r = c.post("/api/details",
+        data={"designation": "RBAC-001", "name": "Test rbac",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    c.post("/api/generate", data={"detail_id": detail_id})
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert "approve-chief" not in r.text
+    c.post("/api/role/switch", data={"role": "main_technologist"})
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert "approve-chief" in r.text
+
+
+def test_model_badge_in_detail(client):
+    """M2 fix: бэйдж модели в карточке"""
+    c, _ = client
+    r = c.post("/api/details",
+        data={"designation": "MODBADGE-001", "name": "Test",
+              "model": "АЦ-6,0-40", "chassis": "КАМАЗ 43118",
+              "material": "Сталь", "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert "АЦ-6,0-40" in r.text
+
+
+def test_model_filter_in_index(client):
+    """M2 fix: фильтр по модели в списке"""
+    c, _ = client
+    for model in ["АЦ-6,0-40", "ПСС-131.18Э"]:
+        c.post("/api/details",
+            data={"designation": f"FLT-{model[:5]}", "name": "Test",
+                  "model": model, "chassis": "", "material": "Сталь",
+                  "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+            follow_redirects=False)
+    r = c.get("/?model=АЦ-6,0-40")
+    assert r.status_code == 200
+    assert "АЦ-6,0-40" in r.text
+    assert 'name="model"' in r.text
+
+
+def test_version_display_in_detail(client):
+    """M2 fix: версия КД в карточке детали"""
+    c, _ = client
+    r = c.post("/api/details",
+        data={"designation": "VER-001", "name": "Test",
+              "model": "АЦ-6,0-40", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert "Версия КД" in r.text
+
+
+def test_role_switch_actually_changes_ui(client):
+    """M1 fix: переключение роли действительно меняет UI"""
+    c, _ = client
+    r = c.post("/api/details",
+        data={"designation": "RSW-001", "name": "Test rsw",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    c.post("/api/generate", data={"detail_id": detail_id})
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r_tech = c.get(f"/detail/{detail_id}").text
+    c.post("/api/role/switch", data={"role": "admin"})
+    r_admin = c.get(f"/detail/{detail_id}").text
+    assert r_tech != r_admin, "UI не меняется при смене роли — БАГ"

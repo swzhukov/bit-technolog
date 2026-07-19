@@ -572,6 +572,11 @@ def init_db():
             updated_by TEXT
         );
     """)
+    # Миграция: добавляем колонку version если её нет (M2 fix — версия КД)
+    try:
+        conn.execute("ALTER TABLE details ADD COLUMN version TEXT DEFAULT '1.0'")
+    except Exception:
+        pass
     # Миграция: добавляем колонку cost_rub если её нет (для старых БД)
     try:
         conn.execute("ALTER TABLE llm_calls ADD COLUMN cost_rub REAL DEFAULT 0")
@@ -2344,7 +2349,7 @@ async def _get_param(request: Request, name: str, log_name: str = "") -> Optiona
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, q: str = "", page: int = 1, per_page: int = 25, status: str = ""):
+async def index(request: Request, q: str = "", page: int = 1, per_page: int = 25, status: str = "", model: str = ""):
     # N+1 fix: один запрос со всеми статусами
     conn = get_conn()
     where_clauses = []
@@ -2357,7 +2362,12 @@ async def index(request: Request, q: str = "", page: int = 1, per_page: int = 25
     if status:
         where_clauses.append("status = ?")
         params.append(status)
+    if model:
+        where_clauses.append("model = ?")
+        params.append(model)
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+    # Список моделей для фильтра (M2 fix)
+    models = [r[0] for r in conn.execute("SELECT DISTINCT model FROM details WHERE model IS NOT NULL AND model != '' ORDER BY model").fetchall() if r[0]]
     # Всего
     count_row = conn.execute(f"SELECT COUNT(*) FROM details {where_sql}", params).fetchone()
     total = count_row[0] if count_row else 0
@@ -2386,6 +2396,8 @@ async def index(request: Request, q: str = "", page: int = 1, per_page: int = 25
         "llm_model": LLM_MODEL,
         "q": q,
         "status": status,
+        "model": model,
+        "models": models,
         "page": page,
         "per_page": per_page,
         "total": total,
