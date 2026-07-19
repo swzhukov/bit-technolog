@@ -4047,14 +4047,23 @@ def _check_dependencies() -> dict:
         if DEMO_MODE or not api_key:
             deps["llm"] = "demo_mode" if DEMO_MODE else "not_configured"
         else:
-            # HEAD запрос к API
+            # GET к /v1/models (OpenAI-совместимый endpoint для проверки)
             import urllib.request
-            req = urllib.request.Request(api_url, method="HEAD")
+            models_url = api_url.rstrip("/") + "/models"
+            req = urllib.request.Request(models_url)
+            req.add_header("Authorization", f"Bearer {api_key[:8]}...")  # partial — не для реальной авторизации
             try:
                 with urllib.request.urlopen(req, timeout=3) as resp:
                     deps["llm"] = "ok" if resp.status < 500 else "degraded"
             except Exception as e:
-                deps["llm"] = f"unreachable: {str(e)[:50]}"
+                # 401/403 = ключ не подходит, но endpoint живой
+                err_str = str(e)[:80]
+                if "401" in err_str or "403" in err_str:
+                    deps["llm"] = "auth_error"  # ключ не подходит
+                elif "404" in err_str:
+                    deps["llm"] = "endpoint_not_found"
+                else:
+                    deps["llm"] = f"unreachable: {err_str}"
     except Exception as e:
         deps["llm"] = f"check_failed: {str(e)[:50]}"
     # Telegram
