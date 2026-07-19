@@ -1535,6 +1535,10 @@ async def api_import_tk(request: Request):
         suffix = (f.filename or "").lower().split(".")[-1]
         if suffix not in ALLOWED_IMPORT_FORMATS:
             return err(f"unsupported format '{suffix}'. Allowed: {sorted(ALLOWED_IMPORT_FORMATS)}", 400)
+        # F-12 fix: magic bytes verification
+        from importers import verify_magic_bytes
+        if not verify_magic_bytes(contents, suffix):
+            return err(f"file content does not match extension .{suffix} (magic bytes mismatch — possible malicious upload)", 400)
         tmp_path = f"/tmp/import_{os.getpid()}.{suffix}"
         with open(tmp_path, "wb") as out:
             out.write(contents)
@@ -1593,6 +1597,10 @@ async def api_import_drawing(detail_id: str, request: Request):
     suffix = (f.filename or "").lower().split(".")[-1]
     if suffix not in ALLOWED_DRAWING_FORMATS:
         return err(f"unsupported format '{suffix}'. Allowed: {sorted(ALLOWED_DRAWING_FORMATS)}", 400)
+    # F-12 fix: magic bytes verification
+    from importers import verify_magic_bytes
+    if not verify_magic_bytes(contents, suffix):
+        return err(f"file content does not match extension .{suffix} (magic bytes mismatch — possible malicious upload)", 400)
     safe_filename = re.sub(r"[^A-Za-z0-9._-]", "_", f.filename or "drawing")
     safe_filename = safe_filename[:100]  # N1: limit length
     file_path = os.path.join(drawings_dir, f"{detail_id}_{safe_filename}")
@@ -4036,13 +4044,41 @@ async def pilot_dashboard(request: Request):
         SUM(CASE WHEN metric='time_to_card_min' THEN value ELSE 0 END) as time_min,
         MAX(created_at) as last
         FROM pilot_metrics GROUP BY detail_id ORDER BY last DESC LIMIT 20""").fetchall()
+    # RAG-метрика: сколько ТК в индексе
+    rag_count = 0
+    rag_status = "empty"
+    rag_path = ".rag"
+    if os.path.exists(rag_path):
+        try:
+            ids_files = [f for f in os.listdir(rag_path) if 'ids' in f]
+            if ids_files:
+                import pickle
+                with open(os.path.join(rag_path, ids_files[0]), 'rb') as f:
+                    ids = pickle.load(f)
+                    rag_count = len(ids)
+                    rag_status = "loaded"
+        except Exception:
+            rag_status = "error"
+    # Количество утверждённых ТК (для пилота: target 30+)
+    approved_count = conn.execute("SELECT COUNT(*) FROM drafts WHERE status='approved'").fetchone()[0] or 0
+    # Количество всего деталей
+    total_details = conn.execute("SELECT COUNT(*) FROM details").fetchone()[0] or 0
+    # RAG-готовность: для качественной работы RAG нужно 30+ утверждённых ТК
+    rag_readiness = "🟢 достаточно" if approved_count >= 30 else ("🟡 минимум" if approved_count >= 10 else "🔴 мало")
+    rag_target = 30
     conn.close()
     approved_list = [{"detail_id": r[0], "edits": r[1] or 0,
                       "time_min": r[2] or 0, "last": r[3]} for r in recent]
     return templates.TemplateResponse("pilot.html", {
         "request": request,
         "metrics": metrics,
-        "approved_list": approved_list
+        "approved_list": approved_list,
+        "rag_count": rag_count,
+        "rag_status": rag_status,
+        "rag_readiness": rag_readiness,
+        "rag_target": rag_target,
+        "approved_count": approved_count,
+        "total_details": total_details
     })
 
 

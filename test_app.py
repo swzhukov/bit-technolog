@@ -1071,10 +1071,11 @@ def test_specialized_prompts_welding():
 
 
 def test_drawing_upload(client):
-    """Загрузка чертежа"""
+    """Загрузка чертежа (с валидной magic-bytes)"""
     import io
     c, _ = client
-    fake_file = ("test_drawing.pdf", io.BytesIO(b"fake pdf content"), "application/pdf")
+    # Используем валидную PDF-сигнатуру для прохождения magic bytes check
+    fake_file = ("test_drawing.pdf", io.BytesIO(b"%PDF-1.4\nfake content"), "application/pdf")
     r = c.post("/api/import/drawing/detail-001",
                files={"file": fake_file})
     assert r.status_code == 200
@@ -1849,3 +1850,71 @@ def test_status_badges_in_index(client):
     # Хотя бы один из статусов должен быть
     has_status = any(s in text for s in ["Новый", "Проект ТК", "Утверждён"])
     assert has_status
+
+
+# ========== Audit Cycle v11: F8 (RAG metric), F12 (magic bytes), F10 (guide) ==========
+def test_pilot_dashboard_shows_rag_metrics(client):
+    """На /pilot есть метрика RAG: кол-во ТК, готовность"""
+    c, _ = client
+    r = c.get("/pilot")
+    assert r.status_code == 200
+    text = r.text
+    # RAG-метрика
+    assert "RAG" in text or "раг" in text.lower() or "готов" in text.lower()
+
+
+def test_magic_bytes_pdf():
+    """verify_magic_bytes: PDF-сигнатура"""
+    from importers import verify_magic_bytes
+    # Валидный PDF
+    assert verify_magic_bytes(b"%PDF-1.4\n...", "pdf") is True
+    # Не PDF (exe переименованный)
+    assert verify_magic_bytes(b"MZ\x90\x00\x03\x00\x00\x00", "pdf") is False
+    # Пустой
+    assert verify_magic_bytes(b"", "pdf") is False
+
+
+def test_magic_bytes_png():
+    from importers import verify_magic_bytes
+    # Валидный PNG
+    assert verify_magic_bytes(b"\x89PNG\r\n\x1a\n...", "png") is True
+    # Не PNG
+    assert verify_magic_bytes(b"not a png", "png") is False
+
+
+def test_magic_bytes_xlsx():
+    """xlsx — это ZIP-архив, начинается с PK"""
+    from importers import verify_magic_bytes
+    assert verify_magic_bytes(b"PK\x03\x04...", "xlsx") is True
+    assert verify_magic_bytes(b"%PDF...", "xlsx") is False
+
+
+def test_magic_bytes_frw_no_check():
+    """Для КОМПАС-3D (.frw) нет magic bytes — пропускаем"""
+    from importers import verify_magic_bytes
+    # Любой бинарь проходит — нет сигнатуры
+    assert verify_magic_bytes(b"\x00\x01\x02\x03", "frw") is True
+    assert verify_magic_bytes(b"anything", "frw") is True
+
+
+def test_import_rejects_renamed_exe(client):
+    """Импорт .exe переименованного в .pdf — отклоняется"""
+    c, _ = client
+    exe_content = b"MZ\x90\x00\x03\x00\x00\x00exe content"
+    r = c.post("/api/import/tk",
+        files={"file": ("evil.pdf", exe_content, "application/pdf")})
+    assert r.status_code == 400
+    data = r.json()
+    assert "magic" in data.get("error", "").lower() or "match" in data.get("error", "").lower()
+
+
+def test_tehnolog_guide_exists():
+    """Гайд для технолога существует"""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "docs", "11-tehnolog-guide.md")
+    assert os.path.exists(path), f"guide not found: {path}"
+    with open(path) as f:
+        content = f.read()
+    assert "Технолог" in content or "технолог" in content
+    assert "5 шагов" in content or "Утверди" in content
+    assert len(content) > 1000  # не пустой

@@ -50,6 +50,29 @@
     </div>
 </div>
 
+<h2>🧠 RAG-готовность (AI обучается)</h2>
+<div class="stats">
+    <div class="stat">
+        <div class="stat-value">{{ rag_count }}</div>
+        <div class="stat-label">ТК в RAG-индексе<br><small>(используются как аналоги)</small></div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ approved_count }} / {{ rag_target }}</div>
+        <div class="stat-label">утверждено ТК<br><small>(цель для качества: 30+)</small></div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ rag_readiness }}</div>
+        <div class="stat-label">готовность RAG</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ total_details }}</div>
+        <div class="stat-label">всего деталей</div>
+    </div>
+</div>
+<p style="font-size:13px; color:#6b7280; margin-top:8px;">
+    💡 <strong>Как это работает:</strong> после утверждения ТК автоматически попадает в RAG-индекс. Новые генерации используют похожие ТК из RAG как аналоги. Чем больше утверждённых ТК — тем точнее AI. Целевой порог: <strong>30+ утверждённых ТК</strong> для качественной работы.
+</p>
+
 <h2>⏱ Ввести время вручную (технолог)</h2>
 <p>После утверждения техкарты — запиши сколько минут реально ушло:</p>
 <form method="post" action="/api/pilot/time" class="form">

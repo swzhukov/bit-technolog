@@ -325,3 +325,37 @@ def save_imported_details(details: list[dict], default_author: str = "import") -
         except Exception:
             pass
     return {"created": created, "updated": updated, "operations_saved": ops_saved, "total": len(details)}
+
+
+# F-12 fix: проверка magic bytes для предотвращения загрузки .exe переименованных в .pdf
+MAGIC_BYTES = {
+    # Office / docs
+    "xlsx": [b"PK\x03\x04"],  # ZIP-сигнатура (xlsx/docx оба ZIP)
+    "docx": [b"PK\x03\x04"],
+    "pdf": [b"%PDF"],
+    # Images
+    "png": [b"\x89PNG\r\n\x1a\n"],
+    "jpg": [b"\xff\xd8\xff"],
+    "jpeg": [b"\xff\xd8\xff"],
+    "svg": [b"<?xml", b"<svg"],
+    # CAD (нет надёжной сигнатуры — принимаем любой бинарь)
+    "frw": [],  # КОМПАС-3D
+    "dwg": [b"AC10"],  # AutoCAD 2010+
+    # JSON можно импортировать как text
+    "json": [b"{", b"["],
+}
+
+
+def verify_magic_bytes(contents: bytes, suffix: str) -> bool:
+    """Проверяет что содержимое файла соответствует расширению.
+    Защита от .exe переименованных в .pdf.
+    Возвращает True если magic bytes совпадают ИЛИ если для формата нет ожидаемой сигнатуры.
+    """
+    if not contents:
+        return False
+    suffix = suffix.lower()
+    expected = MAGIC_BYTES.get(suffix, None)
+    # Если для формата нет сигнатуры (frw) — пропускаем проверку
+    if expected is None or len(expected) == 0:
+        return True
+    return any(contents.startswith(sig) for sig in expected)
