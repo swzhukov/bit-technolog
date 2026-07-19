@@ -8,6 +8,27 @@
     <script src="/static/htmx.min.js"></script>
 </head>
 <body>
+{# F16.7: глобальный тост для feedback'а о сохранении и ошибках #}
+<div id="bit-toast" style="display:none; position:fixed; top:20px; right:20px; z-index:9999; padding:12px 20px; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:500; max-width:340px;"></div>
+<script>
+window.showToast = function(message, type) {
+    type = type || 'success';
+    const toast = document.getElementById('bit-toast');
+    if (!toast) return;
+    const colors = {
+        success: {bg: '#10b981', color: 'white', icon: '✅'},
+        error: {bg: '#ef4444', color: 'white', icon: '❌'},
+        info: {bg: '#3b82f6', color: 'white', icon: 'ℹ️'},
+        warning: {bg: '#f59e0b', color: 'white', icon: '⚠️'}
+    };
+    const c = colors[type] || colors.info;
+    toast.style.background = c.bg;
+    toast.style.color = c.color;
+    toast.textContent = c.icon + ' ' + message;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3500);
+};
+</script>
     <header>
         <nav>
             <a href="/" class="brand">🔧 БИТ.Технолог</a>

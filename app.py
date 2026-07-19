@@ -2488,6 +2488,16 @@ async def index_table(request: Request, q: str = "", page: int = 1, per_page: in
     })
 
 
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    """F16.7: кастомный 404 с навигацией"""
+    return templates.TemplateResponse("404.html", {
+        "request": request,
+        "roles": ROLES,
+        "current_role_from_request": get_current_role
+    }, status_code=404)
+
+
 @app.get("/detail/{detail_id}", response_class=HTMLResponse)
 async def detail(request: Request, detail_id: str):
     detail_obj = get_detail(detail_id)
@@ -4374,6 +4384,40 @@ def calc_cost_estimate(detail_id: str) -> dict:
 # ============================================
 # РОЛЕВАЯ МОДЕЛЬ: workflow утверждения
 # ============================================
+# F16.7: Вернуть в работу (для approved ТК)
+@app.post("/api/reopen")
+async def api_reopen(request: Request):
+    """Сбросить статус ТК с approved обратно в draft (для переутверждения)."""
+    detail_id = await _get_param(request, "detail_id")
+    reason = await _get_param(request, "reason") or "Возврат в работу"
+    if not detail_id:
+        return err("detail_id required", 422)
+    from db import get_conn
+    conn = get_conn()
+    # Получаем текущий draft чтобы убрать RAG индекс
+    draft_row = conn.execute("SELECT llm_output, status FROM drafts WHERE detail_id=?", (detail_id,)).fetchone()
+    if not draft_row:
+        conn.close()
+        return err("draft not found", 404)
+    if draft_row[1] != "approved":
+        conn.close()
+        return err("only approved drafts can be reopened", 400)
+    conn.execute("""UPDATE drafts SET status='draft', status_ext=NULL, approver=NULL
+        WHERE detail_id=?""", (detail_id,))
+    conn.commit()
+    conn.close()
+    add_history(detail_id, "reopened", {"reason": reason})
+    # F16.7: убрать из RAG (так как изменится)
+    try:
+        from rag import get_rag
+        rag = get_rag()
+        rag.remove_document(detail_id)
+        rag.save()
+    except Exception as e:
+        log.warning(f"RAG remove on reopen failed: {e}")
+    return {"ok": True, "status": "draft", "detail_id": detail_id, "reason": reason}
+
+
 @app.post("/api/submit-for-review")
 async def api_submit_for_review(request: Request):
     detail_id = await _get_param(request, "detail_id")

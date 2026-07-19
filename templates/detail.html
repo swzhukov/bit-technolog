@@ -331,6 +331,16 @@ function step3_refine(did) {
         👀 Отправить на проверку
     </button>
     {% endif %}
+    {% if status == "approved" and cur_role in ('technologist', 'main_technologist', 'admin') %}
+    {# F16.7: вернуть в работу для переутверждения #}
+    <button hx-post="/api/reopen"
+            hx-vals='{"detail_id": "{{ detail.id }}", "reason": "Возврат в работу"}'
+            hx-confirm="Вернуть в работу? Потребуется повторное утверждение."
+            hx-on::after-request="if(event.detail.xhr.status==200){showToast('Возвращено в работу', 'info');setTimeout(()=>location.reload(), 800);}else{showToast('Ошибка', 'error');}"
+            class="btn">
+        ↩️ Вернуть в работу
+    </button>
+    {% endif %}
     {% endif %}
     {% if cur_role in ('main_technologist', 'workshop_chief', 'admin') %}
     <button hx-post="/api/approve-chief"
@@ -551,6 +561,7 @@ function step3_refine(did) {
                   hx-vals='{"detail_id": "{{ detail.id }}", "op_index": "{{ loop.index0 }}", "field": "name"}'
                   hx-target="#edit-status-{{ loop.index0 }}"
                   hx-swap="innerHTML"
+                  hx-on::after-request="if(event.detail.xhr.status==200){showToast('Сохранено', 'success');}else{showToast('Ошибка сохранения', 'error');}"
                   class="inline-edit-form">
                 <input name="value" value="{{ op.name }}" placeholder="новое название">
                 <button type="submit" class="btn btn-small">✏️</button>
@@ -732,7 +743,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 </script>
 {% endif %}
-<!-- Модал подтверждения утверждения -->
+<!-- F16.7: модал подтверждения утверждения с pre-approve checklist -->
 <div id="approve-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; overflow:auto;">
     <div style="background:white; max-width:720px; margin:40px auto; padding:24px; border-radius:8px;">
         <h2>✅ Утверждение проекта ТК</h2>
@@ -744,6 +755,16 @@ document.querySelectorAll('.tab').forEach(tab => {
             <tr><th>Замечаний</th><td>{{ draft.warnings | length if draft and draft.warnings else 0 }}</td></tr>
             <tr><th>Общее время</th><td>{{ "%.1f"|format(draft.operations | sum(attribute='duration_hours') if draft else 0) }} ч</td></tr>
         </table>
+        {# F16.7: pre-approve checklist (A4-23) #}
+        <div style="background:#fffbeb; border:1px solid #f59e0b; padding:12px; border-radius:6px; margin-bottom:12px;">
+            <strong>☐ Чеклист перед утверждением:</strong>
+            <ul style="margin:6px 0 0 0; padding-left:20px;">
+                <li><label><input type="checkbox" id="ck-1"> Все операции заполнены (оборудование, время)</label></li>
+                <li><label><input type="checkbox" id="ck-2"> Нет красных замечаний (все < 50% уверенности)</label></li>
+                <li><label><input type="checkbox" id="ck-3"> Экономика проверена (ставка, материал, накладные)</label></li>
+                <li><label><input type="checkbox" id="ck-4"> Связанные документы (чертежи, РС) в порядке</label></li>
+            </ul>
+        </div>
         <details style="background:#f9fafb; padding:10px; border-radius:4px; margin-bottom:12px;">
             <summary style="cursor:pointer;">📋 Показать маршрут</summary>
             <ol style="margin-top:8px;">
@@ -754,13 +775,20 @@ document.querySelectorAll('.tab').forEach(tab => {
         </details>
         <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button type="button" class="btn" onclick="document.getElementById('approve-modal').style.display='none'">Отмена</button>
-            <button type="button" class="btn btn-primary" onclick="submitApprove()">✅ Да, утвердить</button>
+            <button type="button" id="approve-confirm-btn" class="btn btn-primary" onclick="submitApprove()">✅ Да, утвердить</button>
         </div>
     </div>
 </div>
 <script>
 function showApprovePreview() {
     document.getElementById('approve-modal').style.display = 'block';
+    // F16.7: сбросить чеклист
+    ['ck-1','ck-2','ck-3','ck-4'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+    });
+    const btn = document.getElementById('approve-confirm-btn');
+    if (btn) btn.disabled = true;
 }
 function submitApprove() {
     const btn = document.querySelector('#approve-modal .btn-primary');
@@ -809,6 +837,28 @@ function submitApprove() {
                 // Нет активного inline-edit — сохранить approve (как в модале)
                 showApprovePreview();
             }
+        }
+    });
+})();
+
+// F16.7: pre-approve checklist — требует все 4 галочки перед активацией кнопки
+(function() {
+    const ids = ['ck-1','ck-2','ck-3','ck-4'];
+    function checkAll() {
+        const allChecked = ids.every(id => {
+            const el = document.getElementById(id);
+            return el && el.checked;
+        });
+        const btn = document.getElementById('approve-confirm-btn');
+        if (btn) {
+            btn.disabled = !allChecked;
+            btn.style.opacity = allChecked ? '1' : '0.5';
+            btn.title = allChecked ? '' : 'Отметьте все пункты чеклиста';
+        }
+    }
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id && ids.includes(e.target.id)) {
+            checkAll();
         }
     });
 })();

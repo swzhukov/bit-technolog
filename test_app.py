@@ -1460,6 +1460,99 @@ def test_session_start_recorded_directly():
     assert abs(row[0] - time.time()) < 5
 
 
+# ========== F16.7: UX-критичные ==========
+def test_404_custom_page(client):
+    """A4-7: кастомный 404 с навигацией"""
+    c, _ = client
+    r = c.get("/detail/несуществующая")
+    assert r.status_code == 404
+    assert "404" in r.text
+    assert "К списку деталей" in r.text
+    assert "Дашборд пилота" in r.text
+
+
+def test_reopen_endpoint_basic(client):
+    """A4-19: возврат в работу работает"""
+    c, _ = client
+    # Создаём деталь
+    c.post("/api/details", data={"id": "test-reopen-1", "designation": "RE.001", "name": "Reopen test"})
+    # Создаём approved draft напрямую
+    from db import get_conn
+    conn = get_conn()
+    conn.execute("""INSERT INTO drafts (detail_id, llm_output, status, author)
+        VALUES (?, ?, 'approved', 'test')""",
+        ("test-reopen-1", '{"operations": [{"name": "010 Op1"}]}'))
+    conn.commit()
+    conn.close()
+    # Reopen
+    r = c.post("/api/reopen", data={"detail_id": "test-reopen-1", "reason": "тест"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["status"] == "draft"
+    # Проверяем в БД
+    conn = get_conn()
+    row = conn.execute("SELECT status FROM drafts WHERE detail_id=?", ("test-reopen-1",)).fetchone()
+    conn.close()
+    assert row[0] == "draft"
+
+
+def test_reopen_only_approved(client):
+    """A4-19: нельзя вернуть в работу draft, только approved"""
+    c, _ = client
+    c.post("/api/details", data={"id": "test-reopen-2", "designation": "RE.002", "name": "Reopen test 2"})
+    # draft (не approved)
+    from db import get_conn, save_draft
+    save_draft("test-reopen-2", {"operations": [{"name": "010 Op1"}]}, status="draft")
+    r = c.post("/api/reopen", data={"detail_id": "test-reopen-2"})
+    assert r.status_code == 400
+    assert "approved" in r.json()["error"]
+
+
+def test_reopen_missing_draft(client):
+    """A4-19: reopen без draft = 404"""
+    c, _ = client
+    r = c.post("/api/reopen", data={"detail_id": "no-such-draft"})
+    assert r.status_code == 404
+
+
+def test_toast_function_in_base():
+    """A4-1: showToast() определена в base.html"""
+    import os
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "base.html")
+    with open(template_path, encoding="utf-8") as f:
+        content = f.read()
+    assert "showToast" in content
+    assert "bit-toast" in content
+    assert "success" in content
+    assert "error" in content
+
+
+def test_approve_checklist_in_detail():
+    """A4-23: pre-approve checklist присутствует в detail.html"""
+    import os
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "detail.html")
+    with open(template_path, encoding="utf-8") as f:
+        content = f.read()
+    assert "Чеклист перед утверждением" in content
+    assert "ck-1" in content
+    assert "ck-2" in content
+    assert "ck-3" in content
+    assert "ck-4" in content
+    # Кнопка подтверждения отключена по умолчанию
+    assert "approve-confirm-btn" in content
+
+
+def test_reopen_button_in_detail():
+    """A4-19: кнопка 'Вернуть в работу' в detail.html для approved"""
+    import os
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "detail.html")
+    with open(template_path, encoding="utf-8") as f:
+        content = f.read()
+    assert "Вернуть в работу" in content
+    assert "/api/reopen" in content
+
+
 def test_role_switch_invalid(client):
     c, _ = client
     r = c.post("/api/role/switch", data={"role": "invalid_role"})
