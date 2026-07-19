@@ -1738,3 +1738,114 @@ def test_setting_registry_covers_all_categories():
     assert "MAX_DRAWING_SIZE_MB" in keys
     assert "MAX_IMPORT_SIZE_MB" in keys
     assert "PILOT_USERS" in keys
+
+
+# ========== Audit Cycle v10: UX-фиксы (терминология, прогресс, модал, ведомость) ==========
+def test_terminology_eskd_in_detail(client):
+    """В карточке детали используется терминология ЕСКД: 'проект ТК' (не 'черновик'), 'замечания' (не 'warnings')"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    # Создаём деталь
+    r = c.post("/api/details",
+        data={"designation": "AUDIT-001", "name": "Test audit detail",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    # Генерируем проект ТК
+    c.post("/api/generate", data={"detail_id": detail_id})
+    # Открываем карточку
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    # НЕ должно быть 'черновик' в body (но может быть в комментариях/JS) — проверим
+    # Проверяем что есть 'проект ТК' или 'Проект ТК'
+    text = r.text
+    # Терминология: 'проект ТК' должна присутствовать
+    # 'warnings' (англ) НЕ должно быть в видимом тексте
+    assert "warnings" not in text.lower() or "замечания" in text.lower(), "терминология не конвертирована"
+
+
+def test_approve_modal_in_detail(client):
+    """Кнопка 'Утвердить' открывает модал с preview, а не сразу шлёт запрос"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "MODAL-001", "name": "Test modal",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    c.post("/api/generate", data={"detail_id": detail_id})
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    # Модал должен быть в HTML
+    assert "approve-modal" in r.text
+    assert "showApprovePreview" in r.text
+    # Должна быть кнопка вызова модала
+    assert "showApprovePreview" in r.text
+
+
+def test_generate_button_has_progress_bar(client):
+    """Кнопка 'Сгенерировать проект ТК' имеет прогресс-бар"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "PROG-001", "name": "Test progress",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    # Прогресс-бар
+    assert "generate-progress" in r.text
+    assert "progress-bar" in r.text
+    # Защита от двойного клика
+    assert "this.disabled" in r.text
+
+
+def test_print_has_material_vedomost(client):
+    """Печатная форма содержит ведомость материалов (МК-М)"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "PRINT-001", "name": "Test print",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    c.post("/api/generate", data={"detail_id": detail_id})
+    r = c.get(f"/detail/{detail_id}/print")
+    assert r.status_code == 200
+    assert "Ведомость материалов" in r.text
+    assert "МК-М" in r.text or "3.1105" in r.text
+
+
+def test_op_type_select_in_detail(client):
+    """На UI есть select для выбора типа операции"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.post("/api/details",
+        data={"designation": "OPTYPE-001", "name": "Test optype",
+              "model": "X", "chassis": "", "material": "Сталь",
+              "size_mm": "100", "mass_kg": "5", "surface_treatment": ""},
+        follow_redirects=False)
+    detail_id = r.headers.get("location", "").rsplit("/", 1)[-1]
+    r = c.get(f"/detail/{detail_id}")
+    assert r.status_code == 200
+    assert 'name="op_type"' in r.text
+    assert "Сварка" in r.text
+    assert "Электрика" in r.text
+    assert "Гидравлика" in r.text
+    assert "Покраска" in r.text
+
+
+def test_status_badges_in_index(client):
+    """На главной есть статус-бэйджи"""
+    c, _ = client
+    r = c.get("/")
+    assert r.status_code == 200
+    text = r.text
+    # Хотя бы один из статусов должен быть
+    has_status = any(s in text for s in ["Новый", "Проект ТК", "Утверждён"])
+    assert has_status

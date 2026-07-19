@@ -10,7 +10,7 @@
     <div class="detail-meta">
         {% if status == "new" %}<span class="badge red">🔴 Новый</span>
         {% elif status == "approved" %}<span class="badge green">🟢 Утверждён</span>
-        {% else %}<span class="badge yellow">🟡 Черновик</span>{% endif %}
+        {% else %}<span class="badge yellow">🟡 Проект ТК</span>{% endif %}
         {% if status_ext == "review" %}<span class="badge yellow">👀 На проверке</span>
         {% elif status_ext == "approved_chief" %}<span class="badge green">👑 Утверждён начальником</span>
         {% endif %}
@@ -257,20 +257,50 @@ function step3_refine(did) {
             <option value="hydraulic">💧 Гидравлика</option>
             <option value="paint">🎨 Покраска</option>
         </select>
-        <button type="submit" class="btn btn-primary btn-large">🤖 Сгенерировать черновик ТК</button>
+        <button type="submit" class="btn btn-primary btn-large"
+                id="generate-btn"
+                onclick="this.disabled=true; this.textContent='⏳ Генерирую...'; document.getElementById('generate-form').submit();">
+            🤖 Сгенерировать проект ТК
+        </button>
     </form>
-    <span id="loading" class="htmx-indicator">⏳ Генерация (до 60 сек)...</span>
-    <span id="generate-status"></span>
+    <div id="generate-progress" style="display:none; margin-top:12px;">
+        <div style="background:#e5e7eb; border-radius:4px; height:8px; overflow:hidden;">
+            <div id="progress-bar" style="background:#3b82f6; height:100%; width:0%; transition: width 0.3s;"></div>
+        </div>
+        <p style="font-size:12px; color:#6b7280; margin-top:4px;">
+            ⏳ Генерация (30-60 сек) — <span id="progress-text">Подготовка запроса</span>
+        </p>
+    </div>
+    <script>
+    // Показываем progress-bar и симулируем прогресс
+    document.getElementById('generate-form')?.addEventListener('submit', function() {
+        document.getElementById('generate-progress').style.display = 'block';
+        let pct = 0;
+        const phases = [
+            'Подготовка запроса',
+            'Отправка в YandexGPT',
+            'Анализ свойств детали',
+            'Подбор операций',
+            'Генерация маршрута',
+            'Расчёт времени и материалов',
+            'Финализация'
+        ];
+        let phaseIdx = 0;
+        const tick = setInterval(() => {
+            pct = Math.min(95, pct + 5);
+            document.getElementById('progress-bar').style.width = pct + '%';
+            const newPhase = phases[Math.min(phaseIdx, phases.length - 1)];
+            document.getElementById('progress-text').textContent = newPhase;
+            if (pct > (phaseIdx + 1) * (100 / phases.length)) phaseIdx++;
+        }, 2000);
+        window.addEventListener('beforeunload', () => clearInterval(tick));
+    });
+    </script>
 </div>
 {% else %}
 <div class="action-bar">
     {% if status != "approved" %}
-    <button hx-post="/api/approve"
-            hx-vals='{"detail_id": "{{ detail.id }}"}'
-            hx-confirm="Утвердить черновик?"
-            hx-target="body"
-            hx-swap="none"
-            hx-on::after-request="location.reload()"
+    <button onclick="showApprovePreview()"
             class="btn btn-primary">
         ✅ Утвердить
     </button>
@@ -326,13 +356,13 @@ function step3_refine(did) {
     <button class="tab" data-tab="route">🛤 Маршрут</button>
     <button class="tab" data-tab="operations">⚙ Операции</button>
     <button class="tab" data-tab="reasoning">💡 Обоснование</button>
-    <button class="tab" data-tab="warnings">⚠️ Warnings <span class="badge-count">{{ draft.warnings | length }}</span></button>
+    <button class="tab" data-tab="замечания">⚠️ Замечания <span class="badge-count">{{ draft.замечания | length }}</span></button>
     <button class="tab" data-tab="questions">❓ Вопросы <span class="badge-count">{{ draft.questions | length }}</span></button>
     {% if versions %}
     <button class="tab" data-tab="versions">🔄 Версии <span class="badge-count">{{ versions | length }}</span></button>
     {% endif %}
     {% if edits %}
-    <button class="tab" data-tab="edits">✏️ Правки <span class="badge-count">{{ edits | length }}</span></button>
+    <button class="tab" data-tab="edits">✏️ Корректировки <span class="badge-count">{{ edits | length }}</span></button>
     {% endif %}
 </div>
 
@@ -411,7 +441,7 @@ function step3_refine(did) {
 
 <div class="tab-content" id="tab-operations" style="display:none">
     <h2>Операции (детально + редактор)</h2>
-    <p class="lead">Кликни на значение чтобы изменить. Все правки логируются и попадают в обучение.</p>
+    <p class="lead">Кликни на значение чтобы изменить. Все корректировки логируются и попадают в обучение.</p>
 
     <details class="add-form">
         <summary>＋ Добавить операцию</summary>
@@ -506,10 +536,10 @@ function step3_refine(did) {
     </div>
 </div>
 
-<div class="tab-content" id="tab-warnings" style="display:none">
+<div class="tab-content" id="tab-замечания" style="display:none">
     <h2>Предупреждения</h2>
-    {% if draft.warnings %}
-        {% for w in draft.warnings %}
+    {% if draft.замечания %}
+        {% for w in draft.замечания %}
         <div class="warning-card">
             <div class="warning-type">{{ w.type | upper }}</div>
             <div class="warning-quote">«{{ w.quote }}»</div>
@@ -548,8 +578,8 @@ function step3_refine(did) {
 
 {% if versions %}
 <div class="tab-content" id="tab-versions" style="display:none">
-    <h2>🔄 Версии черновика</h2>
-    <p class="lead">Все правки сохраняются как версии. Можно откатиться к любой.</p>
+    <h2>🔄 Версии проект ТКа</h2>
+    <p class="lead">Все корректировки сохраняются как версии. Можно откатиться к любой.</p>
     <table class="data-table">
         <thead><tr><th>v</th><th>Когда</th><th>Автор</th><th>Источник</th><th>Что изменилось</th></tr></thead>
         <tbody>
@@ -576,13 +606,13 @@ function step3_refine(did) {
          hx-swap="innerHTML">
         ⏳ Загрузка...
     </div>
-    <p class="lead"><small>Сначала заполните ставку и стоимость материала в форме "Экономика" выше и утвердите черновик.</small></p>
+    <p class="lead"><small>Сначала заполните ставку и стоимость материала в форме "Экономика" выше и утвердите проект ТК.</small></p>
 </div>
 
 {% if edits %}
 <div class="tab-content" id="tab-edits" style="display:none">
-    <h2>✏️ Правки технолога</h2>
-    <p class="lead">Все правки логируются и используются для обучения системы.</p>
+    <h2>✏️ Корректировки технолога</h2>
+    <p class="lead">Все корректировки логируются и используются для обучения системы.</p>
     <table class="data-table">
         <thead><tr><th>Когда</th><th>v</th><th>Поле</th><th>Было</th><th>Стало</th><th>Причина</th><th>Автор</th></tr></thead>
         <tbody>
@@ -617,4 +647,49 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 </script>
 {% endif %}
+<!-- Модал подтверждения утверждения -->
+<div id="approve-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; overflow:auto;">
+    <div style="background:white; max-width:720px; margin:40px auto; padding:24px; border-radius:8px;">
+        <h2>✅ Утверждение проекта ТК</h2>
+        <p>Проверьте перед утверждением. После утверждения редактирование ограничено.</p>
+        <table class="data-table" style="margin:12px 0;">
+            <tr><th>Обозначение</th><td><code>{{ detail.designation }}</code></td></tr>
+            <tr><th>Наименование</th><td>{{ detail.name }}</td></tr>
+            <tr><th>Операций</th><td>{{ draft.operations | length if draft else 0 }}</td></tr>
+            <tr><th>Замечаний</th><td>{{ draft.warnings | length if draft and draft.warnings else 0 }}</td></tr>
+            <tr><th>Общее время</th><td>{{ "%.1f"|format(draft.operations | sum(attribute='duration_hours') if draft else 0) }} ч</td></tr>
+        </table>
+        <details style="background:#f9fafb; padding:10px; border-radius:4px; margin-bottom:12px;">
+            <summary style="cursor:pointer;">📋 Показать маршрут</summary>
+            <ol style="margin-top:8px;">
+                {% for op in (draft.operations if draft else []) %}
+                <li><strong>{{ op.name }}</strong> — {{ op.equipment or "—" }} — {{ op.duration_hours }} ч</li>
+                {% endfor %}
+            </ol>
+        </details>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button type="button" class="btn" onclick="document.getElementById('approve-modal').style.display='none'">Отмена</button>
+            <button type="button" class="btn btn-primary" onclick="submitApprove()">✅ Да, утвердить</button>
+        </div>
+    </div>
+</div>
+<script>
+function showApprovePreview() {
+    document.getElementById('approve-modal').style.display = 'block';
+}
+function submitApprove() {
+    const btn = document.querySelector('#approve-modal .btn-primary');
+    btn.disabled = true;
+    btn.textContent = '⏳ Утверждаю...';
+    const fd = new FormData();
+    fd.append('detail_id', '{{ detail.id }}');
+    fetch('/api/approve', {method: 'POST', body: fd})
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) location.reload();
+            else { alert('Ошибка: ' + (d.error || JSON.stringify(d))); btn.disabled = false; btn.textContent = '✅ Да, утвердить'; }
+        })
+        .catch(e => { alert('Сеть: ' + e); btn.disabled = false; btn.textContent = '✅ Да, утвердить'; });
+}
+</script>
 {% endblock %}

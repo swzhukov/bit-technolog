@@ -3,12 +3,12 @@
 {% block content %}
 <div class="breadcrumb"><a href="/">← На главную</a> | <a href="/llm-debug">🐛 LLM Debug</a></div>
 <h1>🎓 Обучение: метрики и правила</h1>
-<p class="lead">Что узнала система из правок технолога</p>
+<p class="lead">Что узнала система из корректировок технолога</p>
 
 <div class="tabs" style="margin-top:16px;">
     <button class="tab active" data-tab="metrics">📊 Метрики</button>
     <button class="tab" data-tab="rules">🧠 Правила</button>
-    <button class="tab" data-tab="edits">📝 Правки</button>
+    <button class="tab" data-tab="edits">📝 Корректировки</button>
     <button class="tab" data-tab="llm">🐛 LLM-вызовы</button>
 </div>
 
@@ -21,7 +21,7 @@
         </div>
         <div class="stat">
             <div class="stat-value">{{ metrics.total_drafts }}</div>
-            <div class="stat-label">черновиков</div>
+            <div class="stat-label">проект ТКов</div>
         </div>
         <div class="stat">
             <div class="stat-value">{{ metrics.approved }}</div>
@@ -29,11 +29,11 @@
         </div>
         <div class="stat">
             <div class="stat-value">{{ metrics.total_edits }}</div>
-            <div class="stat-label">правок</div>
+            <div class="stat-label">корректировок</div>
         </div>
         <div class="stat">
             <div class="stat-value">{{ "%.1f"|format(metrics.avg_edits_per_draft) }}</div>
-            <div class="stat-label">среднее правок на черновик</div>
+            <div class="stat-label">среднее корректировок на проект ТК</div>
         </div>
         <div class="stat">
             <div class="stat-value">{{ metrics.accuracy_pct }}%</div>
@@ -43,7 +43,7 @@
 </div>
 
 <div class="tab-content" id="tab-rules" style="display:none">
-    <h2>🧠 Извлечённые правила (из правок 2+ раз)</h2>
+    <h2>🧠 Извлечённые правила (из корректировок 2+ раз)</h2>
     {% if rules %}
     <table class="data-table">
         <thead><tr><th>Поле</th><th>Было</th><th>Стало</th><th>Сколько раз</th></tr></thead>
@@ -59,12 +59,12 @@
         </tbody>
     </table>
     {% else %}
-    <p>Пока нет правил (нужно минимум 2 одинаковых правки).</p>
+    <p>Пока нет правил (нужно минимум 2 одинаковых корректировки).</p>
     {% endif %}
 </div>
 
 <div class="tab-content" id="tab-edits" style="display:none">
-    <h2>📝 Последние правки технолога</h2>
+    <h2>📝 Последние корректировки технолога</h2>
     {% if edits %}
     <table class="data-table">
         <thead><tr><th>Когда</th><th>Деталь</th><th>v</th><th>Поле</th><th>Было → Стало</th><th>Причина</th><th>Автор</th></tr></thead>
@@ -83,7 +83,7 @@
         </tbody>
     </table>
     {% else %}
-    <p>Правок пока нет. Сгенерируй черновик → открой деталь → поправь операцию → правка появится здесь.</p>
+    <p>Правок пока нет. Сгенерируй проект ТК → открой деталь → поправь операцию → корректировка появится здесь.</p>
     {% endif %}
 </div>
 

@@ -24,7 +24,7 @@
     </div>
     <div class="stat">
         <div class="stat-value">{{ details | selectattr('status', 'equalto', 'draft') | list | length }}</div>
-        <div class="stat-label">🟡 черновиков</div>
+        <div class="stat-label">🟡 проект ТКов</div>
     </div>
     <div class="stat">
         <div class="stat-value">{{ details | selectattr('status', 'equalto', 'approved') | list | length }}</div>
@@ -37,7 +37,7 @@
     <select name="status" style="flex:0; min-width:160px;">
         <option value="">Все статусы</option>
         <option value="new" {% if status == 'new' %}selected{% endif %}>🔴 Новые</option>
-        <option value="draft" {% if status == 'draft' %}selected{% endif %}>🟡 Черновики</option>
+        <option value="draft" {% if status == 'draft' %}selected{% endif %}>🟡 Проект ТКи</option>
         <option value="approved" {% if status == 'approved' %}selected{% endif %}>🟢 Утверждённые</option>
     </select>
     <input type="hidden" name="per_page" value="{{ per_page }}">
@@ -45,7 +45,7 @@
     {% if q or status %}<a href="/" class="btn">Сбросить</a>{% endif %}
     <span class="hint">Показано {{ details | length }} из {{ total }}</span>
 </form>
-<form hx-post="/api/batch-generate-new" hx-target="#batch-result" hx-swap="innerHTML" hx-confirm="Сгенерировать черновики для всех новых деталей (до 20)?" style="display:inline;">
+<form hx-post="/api/batch-generate-new" hx-target="#batch-result" hx-swap="innerHTML" hx-confirm="Сгенерировать проект ТКи для всех новых деталей (до 20)?" style="display:inline;">
     <button type="submit" class="btn">📦 Сгенерировать все новые</button>
 </form>
 <span id="batch-result" class="hint"></span>
@@ -67,7 +67,7 @@
         <tr>
             <td>
                 {% if d.status == "new" %}<span class="badge red">🔴 Новый</span>
-                {% elif d.status == "draft" %}<span class="badge yellow">🟡 Черновик</span>
+                {% elif d.status == "draft" %}<span class="badge yellow">🟡 Проект ТК</span>
                 {% elif d.status == "approved" %}<span class="badge green">🟢 Утверждён</span>
                 {% else %}<span class="badge gray">⚪ {{ d.status }}</span>{% endif %}
             </td>
@@ -100,12 +100,12 @@
 
 <div class="info-block">
     <h3>Что это?</h3>
-    <p>Прототип AI-помощника технолога. По свойствам детали (от конструктора из КОМПАС-3D) генерирует черновик техкарты:</p>
+    <p>Прототип AI-помощника технолога. По свойствам детали (от конструктора из КОМПАС-3D) генерирует проект ТК техкарты:</p>
     <ul>
         <li>Список операций с оборудованием и временем</li>
         <li>Указание источника оценки (ГОСТ / аналог / правило)</li>
         <li>Уверенность для каждой операции</li>
-        <li>Warnings с цитатами из свойств детали</li>
+        <li>Замечания с цитатами из свойств детали</li>
         <li>Вопросы к технологу с вариантами ответа</li>
         <li>Обоснование решений (для руководства)</li>
     </ul>

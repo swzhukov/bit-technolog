@@ -37,7 +37,7 @@
             {%- if report.summary.edits_per_card > report.summary.kpi.edits_target %} cost-exceeded{% endif %}">
             {{ report.summary.edits_per_card }}
         </div>
-        <div class="stat-label">правок / ТК<br><small>(цель ≤ {{ report.summary.kpi.edits_target }})</small></div>
+        <div class="stat-label">корректировок / ТК<br><small>(цель ≤ {{ report.summary.kpi.edits_target }})</small></div>
     </div>
     <div class="stat">
         <div class="stat-value">{{ report.summary.total_successful_gens }}</div>
@@ -48,8 +48,8 @@
         <div class="stat-label">стоимость LLM</div>
     </div>
     <div class="stat">
-        <div class="stat-value">{{ report.summary.warnings_count }}</div>
-        <div class="stat-label">warnings</div>
+        <div class="stat-value">{{ report.summary.замечания_count }}</div>
+        <div class="stat-label">замечания</div>
     </div>
 </div>
 
@@ -66,7 +66,7 @@
 <h3>Что технологи чаще всего правят:</h3>
 <ul>
 {% for e in report.details.top_edits %}
-    <li><strong>{{ e.field }}</strong> — {{ e.count }} правок</li>
+    <li><strong>{{ e.field }}</strong> — {{ e.count }} корректировок</li>
 {% endfor %}
 </ul>
 {% endif %}
@@ -119,6 +119,6 @@
     <li><strong>Расширить</strong> роли (конструктор, нормировщик, цех)</li>
     <li><strong>Интегрировать</strong> с 1С:ERP (Sprint 4: прямая интеграция, не CSV)</li>
     <li><strong>Добавить</strong> КОМПАС-3D Watcher (авто-импорт КД)</li>
-    <li><strong>Обучить</strong> AI на данных пилота (ML на правках технолога)</li>
+    <li><strong>Обучить</strong> AI на данных пилота (ML на корректировках технолога)</li>
 </ol>
 {% endblock %}

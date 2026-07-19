@@ -15,7 +15,7 @@
         <tr>
             <td>
                 {% if d.status == "new" %}<span class="badge red">🔴 Новый</span>
-                {% elif d.status == "draft" %}<span class="badge yellow">🟡 Черновик</span>
+                {% elif d.status == "draft" %}<span class="badge yellow">🟡 Проект ТК</span>
                 {% elif d.status == "approved" %}<span class="badge green">🟢 Утверждён</span>
                 {% else %}<span class="badge gray">⚪ {{ d.status }}</span>{% endif %}
             </td>
