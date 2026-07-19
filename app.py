@@ -776,10 +776,10 @@ def get_pilot_metrics() -> dict:
         "avg_time_to_card_min": round(avg_time, 1),
         "total_llm_cost_rub": round(total_cost, 2),
         "total_successful_gens": total_gens,
-        # Целевые KPI (из совета)
+        # Целевые KPI (из совета + industry benchmark GitHub Copilot / NIO ~30%)
         "kpi": {
-            "time_target": 60,  # мин (текущее 240-480)
-            "accepted_target": 50,  # % (минимум)
+            "time_target": 60,  # мин (текущее 240-480, цель 4-8x ускорение)
+            "accepted_target": 30,  # % (минимум, industry benchmark)
             "edits_target": 8,  # правок (максимум)
         }
     }
