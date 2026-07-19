@@ -50,13 +50,21 @@ def _build_text(detail: dict, draft_output: Optional[dict] = None) -> str:
     ]
     if draft_output:
         for op in draft_output.get("operations", []):
-            parts.append(op.get("name", ""))
-            parts.append(op.get("department", ""))
-            parts.append(op.get("equipment", ""))
+            parts.append(str(op.get("name", "")))
+            parts.append(str(op.get("department", "")))
+            parts.append(str(op.get("equipment", "")))
             for mat in op.get("materials", []):
-                parts.append(mat)
+                if isinstance(mat, dict):
+                    parts.append(str(mat.get("name", "")))
+                    if mat.get("gost"):
+                        parts.append(str(mat["gost"]))
+                else:
+                    parts.append(str(mat))
+            # Профессия и разряд
+            if op.get("profession_code"):
+                parts.append(f"{op.get('profession_code')} {op.get('profession_grade','')}р")
         for w in draft_output.get("warnings", []):
-            parts.append(w.get("concern", ""))
+            parts.append(str(w.get("concern", "")))
     return " ".join(p for p in parts if p).strip()
 
 

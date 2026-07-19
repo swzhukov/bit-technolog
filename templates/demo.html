@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Демо для Баранова — БИТ.Технолог{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>🎯 Демо-сценарий для главного технолога (5 минут)</h1>
+    <p class="lead">Пошаговая демонстрация ценности БИТ.Технолог на реальной детали Техинкома — «Упор продольный ЛМША.301314.010»</p>
+</div>
+
+<div class="alert alert-demo" style="background:#eff6ff; border-left-color:#3b82f6; color:#1e3a8a;">
+    <strong>Для кого:</strong> Баранов М.А. (главный технолог).<br>
+    <strong>Цель:</strong> за 5 минут показать как AI-помощник экономит время на создание техкарты.<br>
+    <strong>Что подготовить:</strong> открыть эту страницу на проекторе / большом экране, наушники (опционально).
+</div>
+
+<div class="tabs" style="margin-top:16px;">
+    <button class="tab active" data-tab="step1">⏱ 0:00 — Старт</button>
+    <button class="tab" data-tab="step2">⏱ 0:30 — Выбор детали</button>
+    <button class="tab" data-tab="step3">⏱ 1:00 — 3-step flow</button>
+    <button class="tab" data-tab="step4">⏱ 2:30 — Редактирование</button>
+    <button class="tab" data-tab="step5">⏱ 3:30 — Экспорт</button>
+    <button class="tab" data-tab="step6">⏱ 4:30 — Метрики</button>
+</div>
+
+<div class="tab-content" id="tab-step1">
+    <h2>⏱ 0:00 — Что мы решаем</h2>
+    <div class="info-block">
+        <strong>Проблема:</strong> Технолог создаёт техкарту вручную — 4-8 часов на деталь.<br>
+        <strong>Решение:</strong> AI-помощник генерирует черновик за 1 минуту → технолог правит → утверждает.<br>
+        <strong>Цель:</strong> 30-60 минут на техкарту (вместо 4-8 часов). Ускорение 4-8x.
+    </div>
+    <h3>Сейчас покажем на реальной детали Техинкома</h3>
+    <p>Открываем деталь <strong>ЛМША.301314.010 «Упор продольный»</strong> — реальная сварная конструкция из техкарты 4c85941a.</p>
+    <a href="/detail/detail-lmsha-301314-010" class="btn btn-primary btn-large">▶ Открыть деталь</a>
+</div>
+
+<div class="tab-content" id="tab-step2" style="display:none">
+    <h2>⏱ 0:30 — Видим свойства детали</h2>
+    <p>На странице детали видно:</p>
+    <ul>
+        <li><strong>Обозначение:</strong> ЛМША.301314.010</li>
+        <li><strong>Название:</strong> Упор продольный (корпус)</li>
+        <li><strong>Материал:</strong> Сталь 09Г2С (ГОСТ 19903-2015), 12.5 кг</li>
+        <li><strong>Шасси:</strong> КАМАЗ-43118 (для АЦ-6,0-40)</li>
+        <li><strong>Поверхность:</strong> Грунт ГФ-021, эмаль ПФ-115</li>
+        <li><strong>Правила технолога:</strong> «Сварку вести снизу вверх. После закалки — отпуск при 600°С»</li>
+        <li><strong>Иерархия:</strong> входит в узел «Упор продольный» → изделие «АЦ-6,0-40»</li>
+    </ul>
+    <p><em>Это та же информация, что у конструктора в КОМПАС-3D. AI её уже «знает».</em></p>
+    <a href="/detail/detail-lmsha-301314-010" class="btn">Открыть деталь ещё раз</a>
+</div>
+
+<div class="tab-content" id="tab-step3" style="display:none">
+    <h2>⏱ 1:00 — AI задаёт 3-5 уточняющих вопросов</h2>
+    <p>На странице детали раскрываем <strong>«🤖 AI-помощник: полная генерация техкарты»</strong>:</p>
+    <ol>
+        <li>Нажимаем <strong>«🤔 Уточнить»</strong> — AI задаёт вопросы (например: «Какая толщина стенки?», «Сварка Кедр-300?», «Нужна ли термообработка?»)</li>
+        <li>Технолог отвечает в dropdown'ах (или принимает defaults)</li>
+        <li>Нажимаем <strong>«💾 Сохранить ответы»</strong></li>
+        <li>Нажимаем <strong>«⚡ Draft»</strong> — за 30 сек получаем КРАТКИЙ draft (3 операции, ~1₽)</li>
+        <li>Нажимаем <strong>«✨ Полная ТК»</strong> — за 30 сек полный маршрут (8 операций, ~3₽)</li>
+    </ol>
+    <div class="info-block">
+        <strong>Под капотом:</strong> AI использует RAG (похожие техкарты) + специализированный промт по сварке (Кедр-300, М21, Св-08Г2С) + правила технолога.<br>
+        Стоимость: <strong>~4₽ на техкарту</strong>. Раньше 4-8 часов ручной работы.
+    </div>
+</div>
+
+<div class="tab-content" id="tab-step4" style="display:none">
+    <h2>⏱ 2:30 — Технолог правит draft</h2>
+    <p>На странице <strong>«⚙ Операции»</strong> видим 8 операций из реальной техкарты:</p>
+    <ul>
+        <li>010 Подготовительная — 0.2 ч, Кедр-300</li>
+        <li>015 Установка ножей — 0.3 ч, Кондуктор</li>
+        <li>020 Приварка ножей — 0.8 ч, Кедр-300</li>
+        <li>025 Установка рёбер — 1.0 ч, Кедр-300</li>
+        <li>030 Приварка рёбер — 0.7 ч, Кедр-300</li>
+        <li>035 Установка настила — 1.2 ч, Кедр-300</li>
+        <li>040 Контроль ОТК — 0.3 ч</li>
+    </ul>
+    <p><strong>Технолог правит:</strong></p>
+    <ul>
+        <li>Клик на «0.8 ч» → вписывает «0.9 ч» → Enter. <strong>2 секунды.</strong></li>
+        <li>Клик на «Кедр-300» → выбирает «Кедр-300 + TIG» → Enter. <strong>3 секунды.</strong></li>
+        <li>Все правки логируются (для будущего обучения AI).</li>
+    </ul>
+    <p>Нажимаем <strong>«✅ Утвердить»</strong> — draft утверждён. Всё.</p>
+    <p><em>Время от старта до утверждения: <strong>3.5 минуты</strong> (вместо 4-8 часов).</em></p>
+</div>
+
+<div class="tab-content" id="tab-step5" style="display:none">
+    <h2>⏱ 3:30 — Экспорт в 1С и печатная форма</h2>
+    <p>После утверждения доступны:</p>
+    <ul>
+        <li><strong>🖨 Печатная форма (для подписи)</strong> — A4, шрифт 16pt, место для подписи технолога и Баранова. QR-код для проверки.</li>
+        <li><strong>📤 CSV для 1С</strong> — UTF-8 BOM, разделитель <code>;</code>, формат совместимый с 1С:ERP. Колонки: номер, операция, оборудование, время, цех, уверенность.</li>
+        <li><strong>📦 XML для 1С:ERP</strong> — ресурсная спецификация (РС) со всеми материалами, профессиями, нормами расхода.</li>
+        <li><strong>📊 Excel / PDF</strong> — для архива.</li>
+        <li><strong>📋 Audit log</strong> — кто, когда, что сделал (для ISO 27001, военная приёмка).</li>
+    </ul>
+    <p><em>Всё что нужно для передачи в 1С:ERP и бумажный архив.</em></p>
+</div>
+
+<div class="tab-content" id="tab-step6" style="display:none">
+    <h2>⏱ 4:30 — Метрики пилота</h2>
+    <p>На странице <strong><a href="/pilot">📊 Пилот</a></strong> видим:</p>
+    <ul>
+        <li><strong>Время на техкарту:</strong> 30-60 мин (было 4-8 часов). Ускорение 4-8x.</li>
+        <li><strong>% принятых операций без правки:</strong> ≥30% (industry benchmark, GitHub Copilot).</li>
+        <li><strong>Правок на черновик:</strong> &lt; 8 (иначе быстрее с нуля).</li>
+        <li><strong>Стоимость LLM:</strong> ~4₽ на техкарту. Пилот 0₽ (200₽/день лимит).</li>
+    </ul>
+    <h3>Что БИТ.Технолог НЕ делает</h3>
+    <ul>
+        <li>❌ Не заменяет 1С:ERP — питает 1С, не дублирует</li>
+        <li>❌ Не заменяет КОМПАС-3D — читает КД конструктора, не рисует</li>
+        <li>❌ Не заменяет технолога — помогает, но финальное решение за человеком</li>
+    </ul>
+    <h3>Стоимость пилота</h3>
+    <div class="info-block" style="background:#d1fae5; border-left-color:#10b981;">
+        <strong>Пилот 0₽ / 2-4 недели / 3-5 технологов / 10-15 деталей.</strong><br>
+        Сравнение: <strong>ИИ-Технолог.Профессионал</strong> — 180-450К₽ + 1-6 месяцев внедрения.<br>
+        Экономия на пилоте: <strong>~99%</strong>.
+    </div>
+    <h3>Что после пилота</h3>
+    <ol>
+        <li>Принятие решения go/no-go по Sprint 4 (интеграция с 1С:ERP, 1.8-2.5М₽, 6-8 нед)</li>
+        <li>Sprint 5: Docker on-prem + RBAC + ISO 27001</li>
+        <li>Расширение на другие производства (ПСС, МТБ, УМП)</li>
+    </ol>
+    <p><a href="/pilot" class="btn btn-primary btn-large">▶ Открыть /pilot</a> <a href="/" class="btn">На главную</a></p>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        tab.classList.add('active');
+        document.getElementById('tab-' + target).style.display = 'block';
+    });
+});
+</script>
+{% endblock %}

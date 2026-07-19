@@ -203,6 +203,41 @@ function step3_refine(did) {
     <button hx-post="/api/alternatives" hx-vals='{"detail_id": "{{ detail.id }}"}' hx-target="#alts-area" hx-swap="innerHTML" class="btn btn-sm">🔀 Показать альтернативы</button>
     <div id="alts-area"></div>
 </details>
+
+{# Фаза 4: Ресурсная спецификация (РС) #}
+<details class="add-form" style="margin-bottom: 16px;">
+    <summary>📋 Ресурсная спецификация (РС) — для 1С:ERP</summary>
+    <div hx-get="/api/resource-specs/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML">
+        ⏳ Загрузка РС...
+    </div>
+    <p class="hint">📤 Экспорт в XML: <a href="/api/1c/export/rs/{{ detail.id }}" target="_blank">/api/1c/export/rs/{{ detail.id }}</a> (формат 1С:ERP)</p>
+</details>
+
+{# Фаза 4: Связанные детали (siblings + product) #}
+<details class="add-form" style="margin-bottom: 16px;">
+    <summary>🔗 Связанные детали (иерархия)</summary>
+    <div hx-get="/api/related/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML">
+        ⏳ Загрузка...
+    </div>
+</details>
+
+{# Фаза 4: Чертёж детали #}
+{% if detail.drawing_path %}
+<div class="info-block">
+    <strong>📐 Чертёж:</strong> <a href="/drawings/{{ detail.id }}_{{ detail.drawing_format }}" target="_blank">{{ detail.drawing_path }}</a>
+    <span class="hint">Формат: {{ detail.drawing_format }}</span>
+</div>
+{% else %}
+<details class="add-form" style="margin-bottom: 16px;">
+    <summary>📐 Загрузить чертёж (.frw / .dwg / .pdf / .png / .jpg)</summary>
+    <form hx-post="/api/import/drawing/{{ detail.id }}" hx-target="#drawing-status" hx-swap="innerHTML" hx-encoding="multipart/form-data" enctype="multipart/form-data" class="form">
+        <input type="file" name="file" accept=".frw,.dwg,.pdf,.png,.jpg,.jpeg" required>
+        <button type="submit" class="btn btn-primary">📤 Загрузить</button>
+        <span id="drawing-status"></span>
+    </form>
+    <p class="hint">Файл сохраняется в /drawings/, регистрируется в БД, привязывается к детали.</p>
+</details>
+{% endif %}
 {% endif %}
 
 {% if not draft %}
@@ -215,6 +250,13 @@ function step3_refine(did) {
           hx-on::after-request="setTimeout(() => location.reload(), 800);"
           style="display:inline">
         <input type="hidden" name="detail_id" value="{{ detail.id }}">
+        <select name="op_type" style="margin-right:8px; padding:6px;">
+            <option value="">🛠 Общая</option>
+            <option value="welding">🔥 Сварка</option>
+            <option value="electrical">⚡ Электрика</option>
+            <option value="hydraulic">💧 Гидравлика</option>
+            <option value="paint">🎨 Покраска</option>
+        </select>
         <button type="submit" class="btn btn-primary btn-large">🤖 Сгенерировать черновик ТК</button>
     </form>
     <span id="loading" class="htmx-indicator">⏳ Генерация (до 60 сек)...</span>

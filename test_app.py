@@ -711,15 +711,15 @@ def test_index_uses_join_not_n_plus_1(client):
 # ========== Аудит v2 фиксы ==========
 def test_no_mlta_mlMOCK_DETAILS_in_endpoints(client):
     """NC1 fix: get_detail заменил MOCK_DETAILS в runtime endpoints"""
-    # Проверяем что detail из БД (которого нет в MOCK_DETAILS) находится
-    c, _ = client
-    # Все mock детали — detail-001..005. Создадим d-999 через БД.
-    import sqlite3
-    conn = sqlite3.connect("bit_technolog.db")
-    conn.execute("INSERT OR IGNORE INTO details (id, designation, name) VALUES (?, ?, ?)",
-                 ("d-999", "TEST-999", "Test detail not in MOCK"))
-    conn.commit()
-    conn.close()
+    c, app_module = client
+    # Используем app.get_conn() вместо прямого sqlite3 (для правильной БД)
+    conn = app_module.get_conn()
+    try:
+        conn.execute("INSERT OR IGNORE INTO details (id, designation, name) VALUES (?, ?, ?)",
+                     ("d-999", "TEST-999", "Test detail not in MOCK"))
+        conn.commit()
+    finally:
+        conn.close()
     # Если бы использовался MOCK_DETAILS — 404. С get_detail — 200
     r = c.get("/detail/d-999")
     assert r.status_code == 200
@@ -931,3 +931,153 @@ def test_audit_pretty_print_json(client):
     # <pre> tag для JSON
     assert "<pre" in r.text
     assert 'class="badge"' in r.text  # action badge сохранён
+
+
+# ========== Фаза 1-6: максимальный продукт ==========
+def test_demo_page_renders(client):
+    c, _ = client
+    r = c.get("/demo")
+    assert r.status_code == 200
+    assert "Демо" in r.text or "Демо" in r.text or "Demo" in r.text or "Баранов" in r.text
+
+
+def test_techinkom_seeded(client):
+    c, _ = client
+    r = c.get("/")
+    assert r.status_code == 200
+    # Должны быть 15 Техинком-деталей после init
+    # Проверяем одну конкретную
+    r2 = c.get("/detail/detail-lmsha-301314-010")
+    assert r2.status_code == 200
+    assert "Упор" in r2.text
+
+
+def test_hierarchy_endpoint(client):
+    c, _ = client
+    r = c.get("/api/hierarchy")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    # Должен быть хотя бы один product (АЦ-6,0-40)
+    product_ids = [n["id"] for n in data if n.get("level") == "product"]
+    assert "product-ac-6-40" in product_ids
+
+
+def test_related_endpoint(client):
+    c, _ = client
+    r = c.get("/api/related/detail-lmsha-301314-010")
+    assert r.status_code == 200
+    data = r.json()
+    assert "self" in data
+    assert "siblings" in data
+    # Упор продольный входит в узел Упор
+    if data.get("product"):
+        assert data["product"]["id"] == "product-ac-6-40"
+
+
+def test_resource_specs_endpoint(client):
+    c, _ = client
+    r = c.get("/api/resource-specs/detail-lmsha-301314-010")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    # Должны быть ресурсы (материалы + профессии)
+    if data:
+        kinds = {r["kind"] for r in data}
+        assert "material" in kinds or "profession" in kinds
+
+
+def test_professions_seeded(client):
+    c, _ = client
+    r = c.get("/api/professions")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) >= 10  # минимум 10 профессий из ЕТС
+    # 19905 «Сварщик» должен быть
+    codes = {p["code"] for p in data}
+    assert "19905" in codes
+
+
+def test_onec_export_rs(client):
+    c, _ = client
+    r = c.get("/api/1c/export/rs/detail-lmsha-301314-010")
+    assert r.status_code == 200
+    assert "application/xml" in r.headers.get("content-type", "")
+    assert "<?xml" in r.text
+    assert "ResourceSpecification" in r.text
+
+
+def test_onec_export_no_draft(client):
+    c, _ = client
+    # detail без драфта
+    r = c.get("/api/1c/export/rs/detail-005")
+    assert r.status_code == 404
+
+
+def test_import_json_basic(client):
+    c, _ = client
+    data = {
+        "details": [{
+            "id": "test-import-001",
+            "designation": "TEST.001.001",
+            "name": "Импортированная тест-деталь",
+            "material": "Сталь 3",
+            "mass_kg": 5.0,
+            "operations": [
+                {"name": "010 Тест", "duration_hours": 0.5, "profession_code": "19905", "profession_grade": 4}
+            ]
+        }]
+    }
+    r = c.post("/api/import/tk", json=data)
+    assert r.status_code == 200
+    result = r.json()
+    assert result["created"] >= 1
+    # Проверяем что деталь доступна
+    r2 = c.get("/detail/test-import-001")
+    assert r2.status_code == 200
+
+
+def test_workflow_assign(client):
+    c, _ = client
+    r = c.post("/api/workflow/assign",
+               data={"detail_id": "detail-001", "role": "normirovshchik", "assignee": "Иванова"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["role"] == "normirovshchik"
+
+
+def test_workflow_queue(client):
+    c, _ = client
+    r = c.get("/api/workflow/queue?role=technologist")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+
+
+def test_specialized_prompts_welding():
+    """Промт для сварки содержит Кедр-300, М21, Св-08Г2С"""
+    from prompts import WELDING_PROMPT, ELECTRICAL_PROMPT, HYDRAULIC_PROMPT, PAINT_PROMPT, PROMPT_BY_TYPE
+    assert "Кедр-300" in WELDING_PROMPT
+    assert "М21" in WELDING_PROMPT
+    assert "Св-08Г2С" in WELDING_PROMPT
+    assert "19861" in ELECTRICAL_PROMPT  # электромонтажник
+    assert "14501" in HYDRAULIC_PROMPT  # монтажник гидравлических
+    assert "17521" in PAINT_PROMPT  # маляр
+    assert "welding" in PROMPT_BY_TYPE
+    assert "electrical" in PROMPT_BY_TYPE
+    assert "hydraulic" in PROMPT_BY_TYPE
+    assert "paint" in PROMPT_BY_TYPE
+
+
+def test_drawing_upload(client):
+    """Загрузка чертежа"""
+    import io
+    c, _ = client
+    fake_file = ("test_drawing.pdf", io.BytesIO(b"fake pdf content"), "application/pdf")
+    r = c.post("/api/import/drawing/detail-001",
+               files={"file": fake_file})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert "file_path" in data
