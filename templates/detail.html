@@ -107,6 +107,9 @@
 
 
 
+{# M23 fix: закрыть if draft ДО <script>, иначе JS-функции step1/2/3 не рендерятся для status=new #}
+{% endif %}
+
 <script>
 {# M4 fix: 3-step flow использует localStorage для передачи answers между шагами #}
 const STORAGE_KEY = function(did) { return `bit_step_${did}`; };
@@ -311,7 +314,8 @@ function step3_refine(did) {
     </form>
 </div>
 {% endif %}
-{% endif %}
+
+{# M23: AI-блок виден для status=new (M4 fix) #}
 
 {# BUG-2026-07-20-02: AI-блок вынесен наружу из {% if draft %}, виден для ВСЕХ статусов (включая new) #}
 {# BUG-2026-07-19-01: AI-блок виден только технологу/гл.технологу/админу #}
