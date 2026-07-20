@@ -486,7 +486,7 @@ async def admin_system(request: Request):
 async def admin_backup(request: Request):
     """M27: страница управления бэкапами (для ссылки из навигации)"""
     from auth import get_current_role
-    templates, _, _, _, _, _, _ = _get_templates_db_path_roles()
+    templates, DB_PATH, _, _, _, _, _ = _get_templates_db_path_roles()
     if get_current_role(request) != "admin":
         return HTMLResponse("<h1>403</h1>", status_code=403)
     # Список существующих бэкапов
