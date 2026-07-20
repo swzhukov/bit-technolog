@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Иерархия — БИТ.Технолог{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>📦 Иерархия изделий</h1>
+    <p class="lead">Продукт → Узел → Деталь. Дерево спецтехники Техинкома.</p>
+</div>
+
+<div class="hierarchy-tree" hx-get="/api/hierarchy" hx-trigger="load" hx-swap="innerHTML">
+    <div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Загружаю иерархию...</div></div>
+</div>
+
+<style>
+.hierarchy-tree { padding: 12px; }
+.h-node { margin: 6px 0; }
+.h-product { background: var(--c-brand-soft); border: 1px solid var(--c-brand); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; }
+.h-product .h-title { font-size: 16px; font-weight: 600; }
+.h-product .h-sub { color: var(--c-text-muted); font-size: 13px; }
+.h-children { margin-left: 24px; padding-left: 12px; border-left: 2px dashed var(--c-border); }
+.h-assembly { padding: 8px 12px; background: var(--c-bg-soft); border-radius: 6px; margin: 4px 0; }
+.h-assembly .h-title { font-weight: 500; }
+.h-detail { display: inline-block; padding: 4px 10px; background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 4px; margin: 2px 4px 2px 0; font-size: 13px; text-decoration: none; color: var(--c-text); }
+.h-detail:hover { border-color: var(--c-brand); color: var(--c-brand); }
+.h-link { color: var(--c-brand); text-decoration: none; }
+.h-link:hover { text-decoration: underline; }
+.h-level-pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
+.h-level-product { background: var(--c-brand); color: white; }
+.h-level-assembly { background: #f59e0b; color: white; }
+.h-level-detail { background: #94a3b8; color: white; }
+</style>
+
+{% endblock %}

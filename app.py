@@ -1721,6 +1721,12 @@ async def api_resource_specs_list(request: Request, detail_id: str):
 
 
 # ========== Иерархия деталь/узел/изделие ==========
+@app.get("/hierarchy", response_class=HTMLResponse)
+async def hierarchy_page(request: Request):
+    """M27: страница иерархии изделий (для ссылки из навигации)"""
+    return templates.TemplateResponse("hierarchy.html", {"request": request})
+
+
 @app.get("/api/hierarchy")
 async def api_hierarchy():
     conn = get_conn()
@@ -2651,7 +2657,27 @@ async def api_draft_fast(request: Request):
         tokens_out = response.usage.completion_tokens if response.usage else 0
         cost = (tokens_in/1000)*LLM_PRICE_INPUT_RUB_PER_1K + (tokens_out/1000)*LLM_PRICE_OUTPUT_RUB_PER_1K
         result["cost_estimate"] = f"{cost:.2f}₽"
-        return JSONResponse({"draft": result, "mode": "live", "cost_estimate": f"{cost:.2f}₽"})
+        # M27 bugfix: /api/draft-fast возвращал draft, но НЕ сохранял его в БД.
+        # Технолог нажимал "Сгенерировать", видел toast "Готово!", страница перезагружалась,
+        # но операций не было. Теперь сохраняем.
+        llm_output = result
+        # Адаптируем структуру: route → operations с нужными полями
+        if "operations" not in llm_output and "route" in llm_output:
+            llm_output["operations"] = [
+                {
+                    "op_index": str(r.get("step", i+1) * 10),
+                    "name": r.get("operation", ""),
+                    "duration_hours": r.get("duration_hours", 0),
+                    "department": r.get("department", ""),
+                    "workplace": r.get("workplace", ""),
+                    "equipment": r.get("equipment", ""),
+                }
+                for i, r in enumerate(llm_output["route"])
+            ]
+        save_draft(detail_id, llm_output, "draft")
+        total_ops = len(llm_output.get("operations", []))
+        record_metric(detail_id, "total_ops", total_ops, {"source": "draft-fast"})
+        return JSONResponse({"draft": llm_output, "mode": "live", "cost_estimate": f"{cost:.2f}₽"})
     except Exception as e:
         log.error(f"/api/draft-fast error: {e}")
         return err(str(e)[:200], 500)

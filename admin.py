@@ -27,6 +27,7 @@ import shutil
 import platform
 import logging
 import subprocess
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Request, Form
@@ -478,4 +479,59 @@ async def admin_system(request: Request):
         "python": platform.python_version(),
         "svc_status": svc_status,
         "sizes": sizes
+    })
+
+
+@router.get("/admin/backup", response_class=HTMLResponse)
+async def admin_backup(request: Request):
+    """M27: страница управления бэкапами (для ссылки из навигации)"""
+    from auth import get_current_role
+    templates, _, _, _, _, _, _ = _get_templates_db_path_roles()
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403</h1>", status_code=403)
+    # Список существующих бэкапов
+    backup_dir = os.path.dirname(DB_PATH) + "/backups"
+    backups = []
+    if os.path.isdir(backup_dir):
+        for f in sorted(os.listdir(backup_dir), reverse=True)[:20]:
+            full = os.path.join(backup_dir, f)
+            if os.path.isfile(full):
+                backups.append({
+                    "name": f,
+                    "size_mb": round(os.path.getsize(full) / 1024 / 1024, 2),
+                    "created_at": datetime.fromtimestamp(os.path.getmtime(full)).strftime("%Y-%m-%d %H:%M")
+                })
+    return templates.TemplateResponse("admin_backup.html", {
+        "request": request,
+        "backups": backups,
+        "db_path": DB_PATH
+    })
+
+
+@router.get("/admin/rag", response_class=HTMLResponse)
+async def admin_rag(request: Request):
+    """M27: страница состояния RAG (для ссылки из навигации)"""
+    from auth import get_current_role
+    templates, _, _, _, _, _, _ = _get_templates_db_path_roles()
+    if get_current_role(request) != "admin":
+        return HTMLResponse("<h1>403</h1>", status_code=403)
+    rag_status = {"loaded": False, "documents": 0, "vocabulary_size": 0}
+    rag_dir_size = 0
+    try:
+        from rag import get_rag
+        rag = get_rag()
+        rag_status["loaded"] = rag.loaded
+        rag_status["documents"] = len(rag.ids) if rag.loaded else 0
+        rag_status["vocabulary_size"] = len(rag.vectorizer.vocabulary_) if rag.loaded and rag.vectorizer else 0
+    except Exception as e:
+        rag_status["error"] = str(e)[:200]
+    try:
+        if os.path.isdir(".rag"):
+            rag_dir_size = round(sum(os.path.getsize(os.path.join(r, f)) for r, _, fs in os.walk(".rag") for f in fs) / 1024 / 1024, 2)
+    except Exception:
+        pass
+    return templates.TemplateResponse("admin_rag.html", {
+        "request": request,
+        "rag_status": rag_status,
+        "rag_size_mb": rag_dir_size
     })

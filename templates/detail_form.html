@@ -39,8 +39,6 @@
                 {% for m in materials %}
                 <option value="{{ m.name }}">{{ m.name }}{% if m.gost %} ({{ m.gost }}){% endif %}</option>
                 {% endfor %}
-                <option value="Сталь 3 (ГОСТ 380-2005)">Сталь 3 (ГОСТ 380-2005)</option>
-                <option value="Сталь 09Г2С (ГОСТ 19281-2014)">Сталь 09Г2С (ГОСТ 19281-2014)</option>
             </select>
         </label>
         <label>Размеры (мм)<br><input name="size_mm" placeholder="500x300x20"></label>

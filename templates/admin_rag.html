@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}RAG — Админ{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>🔍 RAG (поиск аналогов)</h1>
+    <p class="lead">Состояние векторизации и поиска похожих техкарт</p>
+</div>
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat-value">{{ '✅' if rag_status.loaded else '❌' }}</div>
+        <div class="stat-label">RAG загружен</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ rag_status.documents }}</div>
+        <div class="stat-label">Документов в индексе</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ rag_status.vocabulary_size }}</div>
+        <div class="stat-label">Размер словаря</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ rag_size_mb }} МБ</div>
+        <div class="stat-label">Размер .rag/</div>
+    </div>
+</div>
+
+{% if rag_status.error %}
+<div class="alert alert-error" style="margin-top:16px;">
+    <strong>⚠ Ошибка:</strong> {{ rag_status.error }}
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:16px;">
+    <div class="card-header">
+        <h3 class="card-title">Действия</h3>
+    </div>
+    <button type="button" class="btn btn-warn" onclick="doRebuild(this)">🔄 Перестроить индекс</button>
+    <span id="rag-status" style="margin-left:12px;"></span>
+    <p class="hint" style="margin-top:8px;">Перестроить — затратно (~5 мин, 200₽ LLM). Используйте когда добавилось много новых ТК.</p>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="card-header">
+        <h3 class="card-title">Как это работает</h3>
+    </div>
+    <ol style="line-height:1.7;">
+        <li>При <strong>утверждении</strong> ТК — деталь автоматически индексируется</li>
+        <li>При генерации ТК — AI ищет топ-3 похожих детали</li>
+        <li>Совпадение считается по: материал + масса + шасси + наименование</li>
+        <li>RAG — это <strong>не AI</strong>, а TF-IDF + cosine similarity (быстро, бесплатно)</li>
+    </ol>
+</div>
+
+<script>
+async function doRebuild(btn) {
+    if (!confirm('Перестроить RAG индекс? Это займёт несколько минут.')) return;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Перестраиваю...';
+    const status = document.getElementById('rag-status');
+    try {
+        const r = await fetch('/api/admin/rag-rebuild', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const data = await r.json();
+        if (r.ok) {
+            status.innerHTML = '<span style="color:#10b981;">✅ Готово. Перезагружаю...</span>';
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            status.innerHTML = '<span style="color:#ef4444;">❌ ' + (data.detail || data.error || r.status) + '</span>';
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        status.innerHTML = '<span style="color:#ef4444;">❌ ' + e.message + '</span>';
+    }
+}
+</script>
+{% endblock %}
