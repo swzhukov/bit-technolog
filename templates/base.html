@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}БИТ.Технолог{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='28'%3E🔥%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/static/design-system.css?v=22">
     <script src="/static/htmx.min.js"></script>
 </head>
 <body>
@@ -62,93 +63,79 @@ document.addEventListener('keydown', function(e) {
     }
 });
 </script>
-    <header>
-        <nav>
-            <a href="/" class="brand" aria-label="БИТ.Технолог — главная">🔧 БИТ.Технолог</a>
-            {# M17: упрощённый header — только 5 главных ссылок + dropdown "Ещё" #}
-            <a href="/details/new" class="navlink navlink-primary" style="background:#10b981;color:white;font-weight:600;">＋ Деталь</a>
-            <a href="/pilot" class="navlink" aria-label="Дашборд пилота">📊 Пилот</a>
-            <a href="/help" class="navlink" aria-label="Руководство пользователя" style="background:#fef3c7;color:#92400e;font-weight:600;">❓ Помощь</a>
-            <details class="nav-dropdown">
-                <summary class="navlink" style="cursor:pointer;">📚 Справочники ▾</summary>
-                <div class="nav-dropdown-content" style="background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-                    <a href="/equipment" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🔧 Оборудование</a>
-                    <a href="/materials" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📋 Материалы</a>
-                    <a href="/iot" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">⚠ ИОТ</a>
-                    <a href="/benchmarks" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📊 Бенчмарки</a>
-                    <a href="/learning" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🎓 Обучение</a>
-                </div>
-            </details>
-            <details class="nav-dropdown">
-                <summary class="navlink" style="cursor:pointer;">📈 Отчёты ▾</summary>
-                <div class="nav-dropdown-content" style="background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-                    <a href="/pilot/learning" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📈 Обучение</a>
-                    <a href="/pilot/report" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📈 Отчёт пилота</a>
-                    <a href="/audit" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📋 Audit</a>
-                    <a href="/demo" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🎯 Demo</a>
-                </div>
-            </details>
-            {% if is_admin_from_request(request) %}
-            <details class="nav-dropdown">
-                <summary class="navlink" style="cursor:pointer;color:#dc2626;">🛡 Админ ▾</summary>
-                <div class="nav-dropdown-content" style="background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-                    <a href="/admin" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📊 Дашборд</a>
-                    <a href="/admin/users" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">👥 Пользователи</a>
-                    {% set n_errors = request.state.unread_llm_errors if request.state.unread_llm_errors is defined else 0 %}
-                    <a href="/admin/llm-calls" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">⚠️ LLM-вызовы {% if n_errors > 0 %}<span style="background:#dc2626;color:white;padding:1px 5px;border-radius:8px;font-size:10px;">{{ n_errors }}</span>{% endif %}</a>
-                    <a href="/admin/errors" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🐛 Ошибки</a>
-                    <a href="/admin/settings" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">⚙ Настройки</a>
-                    <a href="/admin/backup" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">💾 Бэкап</a>
-                    <a href="/admin/system" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🖥 Система</a>
-                    <a href="/admin/login-log" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🔐 Лог входов</a>
-                </div>
-            </details>
-            {% endif %}
-            <span class="spacer"></span>
-            {# M17: badge текущей роли (упрощённый — только 4 активные роли) #}
-            {% set _cur = current_role_from_request(request) %}
-            {% set _role_colors = {
-                'technologist': '#2563eb',
-                'main_technologist': '#7c3aed',
-                'admin': '#dc2626',
-                'workshop_chief': '#ea580c'
-            } %}
-            {% set _role_icons = {
-                'technologist': '👨‍🔧',
-                'main_technologist': '👑',
-                'admin': '🛡',
-                'workshop_chief': '🏭'
-            } %}
-            <span id="current-role-badge" class="role-badge" data-role="{{ _cur }}"
-                  style="background: {{ _role_colors.get(_cur, '#6b7280') }}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"
-                  title="Текущая роль">
-                <span class="role-icon">{{ _role_icons.get(_cur, '👤') }}</span>
-                <span class="role-label">{{ role_name_lookup(_cur) }}</span>
-            </span>
-            <select id="role-switcher" class="role-select" title="Переключить роль (для demo)" aria-label="Переключить роль">
-                {# M17: только 4 активные роли для пилота (3 deprecated скрыты) #}
-                <option value="technologist">👨‍🔧 Технолог</option>
-                <option value="main_technologist">👑 Гл. технолог</option>
-                <option value="workshop_chief">🏭 Нач. цеха</option>
-                <option value="admin">🛡 Админ</option>
-            </select>
-            {% set dc = daily_cost() %}
-            {% if dc.total_rub >= dc.limit_rub %}
-            <span class="cost-pill cost-exceeded" title="Лимит превышен!">⛔ {{ "%.2f"|format(dc.total_rub) }}₽ / {{ "%.0f"|format(dc.limit_rub) }}₽</span>
-            {% elif dc.total_rub >= dc.limit_rub * 0.8 %}
-            <span class="cost-pill cost-warn" title="Остаток {{ "%.2f"|format(dc.remaining_rub) }}₽ за сегодня">⚠ {{ "%.2f"|format(dc.total_rub) }}₽ / {{ "%.0f"|format(dc.limit_rub) }}₽</span>
-            {% else %}
-            <span class="cost-pill" title="Потрачено сегодня: {{ "%.2f"|format(dc.total_rub) }}₽ (остаток {{ "%.2f"|format(dc.remaining_rub) }}₽). Вызовов: {{ dc.calls }}">💰 {{ "%.2f"|format(dc.total_rub) }}₽ / {{ "%.0f"|format(dc.limit_rub) }}₽</span>
-            {% endif %}
-            {% if demo_mode %}
-            <span class="tag demo">⚠ DEMO</span>
-            {% else %}
-            <span class="tag">LLM: {{ llm_model }}</span>
-            {% endif %}
-        </nav>
+    <header class="app-header">
+        <div class="app-header-inner">
+            <a href="/" class="app-brand">
+                <span class="app-brand-icon">🔥</span>
+                <span>БИТ.Технолог</span>
+            </a>
+            <nav class="app-nav">
+                <a href="/details/new" class="primary">＋ Деталь</a>
+                <a href="/pilot">📊 Пилот</a>
+                <a href="/help" class="help">❓ Помощь</a>
+                <details class="dropdown">
+                    <summary class="dropdown-trigger">📚 Справочники</summary>
+                    <div class="dropdown-menu">
+                        <a href="/equipment">🔧 Оборудование</a>
+                        <a href="/materials">📋 Материалы</a>
+                        <a href="/iot">⚠ ИОТ</a>
+                        <a href="/benchmarks">📊 Бенчмарки</a>
+                        <a href="/learning">🎓 Обучение</a>
+                    </div>
+                </details>
+                <details class="dropdown">
+                    <summary class="dropdown-trigger">📈 Отчёты</summary>
+                    <div class="dropdown-menu">
+                        <a href="/pilot/learning">📈 Обучение</a>
+                        <a href="/pilot/report">📈 Отчёт пилота</a>
+                        <a href="/audit">📋 Audit</a>
+                        <a href="/demo">🎯 Demo</a>
+                    </div>
+                </details>
+                {% if is_admin_from_request(request) %}
+                <details class="dropdown">
+                    <summary class="dropdown-trigger" style="color:var(--c-role-admin);">🛡 Админ</summary>
+                    <div class="dropdown-menu">
+                        <a href="/admin">📊 Дашборд</a>
+                        <a href="/admin/users">👥 Пользователи</a>
+                        <a href="/admin/llm-calls">⚠️ LLM-вызовы</a>
+                        <a href="/admin/errors">🐛 Ошибки</a>
+                        <a href="/admin/settings">⚙ Настройки</a>
+                        <a href="/admin/backup">💾 Бэкап</a>
+                        <a href="/admin/system">🖥 Система</a>
+                        <a href="/admin/login-log">🔐 Лог входов</a>
+                    </div>
+                </details>
+                {% endif %}
+            </nav>
+            <div class="app-header-right">
+                {% set _cur = current_role_from_request(request) %}
+                <span class="role-chip" data-role="{{ _cur }}">
+                    {{ {'technologist': '👨‍🔧', 'main_technologist': '👑', 'admin': '🛡', 'workshop_chief': '🏭'}.get(_cur, '👤') }}
+                    {{ role_name_lookup(_cur) }}
+                </span>
+                <select id="role-switcher" aria-label="Переключить роль" title="Переключить роль">
+                    <option value="technologist">👨‍🔧 Технолог</option>
+                    <option value="main_technologist">👑 Гл. технолог</option>
+                    <option value="workshop_chief">🏭 Нач. цеха</option>
+                    <option value="admin">🛡 Админ</option>
+                </select>
+                {% set dc = daily_cost() %}
+                {% if dc.total_rub >= dc.limit_rub %}
+                <span class="cost-pill exceeded" title="Лимит превышен!">⛔ {{ "%.0f"|format(dc.total_rub) }}₽/{{ "%.0f"|format(dc.limit_rub) }}₽</span>
+                {% elif dc.total_rub >= dc.limit_rub * 0.8 %}
+                <span class="cost-pill warn" title="Осталось {{ "%.0f"|format(dc.remaining_rub) }}₽">⚠ {{ "%.0f"|format(dc.total_rub) }}₽/{{ "%.0f"|format(dc.limit_rub) }}₽</span>
+                {% else %}
+                <span class="cost-pill" title="Потрачено сегодня">💰 {{ "%.0f"|format(dc.total_rub) }}₽/{{ "%.0f"|format(dc.limit_rub) }}₽</span>
+                {% endif %}
+                {% if demo_mode %}
+                <span class="llm-pill">⚠ DEMO</span>
+                {% endif %}
+            </div>
+        </div>
     </header>
     <main>
-        {% block content %}{% endblock %}
+        <div class="shell">{% block content %}{% endblock %}</div>
     </main>
     <footer>
         <small>БИТ.Технолог · 2026 · Сергей Жуков, Первый БИТ</small>

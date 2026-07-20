@@ -1,15 +1,45 @@
 {% extends "base.html" %}
 {% block title %}{{ detail.designation }} — БИТ.Технолог{% endblock %}
 {% block content %}
-{# F16.9: A4-12 — breadcrumbs с уровнем в иерархии #}
-<div class="breadcrumb">
-    <a href="/">Главная</a> ›
-    <a href="/?status={{ status }}">Список деталей</a> ›
-    <span>{{ detail.designation }}</span>
-    {% if detail.parent_id %} › <a href="/detail/{{ detail.parent_id }}">↑ {{ detail.parent_id }}</a>{% endif %}
+
+{# M22: breadcrumbs в стиле дизайн-системы #}
+<nav style="font-size:13px; color:var(--c-text-muted); margin-bottom:12px;">
+    <a href="/" style="color:var(--c-text-muted);">Главная</a> › <a href="/?status={{ status }}" style="color:var(--c-text-muted);">Список деталей</a> › <strong style="color:var(--c-text);">{{ detail.designation }}</strong>
+</nav>
+
+{# M22: компактный header карточки — designation, name, status, главная CTA #}
+<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+    <div>
+        <h1 style="margin-bottom:6px;">{{ detail.designation }}</h1>
+        <p style="color:var(--c-text-muted); margin:0; font-size:15px;">{{ detail.name or 'Без названия' }}</p>
+        <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            {% if status == "new" %}<span class="badge badge-new">🔴 Новый</span>
+            {% elif status == "approved" or status == "approved_chief" %}<span class="badge badge-approved">🟢 Утверждён</span>
+            {% elif status_ext == "review" %}<span class="badge badge-review">👀 На проверке</span>
+            {% else %}<span class="badge badge-draft">🟡 Проект ТК</span>{% endif %}
+            {% if detail.model %}<span class="badge" style="background:var(--c-brand-soft); color:#1e40af;">🚒 {{ detail.model }}</span>{% endif %}
+            {% if detail.chassis %}<span class="badge" style="background:#fef3c7; color:#92400e;">🛻 {{ detail.chassis }}</span>{% endif %}
+            {% if detail.material %}<span class="badge" style="background:#f1f5f9; color:#475569;">{{ detail.material }}</span>{% endif %}
+            {% if detail.mass_kg %}<span class="badge" style="background:#f1f5f9; color:#475569;">{{ detail.mass_kg }} кг</span>{% endif %}
+        </div>
+    </div>
+    {# M22: Главная CTA — один раз, в зависимости от статуса #}
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        {% set _cur = current_role_from_request(request) %}
+        {% if status == "new" and _cur in ('technologist', 'main_technologist', 'admin') %}
+            <button onclick="showApprovePreview()" class="btn btn-primary btn-lg" style="display:none;" id="gen-cta">🤖 Сгенерировать ТК</button>
+        {% elif status != "approved" and _cur in ('technologist', 'main_technologist', 'admin') %}
+            <button onclick="showApprovePreview()" class="btn btn-success btn-lg">✅ Утвердить</button>
+            {% if status == "approved" and _cur in ('technologist', 'main_technologist', 'admin') %}
+            <button hx-post="/api/reopen" hx-vals='{"detail_id": "{{ detail.id }}", "reason": "Возврат в работу"}'
+                    hx-confirm="Вернуть в работу?"
+                    class="btn">↩️ Вернуть в работу</button>
+            {% endif %}
+        {% endif %}
+    </div>
 </div>
 
-<div class="detail-header">
+<div class="detail-header" style="display:none;">
     <h1>{{ detail.designation }} — {{ detail.name }}</h1>
     <div class="detail-meta">
         {% if status == "new" %}<span class="badge red">🔴 Новый</span>
@@ -225,52 +255,61 @@ function step3_refine(did) {
 </script>
 
 {# U2 fix: переименовано без "Sprint 1/2/3" #}
-<details class="add-form" style="margin-bottom: 16px;">
-    <summary>🔍 Похожие техкарты из истории (RAG)</summary>
-    <div id="rag-similar" hx-get="/api/rag/similar/{{ detail.id }}?top_k=5" hx-trigger="load" hx-swap="innerHTML">
-        ⏳ Загрузка похожих техкарт...
+{# M22: RAG, альтернативы, РС, связи — в <details open> маленьком блоке, не свёрнуты #}
+<div class="card" style="margin-bottom:12px;">
+    <div class="card-header" style="margin-bottom:0;">
+        <h3 class="card-title" style="font-size:14px;">🔍 Похожие ТК (RAG)</h3>
     </div>
-</details>
-
-<details class="add-form" style="margin-bottom: 16px;">
-    <summary>🔀 Другие варианты маршрута (2-3 альтернативы)</summary>
-    <button hx-post="/api/alternatives" hx-vals='{"detail_id": "{{ detail.id }}"}' hx-target="#alts-area" hx-swap="innerHTML" class="btn btn-sm">🔀 Показать альтернативы</button>
-    <div id="alts-area"></div>
-</details>
-
-{# Фаза 4: Ресурсная спецификация (РС) #}
-<details class="add-form" style="margin-bottom: 16px;">
-    <summary>📋 Ресурсная спецификация (РС) — для 1С:ERP</summary>
-    <div hx-get="/api/resource-specs/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML">
-        ⏳ Загрузка РС...
-    </div>
-    <p class="hint">📤 Экспорт в XML: <a href="/api/1c/export/rs/{{ detail.id }}" target="_blank">/api/1c/export/rs/{{ detail.id }}</a> (формат 1С:ERP)</p>
-</details>
-
-{# Фаза 4: Связанные детали (siblings + product) #}
-<details class="add-form" style="margin-bottom: 16px;">
-    <summary>🔗 Связанные детали (иерархия)</summary>
-    <div hx-get="/api/related/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML">
+    <div id="rag-similar" hx-get="/api/rag/similar/{{ detail.id }}?top_k=3" hx-trigger="load" hx-swap="innerHTML" style="font-size:13px;">
         ⏳ Загрузка...
     </div>
-</details>
+</div>
 
-{# Фаза 4: Чертёж детали #}
+<div class="card" style="margin-bottom:12px;">
+    <div class="card-header" style="margin-bottom:0;">
+        <h3 class="card-title" style="font-size:14px;">🔀 Альтернативы маршрута</h3>
+        <button hx-post="/api/alternatives" hx-vals='{"detail_id": "{{ detail.id }}"}' hx-target="#alts-area" hx-swap="innerHTML" class="btn btn-sm">Показать</button>
+    </div>
+    <div id="alts-area" style="font-size:13px;"></div>
+</div>
+
+{# M22: Ресурсная спецификация — компактный блок, не свёрнутый #}
+<div class="card" style="margin-bottom:12px;">
+    <div class="card-header" style="margin-bottom:0;">
+        <h3 class="card-title" style="font-size:14px;">📋 Ресурсная спецификация (1С:ERP)</h3>
+        <a href="/api/1c/export/rs/{{ detail.id }}" target="_blank" class="btn btn-sm">XML</a>
+    </div>
+    <div hx-get="/api/resource-specs/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML" style="font-size:13px;">
+        ⏳ Загрузка РС...
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:12px;">
+    <div class="card-header" style="margin-bottom:0;">
+        <h3 class="card-title" style="font-size:14px;">🔗 Связанные детали (иерархия)</h3>
+    </div>
+    <div hx-get="/api/related/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML" style="font-size:13px;">
+        ⏳ Загрузка...
+    </div>
+</div>
+
+{# M22: Чертёж — компактный #}
 {% if detail.drawing_path %}
 <div class="info-block">
     <strong>📐 Чертёж:</strong> <a href="/drawings/{{ detail.id }}_{{ detail.drawing_format }}" target="_blank">{{ detail.drawing_path }}</a>
     <span class="hint">Формат: {{ detail.drawing_format }}</span>
 </div>
 {% else %}
-<details class="add-form" style="margin-bottom: 16px;">
-    <summary>📐 Загрузить чертёж (.frw / .dwg / .pdf / .png / .jpg)</summary>
-    <form hx-post="/api/import/drawing/{{ detail.id }}" hx-target="#drawing-status" hx-swap="innerHTML" hx-encoding="multipart/form-data" enctype="multipart/form-data" class="form">
+<div class="card" style="margin-bottom:12px;">
+    <div class="card-header" style="margin-bottom:0;">
+        <h3 class="card-title" style="font-size:14px;">📐 Загрузить чертёж</h3>
+    </div>
+    <form hx-post="/api/import/drawing/{{ detail.id }}" hx-target="#drawing-status" hx-swap="innerHTML" hx-encoding="multipart/form-data" enctype="multipart/form-data">
         <input type="file" name="file" accept=".frw,.dwg,.pdf,.png,.jpg,.jpeg" required>
-        <button type="submit" class="btn btn-primary">📤 Загрузить</button>
+        <button type="submit" class="btn btn-primary btn-sm">Загрузить</button>
         <span id="drawing-status"></span>
     </form>
-    <p class="hint">Файл сохраняется в /drawings/, регистрируется в БД, привязывается к детали.</p>
-</details>
+</div>
 {% endif %}
 {% endif %}
 

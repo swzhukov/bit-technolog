@@ -1,202 +1,125 @@
 {% extends "base.html" %}
-{% block title %}Детали — БИТ.Технолог{% endblock %}
+{% block title %}Главная — БИТ.Технолог{% endblock %}
 {% block content %}
-<div class="page-header">
-    <h1>Детали от конструкторов</h1>
-    <p class="lead">AI-помощник технолога для создания техкарт в 1С:ERP</p>
+
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div>
+        <h1>Добрый день 👋</h1>
+        <p class="lead">AI-помощник технолога для создания техкарт в 1С:ERP</p>
+    </div>
+    <a href="/details/new" class="btn btn-primary btn-lg">＋ Новая деталь</a>
 </div>
 
 {% if demo_mode %}
-<div class="alert alert-demo">
-    <strong>⚠ Демо-режим:</strong> реальные вызовы LLM отключены. Используются эвристические mock-ответы для демонстрации UX.
-    Чтобы включить LLM, укажите <code>LLM_API_KEY</code> в <code>.env</code>.
+<div class="alert alert-warning">
+    <strong>⚠ Демо-режим:</strong> реальные вызовы LLM отключены. Используются эвристические mock-ответы.
 </div>
 {% endif %}
 
-{# M17: 3 кнопки быстрых ролей для показа клиенту #}
-{% set _quick_roles = [
-    ('technologist', '👨‍🔧', 'Технолог', 'создаёт ТК'),
-    ('main_technologist', '👑', 'Гл. технолог', 'утверждает ТК'),
-    ('admin', '🛡', 'Админ', 'управляет системой')
-] %}
-{% set _cur_role = current_role_from_request(request) %}
-<div class="demo-roles" style="background:#f0f9ff; border:1px solid #0ea5e9; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
-    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <strong style="color:#0369a1;">🎬 Показ клиенту — быстрая смена роли:</strong>
-        {% for code, icon, name, desc in _quick_roles %}
-        <button type="button" class="quick-role-btn" data-role="{{ code }}"
-                style="padding:8px 14px; border:2px solid {% if _cur_role == code %}#0ea5e9{% else %}#cbd5e1{% endif %};
-                       background:{% if _cur_role == code %}#0ea5e9{% else %}white{% endif %};
-                       color:{% if _cur_role == code %}white{% else %}#334155{% endif %};
-                       border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; min-width:140px; text-align:center;"
-                title="{{ desc }}">
-            <div style="font-size:18px;">{{ icon }}</div>
-            <div>{{ name }}</div>
+{# M22: Quick role buttons — 3 крупные карточки, не выпирающая плашка #}
+{% set _cur = current_role_from_request(request) %}
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-header">
+        <h3 class="card-title">🎬 Быстрая смена роли</h3>
+        <span style="font-size:12px; color:var(--c-text-muted);">для показа клиенту</span>
+    </div>
+    <div class="quick-roles">
+        <button type="button" class="quick-role {% if _cur == 'technologist' %}active{% endif %}" data-role="technologist">
+            <div class="quick-role-icon">👨‍🔧</div>
+            <div class="quick-role-name">Технолог</div>
+            <div class="quick-role-desc">создаёт ТК</div>
         </button>
-        {% endfor %}
-    </div>
-</div>
-<script>
-document.querySelectorAll('.quick-role-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-        const role = btn.dataset.role;
-        // BUG-2026-07-20-03: X-Requested-With: XMLHttpRequest — обязательно для CSRF check
-        await fetch('/api/role/switch', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({role: role})
-        }).then(r => {
-            if (!r.ok) {
-                console.error('quick role switch failed:', r.status);
-                showToast('Ошибка: ' + r.status, 'error');
-                return;
-            }
-            return r.json();
-        }).then(data => {
-            if (data) {
-                showToast('Роль: ' + role, 'success');
-                setTimeout(() => location.reload(), 400);
-            }
-        }).catch(e => {
-            console.error('quick role switch error:', e);
-        });
-    });
-});
-</script>
-
-<div class="stats">
-    <div class="stat stat-total">
-        <div class="stat-value">{{ total }}</div>
-        <div class="stat-label">🔵 Всего деталей</div>
-    </div>
-    <div class="stat stat-new">
-        <div class="stat-value">{{ details | selectattr('status', 'equalto', 'new') | list | length }}</div>
-        <div class="stat-label">🔴 Новых</div>
-    </div>
-    <div class="stat stat-draft">
-        <div class="stat-value">{{ details | selectattr('status', 'equalto', 'draft') | list | length }}</div>
-        <div class="stat-label">🟡 Проектов ТК</div>
-    </div>
-    <div class="stat stat-approved">
-        <div class="stat-value">{{ details | selectattr('status', 'equalto', 'approved') | list | length }}</div>
-        <div class="stat-label">🟢 Утверждено</div>
+        <button type="button" class="quick-role {% if _cur == 'main_technologist' %}active{% endif %}" data-role="main_technologist">
+            <div class="quick-role-icon">👑</div>
+            <div class="quick-role-name">Гл. технолог</div>
+            <div class="quick-role-desc">утверждает ТК</div>
+        </button>
+        <button type="button" class="quick-role {% if _cur == 'admin' %}active{% endif %}" data-role="admin">
+            <div class="quick-role-icon">🛡</div>
+            <div class="quick-role-name">Админ</div>
+            <div class="quick-role-desc">управляет системой</div>
+        </button>
     </div>
 </div>
 
-<form hx-get="/index/table" hx-target="#details-table" hx-trigger="keyup changed delay:300ms from:input[name='q'], change from:select[name='status'], change from:select[name='model']" hx-swap="innerHTML" hx-push-url="true" class="form" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <input type="search" name="q" value="{{ q or '' }}" placeholder="🔍 Поиск: обозначение, название, модель, материал, шасси..." style="flex:2; min-width:280px;" autocomplete="off" id="filter-q">
-    <select name="status" id="filter-status" style="flex:0; min-width:140px;">
-        <option value="">Все статусы</option>
-        <option value="new" {% if status == 'new' %}selected{% endif %}>🔴 Новые</option>
-        <option value="draft" {% if status == 'draft' %}selected{% endif %}>🟡 Проекты ТК</option>
-        <option value="approved" {% if status == 'approved' %}selected{% endif %}>🟢 Утверждённые</option>
-    </select>
-    <select name="model" id="filter-model" style="flex:0; min-width:160px;" title="Фильтр по модели изделия">
-        <option value="">Все модели</option>
-        {% for m in models %}
-        <option value="{{ m }}" {% if model == m %}selected{% endif %}>🚒 {{ m }}</option>
-        {% endfor %}
-    </select>
-    <input type="hidden" name="per_page" value="{{ per_page }}">
-    <button type="submit" class="btn btn-primary">Применить</button>
-    {% if q or status or model %}<a href="/" class="btn">Сбросить</a>{% endif %}
-    <span class="hint">Показано {{ details | length }} из {{ total }}</span>
-</form>
+{# M22: KPI-карточки — кликабельные, ведут на отфильтрованный список #}
+{% set new_n = details | selectattr('status', 'equalto', 'new') | list | length %}
+{% set draft_n = details | selectattr('status', 'equalto', 'draft') | list | length %}
+{% set approved_n = details | selectattr('status', 'equalto', 'approved') | list | length %}
+<div class="kpi-grid">
+    <a href="/?status=new" class="kpi-card kpi-new">
+        <div class="kpi-label">🔴 Новых</div>
+        <div class="kpi-value">{{ new_n }}</div>
+        <div class="kpi-sub">ждут техкарту</div>
+    </a>
+    <a href="/?status=draft" class="kpi-card kpi-draft">
+        <div class="kpi-label">🟡 Проектов</div>
+        <div class="kpi-value">{{ draft_n }}</div>
+        <div class="kpi-sub">ждут утверждения</div>
+    </a>
+    <a href="/?status=approved" class="kpi-card kpi-approved">
+        <div class="kpi-label">🟢 Утверждено</div>
+        <div class="kpi-value">{{ approved_n }}</div>
+        <div class="kpi-sub">в архиве</div>
+    </a>
+    <a href="/" class="kpi-card kpi-total">
+        <div class="kpi-label">🔵 Всего</div>
+        <div class="kpi-value">{{ total }}</div>
+        <div class="kpi-sub">деталей в базе</div>
+    </a>
+</div>
 
-{# V6-7: сохраняем фильтры в localStorage, восстанавливаем при загрузке #}
+{# M22: фильтры + таблица #}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Детали</h3>
+        <span style="font-size:12px; color:var(--c-text-muted);">Показано {{ details | length }} из {{ total }}</span>
+    </div>
+    <form hx-get="/index/table" hx-target="#details-table" hx-trigger="keyup changed delay:300ms from:input[name='q'], change from:select[name='status'], change from:select[name='model']" hx-swap="innerHTML" hx-push-url="true" class="filter-bar">
+        <input type="search" name="q" value="{{ q or '' }}" placeholder="🔍 Поиск по обозначению, названию..." autocomplete="off" id="filter-q">
+        <select name="status" id="filter-status">
+            <option value="">Все статусы</option>
+            <option value="new" {% if status == 'new' %}selected{% endif %}>🔴 Новые</option>
+            <option value="draft" {% if status == 'draft' %}selected{% endif %}>🟡 Проекты</option>
+            <option value="approved" {% if status == 'approved' %}selected{% endif %}>🟢 Утверждено</option>
+        </select>
+        <select name="model" id="filter-model">
+            <option value="">Все шасси</option>
+            {% for m in models %}
+            <option value="{{ m }}" {% if model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn">Применить</button>
+        {% if q or status or model %}<a href="/" class="btn btn-ghost">Сбросить</a>{% endif %}
+    </form>
+
+    <div id="details-table">
+{% include "_index_table.html" %}
+    </div>
+</div>
+
 <script>
+// M22 + V6-7: сохранение фильтров в localStorage
 (function() {
     const KEY = 'bit_filter_v1';
     const q = document.getElementById('filter-q');
     const status = document.getElementById('filter-status');
     const model = document.getElementById('filter-model');
     if (!q) return;
-    // Восстановить
+    // Load
     try {
         const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
         if (saved.q) q.value = saved.q;
         if (saved.status) status.value = saved.status;
         if (saved.model) model.value = saved.model;
     } catch (e) {}
-    // Сохранять при изменении
+    // Save
     function save() {
-        try {
-            localStorage.setItem(KEY, JSON.stringify({
-                q: q.value, status: status.value, model: model.value
-            }));
-        } catch (e) {}
+        try { localStorage.setItem(KEY, JSON.stringify({q: q.value, status: status.value, model: model.value})); } catch (e) {}
     }
     q.addEventListener('input', save);
     status.addEventListener('change', save);
     model.addEventListener('change', save);
 })();
 </script>
-{# M17: убрал опасную кнопку "Сгенерировать все новые" (60₽ одним кликом). Теперь — генерируем поштучно через карточку детали #}
-<span id="batch-result" class="hint"></span>
-
-<div id="details-table">
-<table class="details-table">
-        <tr>
-            <th>Статус</th>
-            <th>Деталь</th>
-            <th>Модель</th>
-            <th>Шасси</th>
-            <th>Материал</th>
-            <th>Масса</th>
-            <th>Действие</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for d in details %}
-        <tr>
-            <td>
-                {% if d.status == "new" %}<span class="badge red">🔴 Новый</span>
-                {% elif d.status == "draft" %}<span class="badge yellow">🟡 Проект ТК</span>
-                {% elif d.status == "approved" %}<span class="badge green">🟢 Утверждён</span>
-                {% else %}<span class="badge gray">⚪ {{ d.status }}</span>{% endif %}
-            </td>
-            <td>
-                <a href="/detail/{{ d.id }}" class="detail-link"><strong>{{ d.designation }}</strong></a><br>
-                <small>{{ d.name }}</small>
-            </td>
-            <td>{{ d.model }}</td>
-            <td>{{ d.chassis }}</td>
-            <td>{{ d.material }}</td>
-            <td>{{ d.mass_kg }} кг</td>
-            <td>
-                <a href="/detail/{{ d.id }}" class="btn">Открыть</a>
-            </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-light);">Ничего не найдено. Попробуй сбросить фильтры.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-{% if total_pages > 1 %}
-<div style="display:flex; gap:8px; align-items:center; justify-content:center; margin:16px 0;">
-    {% if page > 1 %}<a href="?q={{ q }}&status={{ status }}&page={{ page-1 }}&per_page={{ per_page }}" class="btn">‹ Назад</a>{% endif %}
-    <span class="hint">Страница {{ page }} из {{ total_pages }}</span>
-    {% if page < total_pages %}<a href="?q={{ q }}&status={{ status }}&page={{ page+1 }}&per_page={{ per_page }}" class="btn">Вперёд ›</a>{% endif %}
-</div>
-{% endif %}
-</div>
-
-<div class="info-block">
-    <h3>Что это?</h3>
-    <p>Прототип AI-помощника технолога. По свойствам детали (от конструктора из КОМПАС-3D) генерирует проект ТК техкарты:</p>
-    <ul>
-        <li>Список операций с оборудованием и временем</li>
-        <li>Указание источника оценки (ГОСТ / аналог / правило)</li>
-        <li>Уверенность для каждой операции</li>
-        <li>Замечания с цитатами из свойств детали</li>
-        <li>Вопросы к технологу с вариантами ответа</li>
-        <li>Обоснование решений (для руководства)</li>
-    </ul>
-    <p><strong>Кликните на любую деталь</strong>, чтобы попробовать.</p>
-</div>
 {% endblock %}

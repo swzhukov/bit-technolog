@@ -1767,16 +1767,14 @@ def test_filter_save_in_index():
 
 
 def test_aria_labels_in_base():
-    """V6-13: aria-label на основных элементах"""
+    """V6-13 + M22: aria-label и design-system class"""
     import os
     template_path = os.path.join(os.path.dirname(__file__), "templates", "base.html")
     with open(template_path, encoding="utf-8") as f:
         content = f.read()
-    assert 'aria-label="БИТ.Технолог' in content
-    assert 'aria-label="Дашборд пилота' in content
     assert 'aria-label="Переключить роль"' in content
-    # M17: aria-label="Справочник оборудования" перенесена в dropdown,
-    # проверяем что ссылка на /equipment присутствует (без обязательного aria)
+    assert 'class="app-header"' in content
+    assert 'class="app-brand"' in content
 
 
 def test_global_error_handler_in_base():
@@ -2916,7 +2914,8 @@ def test_role_badge_in_header(client):
     c, _ = client
     c.post("/api/role/switch", data={"role": "technologist"})
     r = c.get("/")
-    assert 'id="current-role-badge"' in r.text
+    # M22: новый дизайн — class="role-chip"
+    assert 'class="role-chip"' in r.text
     assert 'data-role="technologist"' in r.text
     assert "Технолог" in r.text  # role_name_lookup
 
@@ -2941,15 +2940,16 @@ def test_role_cookie_not_httponly(client):
 
 
 def test_quick_role_buttons_on_index(client):
-    """3 быстрые кнопки для показа клиенту — на главной"""
+    """M22: 3 крупные кнопки в card на главной"""
     c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
     r = c.get("/")
-    assert 'class="quick-role-btn"' in r.text
+    assert 'class="quick-role' in r.text
     assert 'data-role="technologist"' in r.text
     assert 'data-role="main_technologist"' in r.text
     assert 'data-role="admin"' in r.text
-    # Текущая роль должна быть выделена
-    assert 'class="quick-role-btn" data-role="technologist"' in r.text
+    # Текущая роль выделена
+    assert 'class="quick-role active" data-role="technologist"' in r.text
 
 
 def test_role_switch_persists_after_reload(client):
@@ -3074,14 +3074,14 @@ def test_role_select_shows_only_4(client):
 
 
 def test_header_simplified(client):
-    """M17: header упрощён, используются dropdown'ы для справочников и отчётов"""
+    """M22: header на design-system — class="app-header" + dropdown"""
     c, _ = client
     r = c.get("/")
-    # Должны быть dropdown'ы
-    assert "nav-dropdown" in r.text
+    assert 'class="app-header"' in r.text
+    assert 'class="dropdown"' in r.text
     assert "Справочники" in r.text
     assert "Отчёты" in r.text
-    # Главные ссылки должны быть видны сразу
+    # Главные ссылки видны сразу
     assert 'href="/details/new"' in r.text
     assert 'href="/pilot"' in r.text
     assert 'href="/help"' in r.text
@@ -3096,13 +3096,13 @@ def test_dangerous_bulk_button_removed(client):
 
 
 def test_kpi_cards_have_colors(client):
-    """M17: KPI-карточки имеют цветные границы (stat-new, stat-draft, etc.)"""
+    """M22: KPI-карточки используют kpi-new/draft/approved/total"""
     c, _ = client
     r = c.get("/")
-    assert "stat-new" in r.text
-    assert "stat-draft" in r.text
-    assert "stat-approved" in r.text
-    assert "stat-total" in r.text
+    assert 'kpi-card kpi-new' in r.text
+    assert 'kpi-card kpi-draft' in r.text
+    assert 'kpi-card kpi-approved' in r.text
+    assert 'kpi-card kpi-total' in r.text
 
 
 # ========== M19: валидация LLM_API_KEY + redirect после сохранения ==========

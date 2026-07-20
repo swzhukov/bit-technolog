@@ -4,18 +4,16 @@
 
 <div class="page-header">
     <h1>❓ Помощь — Руководство пользователя</h1>
-    <p class="lead">БИТ.Технолог v0.4.13 · 27 июля 2026 — пилот</p>
+    <p class="lead">БИТ.Технолог v0.4.18 · 27 июля 2026 — пилот</p>
 </div>
 
-<div style="background:#fef3c7; border:1px solid #f59e0b; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+<div class="alert alert-info" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
     <strong>🎬 Вы сейчас в роли:</strong>
-    <span id="current-role-help" style="font-weight:600; padding:2px 8px; border-radius:4px; background:#f59e0b; color:white; margin-left:6px;">
+    <span class="role-chip" data-role="{{ current_role_from_request(request) }}">
+        {{ {'technologist': '👨‍🔧', 'main_technologist': '👑', 'admin': '🛡', 'workshop_chief': '🏭'}.get(current_role_from_request(request), '👤') }}
         {{ role_name_lookup(current_role_from_request(request)) }}
     </span>
-    <p style="margin:8px 0 0 0; font-size:13px;">
-        <strong>Переключить роль:</strong> селектор в header справа, или 3 быстрые кнопки
-        <a href="/" style="color:#92400e; font-weight:600;">на главной</a>.
-    </p>
+    <span style="font-size:13px; color:var(--c-text-muted);">→ в header справа можно переключить</span>
 </div>
 
 {# ========== СОДЕРЖАНИЕ ========== #}
