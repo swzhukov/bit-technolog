@@ -43,10 +43,33 @@ h4 { font-size: 15px; margin: 12px 0 6px; color: var(--text); }
 .alert-demo { background: #fef2f2; border-left: 4px solid var(--red); color: #991b1b; }
 .alert code { background: white; padding: 2px 6px; border-radius: 3px; }
 
+/* M17: KPI-карточки — цветные, с иконками */
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
-.stat { background: var(--bg); padding: 16px; border-radius: 8px; text-align: center; border: 1px solid var(--border); }
-.stat-value { font-size: 28px; font-weight: bold; color: var(--primary); }
-.stat-label { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+.stat { background: white; padding: 16px; border-radius: 8px; text-align: center; border-left: 4px solid #6b7280; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stat.stat-new { border-left-color: #dc2626; }
+.stat.stat-draft { border-left-color: #f59e0b; }
+.stat.stat-approved { border-left-color: #10b981; }
+.stat.stat-total { border-left-color: #2563eb; }
+.stat-value { font-size: 32px; font-weight: 700; line-height: 1.2; }
+.stat.stat-new .stat-value { color: #dc2626; }
+.stat.stat-draft .stat-value { color: #f59e0b; }
+.stat.stat-approved .stat-value { color: #10b981; }
+.stat.stat-total .stat-value { color: #2563eb; }
+.stat-label { font-size: 13px; color: #4b5563; margin-top: 6px; font-weight: 500; }
+
+/* M17: nav-dropdown */
+.nav-dropdown { position: relative; display: inline-block; }
+.nav-dropdown summary { list-style: none; }
+.nav-dropdown summary::-webkit-details-marker { display: none; }
+.nav-dropdown[open] .nav-dropdown-content { display: block; }
+.nav-dropdown-content { display: none; position: absolute; top: 100%; left: 0; z-index: 100; min-width: 200px; padding: 4px 0; }
+.nav-dropdown-content a:hover { background: #f3f4f6; }
+
+/* M17: таблица — статус-цвет */
+.data-table tbody tr.status-new { border-left: 3px solid #dc2626; }
+.data-table tbody tr.status-draft { border-left: 3px solid #f59e0b; }
+.data-table tbody tr.status-approved { border-left: 3px solid #10b981; background: #f0fdf4; }
+.data-table tbody tr:hover { background: #f9fafb; }
 
 table { width: 100%; border-collapse: collapse; margin: 16px 0; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }

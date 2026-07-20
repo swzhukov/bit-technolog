@@ -1103,6 +1103,10 @@ async def api_workflow_queue(role: str = "technologist", assignee: str = ""):
 
 
 # ========== Role-based UI (через cookie) ==========
+# M17 (2026-07-20): Сергей попросил сократить роли. Для пилота на 5-10 человек
+# завода 7 ролей — перебор. Оставляем 4: технолог, гл.технолог, нач.цеха, админ.
+# Остальные 3 (normirovshchik, constructor, quality) — помечены как deprecated
+# и НЕ показываются в UI, но остаются в коде (на случай если в будущем понадобятся).
 ROLES = {
     "technologist": {
         "name": "Технолог",
@@ -1112,49 +1116,46 @@ ROLES = {
         "can_manage_workflow": False
     },
     "main_technologist": {
-        "name": "Главный технолог",
+        "name": "Гл. технолог",
         "default_view": "approval_queue",
         "can_edit": True,
         "can_approve": True,
         "can_manage_workflow": True
     },
-    "normirovshchik": {
-        "name": "Нормировщик",
-        "default_view": "economics",
-        "can_edit": True,
-        "can_approve": False,
-        "can_manage_workflow": False
-    },
-    "constructor": {
-        "name": "Конструктор",
-        "default_view": "blueprints",
-        "can_edit": False,
-        "can_approve": False,
-        "can_manage_workflow": False
-    },
     "workshop_chief": {
-        "name": "Начальник цеха",
+        "name": "Нач. цеха",
         "default_view": "approved",
         "can_edit": False,
         "can_approve": True,
         "can_manage_workflow": False
     },
-    "quality": {
-        "name": "Контролёр ОТК",
-        "default_view": "warnings",
-        "can_edit": True,
-        "can_approve": False,
-        "can_manage_workflow": False
-    },
     "admin": {
-        "name": "Администратор",
+        "name": "Админ",
         "default_view": "admin_dashboard",
         "can_edit": True,
         "can_approve": True,
         "can_manage_workflow": True,
         "can_admin": True
-    }
+    },
+    # DEPRECATED (M17): оставлены в коде для совместимости, но не показываются в UI
+    "normirovshchik": {
+        "name": "Нормировщик (DEPRECATED)",
+        "deprecated": True,
+        "can_edit": True, "can_approve": False, "can_manage_workflow": False
+    },
+    "constructor": {
+        "name": "Конструктор (DEPRECATED)",
+        "deprecated": True,
+        "can_edit": False, "can_approve": False, "can_manage_workflow": False
+    },
+    "quality": {
+        "name": "ОТК (DEPRECATED)",
+        "deprecated": True,
+        "can_edit": True, "can_approve": False, "can_manage_workflow": False
+    },
 }
+# Активные роли (для UI селекторов и quick-role кнопок)
+ACTIVE_ROLES = {k: v for k, v in ROLES.items() if not v.get("deprecated")}
 
 
 def get_current_role(request: Request) -> str:

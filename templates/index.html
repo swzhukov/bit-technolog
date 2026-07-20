@@ -13,13 +13,13 @@
 </div>
 {% endif %}
 
-{# BUG-2026-07-20-01: быстрое переключение ролей для показа клиенту #}
-{% set _cur_role = current_role_from_request(request) %}
+{# M17: 3 кнопки быстрых ролей для показа клиенту #}
 {% set _quick_roles = [
     ('technologist', '👨‍🔧', 'Технолог', 'создаёт ТК'),
     ('main_technologist', '👑', 'Гл. технолог', 'утверждает ТК'),
     ('admin', '🛡', 'Админ', 'управляет системой')
 ] %}
+{% set _cur_role = current_role_from_request(request) %}
 <div class="demo-roles" style="background:#f0f9ff; border:1px solid #0ea5e9; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <strong style="color:#0369a1;">🎬 Показ клиенту — быстрая смена роли:</strong>
@@ -69,21 +69,21 @@ document.querySelectorAll('.quick-role-btn').forEach(btn => {
 </script>
 
 <div class="stats">
-    <div class="stat">
+    <div class="stat stat-total">
         <div class="stat-value">{{ total }}</div>
-        <div class="stat-label">всего деталей</div>
+        <div class="stat-label">🔵 Всего деталей</div>
     </div>
-    <div class="stat">
+    <div class="stat stat-new">
         <div class="stat-value">{{ details | selectattr('status', 'equalto', 'new') | list | length }}</div>
-        <div class="stat-label">🔴 новых</div>
+        <div class="stat-label">🔴 Новых</div>
     </div>
-    <div class="stat">
+    <div class="stat stat-draft">
         <div class="stat-value">{{ details | selectattr('status', 'equalto', 'draft') | list | length }}</div>
-        <div class="stat-label">🟡 проект ТКов</div>
+        <div class="stat-label">🟡 Проектов ТК</div>
     </div>
-    <div class="stat">
+    <div class="stat stat-approved">
         <div class="stat-value">{{ details | selectattr('status', 'equalto', 'approved') | list | length }}</div>
-        <div class="stat-label">🟢 утверждено</div>
+        <div class="stat-label">🟢 Утверждено</div>
     </div>
 </div>
 
@@ -135,9 +135,7 @@ document.querySelectorAll('.quick-role-btn').forEach(btn => {
     model.addEventListener('change', save);
 })();
 </script>
-<form hx-post="/api/batch-generate-new" hx-target="#batch-result" hx-swap="innerHTML" hx-confirm="Сгенерировать проект ТКи для всех новых деталей (до 20)?" style="display:inline;">
-    <button type="submit" class="btn">📦 Сгенерировать все новые</button>
-</form>
+{# M17: убрал опасную кнопку "Сгенерировать все новые" (60₽ одним кликом). Теперь — генерируем поштучно через карточку детали #}
 <span id="batch-result" class="hint"></span>
 
 <div id="details-table">

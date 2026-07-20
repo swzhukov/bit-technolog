@@ -65,46 +65,59 @@ document.addEventListener('keydown', function(e) {
     <header>
         <nav>
             <a href="/" class="brand" aria-label="БИТ.Технолог — главная">🔧 БИТ.Технолог</a>
-            <a href="/details/new" class="navlink">＋ Деталь</a>
-            <a href="/equipment" class="navlink" aria-label="Справочник оборудования">🔧 Оборудование</a>
-            <a href="/materials" class="navlink">📋 Материалы</a>
-            <a href="/iot" class="navlink">⚠ ИОТ</a>
-            <a href="/benchmarks" class="navlink">📊 Бенчмарки</a>
-            <a href="/learning" class="navlink">🎓 Обучение</a>
-            {% if is_admin_from_request(request) %}
-            <a href="/admin" class="navlink" style="color:#dc2626;">🛡 Админ</a>
-            {# F16.9: A4-18 — badge непрочитанных LLM-ошибок #}
-            {% set n_errors = request.state.unread_llm_errors if request.state.unread_llm_errors is defined else 0 %}
-            <a href="/admin/llm-calls" class="navlink" style="color:#dc2626;">⚠️ LLM-ошибки {% if n_errors > 0 %}<span style="background:#dc2626;color:white;padding:2px 6px;border-radius:10px;font-size:10px;">{{ n_errors }}</span>{% endif %}</a>
-            <a href="/admin/settings" class="navlink" style="color:#dc2626;">⚙ Настройки</a>
-            {% endif %}
-            <a href="/pilot" class="navlink" aria-label="Дашборд пилота — метрики">📊 Пилот</a>
-            <a href="/pilot/learning" class="navlink">📈 Обучение</a>
-            <a href="/pilot/report" class="navlink">📈 Отчёт</a>
-            <a href="/audit" class="navlink">📋 Audit</a>
-            <a href="/demo" class="navlink" aria-label="Демо-сценарий для руководства">🎯 Demo</a>
-            {# BUG-2026-07-20-04: ссылка на руководство — ВНУТРИ продукта, не в docs/ #}
+            {# M17: упрощённый header — только 5 главных ссылок + dropdown "Ещё" #}
+            <a href="/details/new" class="navlink navlink-primary" style="background:#10b981;color:white;font-weight:600;">＋ Деталь</a>
+            <a href="/pilot" class="navlink" aria-label="Дашборд пилота">📊 Пилот</a>
             <a href="/help" class="navlink" aria-label="Руководство пользователя" style="background:#fef3c7;color:#92400e;font-weight:600;">❓ Помощь</a>
+            <details class="nav-dropdown">
+                <summary class="navlink" style="cursor:pointer;">📚 Справочники ▾</summary>
+                <div class="nav-dropdown-content" style="background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                    <a href="/equipment" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🔧 Оборудование</a>
+                    <a href="/materials" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📋 Материалы</a>
+                    <a href="/iot" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">⚠ ИОТ</a>
+                    <a href="/benchmarks" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📊 Бенчмарки</a>
+                    <a href="/learning" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🎓 Обучение</a>
+                </div>
+            </details>
+            <details class="nav-dropdown">
+                <summary class="navlink" style="cursor:pointer;">📈 Отчёты ▾</summary>
+                <div class="nav-dropdown-content" style="background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                    <a href="/pilot/learning" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📈 Обучение</a>
+                    <a href="/pilot/report" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📈 Отчёт пилота</a>
+                    <a href="/audit" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📋 Audit</a>
+                    <a href="/demo" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🎯 Demo</a>
+                </div>
+            </details>
+            {% if is_admin_from_request(request) %}
+            <details class="nav-dropdown">
+                <summary class="navlink" style="cursor:pointer;color:#dc2626;">🛡 Админ ▾</summary>
+                <div class="nav-dropdown-content" style="background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                    <a href="/admin" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📊 Дашборд</a>
+                    <a href="/admin/users" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">👥 Пользователи</a>
+                    {% set n_errors = request.state.unread_llm_errors if request.state.unread_llm_errors is defined else 0 %}
+                    <a href="/admin/llm-calls" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">⚠️ LLM-вызовы {% if n_errors > 0 %}<span style="background:#dc2626;color:white;padding:1px 5px;border-radius:8px;font-size:10px;">{{ n_errors }}</span>{% endif %}</a>
+                    <a href="/admin/errors" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🐛 Ошибки</a>
+                    <a href="/admin/settings" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">⚙ Настройки</a>
+                    <a href="/admin/backup" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">💾 Бэкап</a>
+                    <a href="/admin/system" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🖥 Система</a>
+                    <a href="/admin/login-log" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🔐 Лог входов</a>
+                </div>
+            </details>
+            {% endif %}
             <span class="spacer"></span>
-            {# BUG-2026-07-20-01: визуальный badge текущей роли — нельзя перепутать #}
+            {# M17: badge текущей роли (упрощённый — только 4 активные роли) #}
             {% set _cur = current_role_from_request(request) %}
             {% set _role_colors = {
                 'technologist': '#2563eb',
                 'main_technologist': '#7c3aed',
                 'admin': '#dc2626',
-                'normirovshchik': '#0891b2',
-                'workshop_chief': '#ea580c',
-                'constructor': '#16a34a',
-                'quality': '#db2777'
+                'workshop_chief': '#ea580c'
             } %}
             {% set _role_icons = {
                 'technologist': '👨‍🔧',
                 'main_technologist': '👑',
                 'admin': '🛡',
-                'normirovshchik': '📏',
-                'workshop_chief': '🏭',
-                'constructor': '📐',
-                'quality': '🔍'
+                'workshop_chief': '🏭'
             } %}
             <span id="current-role-badge" class="role-badge" data-role="{{ _cur }}"
                   style="background: {{ _role_colors.get(_cur, '#6b7280') }}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"
@@ -113,12 +126,10 @@ document.addEventListener('keydown', function(e) {
                 <span class="role-label">{{ role_name_lookup(_cur) }}</span>
             </span>
             <select id="role-switcher" class="role-select" title="Переключить роль (для demo)" aria-label="Переключить роль">
+                {# M17: только 4 активные роли для пилота (3 deprecated скрыты) #}
                 <option value="technologist">👨‍🔧 Технолог</option>
                 <option value="main_technologist">👑 Гл. технолог</option>
-                <option value="normirovshchik">📏 Нормировщик</option>
-                <option value="constructor">📐 Конструктор</option>
                 <option value="workshop_chief">🏭 Нач. цеха</option>
-                <option value="quality">🔍 ОТК</option>
                 <option value="admin">🛡 Админ</option>
             </select>
             {% set dc = daily_cost() %}

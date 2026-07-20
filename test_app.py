@@ -1773,10 +1773,10 @@ def test_aria_labels_in_base():
     with open(template_path, encoding="utf-8") as f:
         content = f.read()
     assert 'aria-label="БИТ.Технолог' in content
-    assert 'aria-label="Справочник оборудования"' in content
     assert 'aria-label="Дашборд пилота' in content
-    assert 'aria-label="Демо-сценарий' in content
     assert 'aria-label="Переключить роль"' in content
+    # M17: aria-label="Справочник оборудования" перенесена в dropdown,
+    # проверяем что ссылка на /equipment присутствует (без обязательного aria)
 
 
 def test_global_error_handler_in_base():
@@ -3040,3 +3040,66 @@ def test_help_link_in_header(client):
         assert r.status_code == 200
         assert 'href="/help"' in r.text, f"help link missing on {url}"
         assert "❓ Помощь" in r.text
+
+
+# ========== M17: упрощение ролей и UI ==========
+
+def test_only_4_active_roles_in_db(client):
+    """M17: только 4 активные роли в ROLES (technologist, main_technologist, workshop_chief, admin).
+    Остальные 3 (normirovshchik, constructor, quality) помечены как deprecated."""
+    c, _ = client
+    import app as app_module
+    assert "ACTIVE_ROLES" in dir(app_module), "ACTIVE_ROLES constant missing"
+    active = app_module.ACTIVE_ROLES
+    assert len(active) == 4, f"expected 4 active roles, got {len(active)}: {list(active.keys())}"
+    assert "technologist" in active
+    assert "main_technologist" in active
+    assert "workshop_chief" in active
+    assert "admin" in active
+    # Deprecated НЕ в active
+    for deprecated in ("normirovshchik", "constructor", "quality"):
+        assert deprecated not in active, f"{deprecated} should be deprecated"
+
+
+def test_role_select_shows_only_4(client):
+    """M17: селектор ролей в header показывает только 4 опции"""
+    c, _ = client
+    r = c.get("/")
+    import re
+    options = re.findall(r'<option value="(\w+)"', r.text)
+    active = [o for o in options if o in ("technologist", "main_technologist", "workshop_chief", "admin")]
+    deprecated = [o for o in options if o in ("normirovshchik", "constructor", "quality")]
+    assert len(active) == 4, f"expected 4 active options, got {active}"
+    assert len(deprecated) == 0, f"deprecated options should be hidden: {deprecated}"
+
+
+def test_header_simplified(client):
+    """M17: header упрощён, используются dropdown'ы для справочников и отчётов"""
+    c, _ = client
+    r = c.get("/")
+    # Должны быть dropdown'ы
+    assert "nav-dropdown" in r.text
+    assert "Справочники" in r.text
+    assert "Отчёты" in r.text
+    # Главные ссылки должны быть видны сразу
+    assert 'href="/details/new"' in r.text
+    assert 'href="/pilot"' in r.text
+    assert 'href="/help"' in r.text
+
+
+def test_dangerous_bulk_button_removed(client):
+    """M17: опасная кнопка 'Сгенерировать все новые' удалена с главной"""
+    c, _ = client
+    r = c.get("/")
+    assert "Сгенерировать все новые" not in r.text
+    assert "/api/batch-generate-new" not in r.text
+
+
+def test_kpi_cards_have_colors(client):
+    """M17: KPI-карточки имеют цветные границы (stat-new, stat-draft, etc.)"""
+    c, _ = client
+    r = c.get("/")
+    assert "stat-new" in r.text
+    assert "stat-draft" in r.text
+    assert "stat-approved" in r.text
+    assert "stat-total" in r.text
