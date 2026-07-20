@@ -51,7 +51,8 @@
     </form>
 </details>
 
-<details class="add-form" style="margin-bottom: 16px;">
+{# M21: экономика — раскрыта по умолчанию, видна сразу #}
+<details class="add-form" style="margin-bottom: 16px;" open>
     <summary>💰 Экономика (расчёт себестоимости)</summary>
     <form hx-post="/api/details/{{ detail.id }}/economics"
           hx-target="#econ-status"
@@ -419,22 +420,15 @@ function step3_refine(did) {
     {% set cur_role = current_role_from_request(request) %}
     {% if status != "approved" %}
     {% if cur_role in ('technologist', 'main_technologist', 'admin') %}
+    {# M21: только ГЛАВНЫЕ кнопки — не 11 а 4 #}
     <button onclick="showApprovePreview()"
             class="btn btn-primary"
             aria-label="Утвердить проект ТК (после проверки чеклиста)"
             title="Утвердить проект ТК (после проверки чеклиста)">
         ✅ Утвердить
     </button>
-    <button hx-post="/api/submit-for-review"
-            hx-vals='{"detail_id": "{{ detail.id }}"}'
-            hx-on::after-request="location.reload()"
-            class="btn"
-            title="Отправить на проверку гл. технологу или нач. цеха">
-        👀 Отправить на проверку
-    </button>
     {% endif %}
     {% if status == "approved" and cur_role in ('technologist', 'main_technologist', 'admin') %}
-    {# F16.7: вернуть в работу для переутверждения #}
     <button hx-post="/api/reopen"
             hx-vals='{"detail_id": "{{ detail.id }}", "reason": "Возврат в работу"}'
             hx-confirm="Вернуть в работу? Потребуется повторное утверждение."
@@ -444,35 +438,47 @@ function step3_refine(did) {
     </button>
     {% endif %}
     {% endif %}
-    {% if cur_role in ('main_technologist', 'workshop_chief', 'admin') %}
-    <button hx-post="/api/approve-chief"
-            hx-vals='{"detail_id": "{{ detail.id }}", "chief": "Баранов"}'
-            hx-on::after-request="location.reload()"
-            class="btn"
-            title="Утверждение начальником цеха (для final-approve в 1С)">
-        👑 Утвердить как начальник
-    </button>
-    {% endif %}
-    {% if cur_role in ('main_technologist', 'admin') %}
-    <button hx-post="/api/send-to-1c"
-            hx-vals='{"detail_id": "{{ detail.id }}"}'
-            hx-confirm="Записать РС в 1С:ERP?"
-            hx-target="#action-result"
-            class="btn"
-            title="Записать ресурсную спецификацию в 1С:ERP (XML-экспорт)">
-        📤 Записать в 1С
-    </button>
-    {% endif %}
-    <form action="/api/export/excel" method="post" style="display:inline">
-        <input type="hidden" name="detail_id" value="{{ detail.id }}">
-        <button type="submit" class="btn">📊 Excel</button>
-    </form>
-    <form action="/api/export/pdf" method="post" style="display:inline">
-        <input type="hidden" name="detail_id" value="{{ detail.id }}">
-        <button type="submit" class="btn">📄 PDF (обоснование)</button>
-    </form>
-    <a href="/detail/{{ detail.id }}/print" target="_blank" class="btn btn-primary">🖨 Печатная форма (для подписи)</a>
-    <a href="/api/export/onec-csv?detail_id={{ detail.id }}" class="btn">📤 CSV для 1С</a>
+    {# M21: остальные кнопки — в dropdown, чтобы не перегружать #}
+    <details class="action-dropdown" style="display:inline-block;">
+        <summary class="btn" style="cursor:pointer;list-style:none;">📤 Ещё ▾</summary>
+        <div style="position:absolute; background:white; border:1px solid #d1d5db; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.1); padding:8px 0; z-index:100; min-width:200px;">
+            {% if cur_role in ('technologist', 'main_technologist', 'admin') and status != "approved" %}
+            <button hx-post="/api/submit-for-review"
+                    hx-vals='{"detail_id": "{{ detail.id }}"}'
+                    hx-on::after-request="location.reload()"
+                    class="dropdown-item" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;">
+                👀 Отправить на проверку
+            </button>
+            {% endif %}
+            {% if cur_role in ('main_technologist', 'workshop_chief', 'admin') %}
+            <button hx-post="/api/approve-chief"
+                    hx-vals='{"detail_id": "{{ detail.id }}", "chief": "Баранов"}'
+                    hx-on::after-request="location.reload()"
+                    class="dropdown-item approve-chief" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;">
+                👑 Утвердить как начальник
+            </button>
+            {% endif %}
+            {% if cur_role in ('main_technologist', 'admin') %}
+            <button hx-post="/api/send-to-1c"
+                    hx-vals='{"detail_id": "{{ detail.id }}"}'
+                    hx-confirm="Записать РС в 1С:ERP?"
+                    class="dropdown-item" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;">
+                📤 Записать в 1С
+            </button>
+            {% endif %}
+            <hr style="margin:4px 0;">
+            <form action="/api/export/excel" method="post" style="margin:0;">
+                <input type="hidden" name="detail_id" value="{{ detail.id }}">
+                <button type="submit" class="dropdown-item" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;">📊 Excel</button>
+            </form>
+            <form action="/api/export/pdf" method="post" style="margin:0;">
+                <input type="hidden" name="detail_id" value="{{ detail.id }}">
+                <button type="submit" class="dropdown-item" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;">📄 PDF</button>
+            </form>
+            <a href="/api/export/onec-csv?detail_id={{ detail.id }}" class="dropdown-item" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">📤 CSV для 1С</a>
+            <a href="/detail/{{ detail.id }}/print" target="_blank" class="dropdown-item" style="display:block;padding:6px 12px;color:#1f2937;text-decoration:none;">🖨 Печатная форма</a>
+        </div>
+    </details>
     <details class="add-form" style="display:inline-block;">
         <summary>👍/👎 Фидбек</summary>
         <form hx-post="/api/feedback" hx-target="#fb-status" hx-swap="innerHTML" class="form">

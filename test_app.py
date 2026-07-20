@@ -3191,3 +3191,56 @@ def test_ai_buttons_have_csrf_safe_fetch():
         # В окне 500 символов должен быть X-Requested-With
         chunk = content[idx:idx+500]
         assert "X-Requested-With" in chunk, f"{endpoint} fetch без X-Requested-With"
+
+
+# ========== M21: дефолтные значения экономики + упрощённый UI ==========
+
+def test_economics_uses_defaults_when_zero():
+    """M21: если cost_per_hour/material_cost_rub/overhead_pct = 0,
+    должна использоваться дефолтная ставка 800₽/ч и 15% накладные"""
+    import app
+    app.init_db()
+    from economics import calc_cost_estimate
+    did = app.create_detail({
+        "designation": "ECON-001", "name": "Test", "model": "A",
+        "chassis": "B", "material": "Сталь 09Г2С",
+        "size_mm": 100, "mass_kg": 5.0, "surface_treatment": ""
+    })
+    import json
+    from db import get_conn
+    draft = {"operations": [{"name": "010", "duration_hours": 1.0, "department": "Цех 1"}]}
+    conn = get_conn()
+    conn.execute('INSERT OR REPLACE INTO drafts (detail_id, llm_output, status, author) VALUES (?, ?, "draft", "test")',
+                 (did, json.dumps(draft, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
+    result = calc_cost_estimate(did)
+    assert result["labor_cost"] > 0
+
+
+def test_economics_auto_calculates_material_cost():
+    import app
+    app.init_db()
+    from economics import calc_cost_estimate
+    import json
+    from db import get_conn
+    did = app.create_detail({
+        "designation": "ECON-002", "name": "Test", "model": "A",
+        "chassis": "B", "material": "Сталь 3",
+        "size_mm": 100, "mass_kg": 10.0, "surface_treatment": ""
+    })
+    draft = {"operations": [{"name": "010", "duration_hours": 1.0, "department": "Цех 1"}]}
+    conn = get_conn()
+    conn.execute('INSERT OR REPLACE INTO drafts (detail_id, llm_output, status, author) VALUES (?, ?, "draft", "test")',
+                 (did, json.dumps(draft, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
+    result = calc_cost_estimate(did)
+    assert result["material_cost"] >= 800
+
+
+def test_action_bar_has_main_button_not_bulk():
+    from pathlib import Path
+    content = Path("templates/detail.html").read_text()
+    assert "📤 Ещё ▾" in content
+    assert "📤 Записать в 1С" in content
