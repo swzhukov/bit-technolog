@@ -1,56 +1,56 @@
 # E2E отчёт — работа технологом
 
-**Дата:** 2026-07-19T20:48:27.418489
+**Дата:** 2026-07-20T04:24:26.341693
 
 **Сессий:** 0
 
 ## Тайминги
 
-- `404`: 0.313с
-- `add_op`: 0.544с
-- `admin_dashboard`: 0.415с
-- `admin_errors`: 0.319с
-- `admin_llm`: 0.392с
-- `admin_login_log`: 0.351с
-- `admin_settings`: 1.254с
-- `admin_system`: 11.971с
-- `admin_users`: 0.418с
-- `approve`: 3.702с
-- `audit`: 0.38с
-- `benchmarks`: 0.364с
-- `check_restore_list`: 0.734с
-- `create_detail`: 0.278с
-- `css`: 0.19с
-- `delete_op`: 0.575с
-- `demo`: 0.248с
-- `diff`: 0.398с
-- `edit_op`: 0.688с
-- `equipment`: 0.326с
-- `export_1c_csv`: 0.317с
-- `export_excel`: 0.576с
-- `export_pdf`: 0.376с
-- `generate`: 0.815с
-- `health`: 0.616с
-- `history`: 0.24с
-- `import_bad_json`: 0.128с
-- `import_json`: 0.299с
-- `import_magic_bytes`: 0.188с
-- `import_stats`: 0.259с
-- `iot`: 0.369с
-- `learning`: 0.596с
-- `learning_json`: 0.232с
-- `list_details`: 0.31с
-- `login`: 0.324с
-- `materials`: 0.389с
-- `open_after_gen`: 0.759с
-- `open_detail`: 0.702с
-- `pilot`: 0.522с
-- `pilot_learning`: 0.359с
-- `pilot_report`: 1.437с
-- `print`: 0.344с
+- `404`: 0.278с
+- `add_op`: 0.5с
+- `admin_dashboard`: 0.381с
+- `admin_errors`: 0.275с
+- `admin_llm`: 0.355с
+- `admin_login_log`: 0.342с
+- `admin_settings`: 1.119с
+- `admin_system`: 10.304с
+- `admin_users`: 0.386с
+- `approve`: 3.061с
+- `audit`: 0.334с
+- `benchmarks`: 0.348с
+- `check_restore_list`: 0.682с
+- `create_detail`: 0.284с
+- `css`: 0.172с
+- `delete_op`: 0.568с
+- `demo`: 0.242с
+- `diff`: 0.369с
+- `edit_op`: 0.697с
+- `equipment`: 0.291с
+- `export_1c_csv`: 0.275с
+- `export_excel`: 1.136с
+- `export_pdf`: 0.528с
+- `generate`: 0.797с
+- `health`: 0.564с
+- `history`: 0.221с
+- `import_bad_json`: 0.129с
+- `import_json`: 0.294с
+- `import_magic_bytes`: 0.166с
+- `import_stats`: 0.231с
+- `iot`: 0.347с
+- `learning`: 0.567с
+- `learning_json`: 0.207с
+- `list_details`: 0.302с
+- `login`: 0.316с
+- `materials`: 0.339с
+- `open_after_gen`: 0.723с
+- `open_detail`: 0.671с
+- `pilot`: 0.484с
+- `pilot_learning`: 0.331с
+- `pilot_report`: 1.335с
+- `print`: 0.298с
 - `reopen`: 0.357с
-- `role_admin`: 0.137с
-- `search`: 0.304с
+- `role_admin`: 0.119с
+- `search`: 0.284с
 
 ## Что понравилось (👍)
 
@@ -75,6 +75,10 @@
 - Справочник оборудования с поиском
 - /health: version=0.4.9, uptime=0с, llm=demo_mode
 - 404 с навигацией работает
+- Badge текущей роли отображается в header
+- Badge показывает выбранную роль (data-role=technologist)
+- Cookie bit_role НЕ HttpOnly (JS может прочитать): bit_role=main_technologist; Max-Age=31536000; Path=/; SameSite=lax
+- Cookie bit_role=main_technologist в Set-Cookie
 - Смена роли работает
 - Admin dashboard рендерится
 - Admin settings с группами LLM/Telegram/SMTP

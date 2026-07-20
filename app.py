@@ -1357,7 +1357,9 @@ async def api_role_switch(request: Request):
     if not role or role not in ROLES:
         return err(f"role must be one of: {list(ROLES.keys())}", 400)
     response = JSONResponse({"ok": True, "role": role, "name": ROLES[role]["name"]})
-    response.set_cookie("bit_role", role, max_age=86400 * 365, httponly=True, samesite="lax")
+    # BUG-2026-07-20-01: убрал httponly — JavaScript должен видеть текущую роль
+    # (cookie не содержит секрета, это просто UI state для demo/pilot)
+    response.set_cookie("bit_role", role, max_age=86400 * 365, httponly=False, samesite="lax")
     return response
 
 

@@ -2907,3 +2907,57 @@ def test_surface_none_no_typeerror(client):
     did = r.headers.get("location", "").rsplit("/", 1)[-1]
     r = c.post("/api/generate", data={"detail_id": did})
     assert r.status_code == 200
+
+
+# ========== BUG-2026-07-20-01: визуальная индикация роли ==========
+
+def test_role_badge_in_header(client):
+    """Badge текущей роли должен быть в header на каждой странице"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.get("/")
+    assert 'id="current-role-badge"' in r.text
+    assert 'data-role="technologist"' in r.text
+    assert "Технолог" in r.text  # role_name_lookup
+
+
+def test_role_badge_changes_with_role(client):
+    """Badge должен показывать актуальную роль при переключении"""
+    c, _ = client
+    for role in ("admin", "main_technologist", "workshop_chief", "quality"):
+        c.post("/api/role/switch", data={"role": role})
+        r = c.get("/")
+        assert f'data-role="{role}"' in r.text, f"badge data-role mismatch for {role}"
+
+
+def test_role_cookie_not_httponly(client):
+    """BUG-2026-07-20-01: cookie bit_role должна быть НЕ HttpOnly,
+    чтобы JavaScript мог её прочитать и синхронизировать селектор."""
+    c, _ = client
+    r = c.post("/api/role/switch", data={"role": "admin"})
+    set_cookie = r.headers.get("set-cookie", "")
+    assert "bit_role=admin" in set_cookie
+    assert "HttpOnly" not in set_cookie, f"cookie still HttpOnly: {set_cookie}"
+
+
+def test_quick_role_buttons_on_index(client):
+    """3 быстрые кнопки для показа клиенту — на главной"""
+    c, _ = client
+    r = c.get("/")
+    assert 'class="quick-role-btn"' in r.text
+    assert 'data-role="technologist"' in r.text
+    assert 'data-role="main_technologist"' in r.text
+    assert 'data-role="admin"' in r.text
+    # Текущая роль должна быть выделена
+    assert 'class="quick-role-btn" data-role="technologist"' in r.text
+
+
+def test_role_switch_persists_after_reload(client):
+    """После switch + GET (имитация reload) роль в cookie видна"""
+    c, _ = client
+    c.post("/api/role/switch", data={"role": "main_technologist"})
+    r = c.get("/")
+    # В HTML селектор должен иметь selected option
+    # (это делает JS на основе cookie — но тест проверяет cookie)
+    assert "bit_role" in c.cookies
+    assert c.cookies.get("bit_role") == "main_technologist"

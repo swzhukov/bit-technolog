@@ -13,6 +13,44 @@
 </div>
 {% endif %}
 
+{# BUG-2026-07-20-01: быстрое переключение ролей для показа клиенту #}
+{% set _cur_role = current_role_from_request(request) %}
+{% set _quick_roles = [
+    ('technologist', '👨‍🔧', 'Технолог', 'создаёт ТК'),
+    ('main_technologist', '👑', 'Гл. технолог', 'утверждает ТК'),
+    ('admin', '🛡', 'Админ', 'управляет системой')
+] %}
+<div class="demo-roles" style="background:#f0f9ff; border:1px solid #0ea5e9; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <strong style="color:#0369a1;">🎬 Показ клиенту — быстрая смена роли:</strong>
+        {% for code, icon, name, desc in _quick_roles %}
+        <button type="button" class="quick-role-btn" data-role="{{ code }}"
+                style="padding:8px 14px; border:2px solid {% if _cur_role == code %}#0ea5e9{% else %}#cbd5e1{% endif %};
+                       background:{% if _cur_role == code %}#0ea5e9{% else %}white{% endif %};
+                       color:{% if _cur_role == code %}white{% else %}#334155{% endif %};
+                       border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; min-width:140px; text-align:center;"
+                title="{{ desc }}">
+            <div style="font-size:18px;">{{ icon }}</div>
+            <div>{{ name }}</div>
+        </button>
+        {% endfor %}
+    </div>
+</div>
+<script>
+document.querySelectorAll('.quick-role-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const role = btn.dataset.role;
+        await fetch('/api/role/switch', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({role: role})
+        });
+        showToast('Роль: ' + role, 'info');
+        setTimeout(() => location.reload(), 400);
+    });
+});
+</script>
+
 <div class="stats">
     <div class="stat">
         <div class="stat-value">{{ total }}</div>

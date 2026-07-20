@@ -324,6 +324,29 @@ def main():
 
     diary.log("\n=== ДЕНЬ 2: СМЕНА РОЛЕЙ ===")
 
+    # BUG-2026-07-20-01: проверка что role badge виден и меняется
+    c.post("/api/role/switch", data={"role": "technologist"})
+    r = c.get("/")
+    if 'id="current-role-badge"' in r.text:
+        diary.praise("Badge текущей роли отображается в header")
+        if 'data-role="technologist"' in r.text:
+            diary.praise("Badge показывает выбранную роль (data-role=technologist)")
+        else:
+            diary.bug("HIGH", "Badge data-role НЕ соответствует выбранной роли")
+    else:
+        diary.bug("HIGH", "Badge роли НЕ найден в HTML (id=current-role-badge отсутствует)")
+
+    # Проверим что cookie НЕ httponly (BUG-2026-07-20-01)
+    r = c.post("/api/role/switch", data={"role": "main_technologist"})
+    cookie_header = r.headers.get("set-cookie", "")
+    if "HttpOnly" in cookie_header:
+        diary.bug("HIGH", f"Cookie bit_role всё ещё HttpOnly: {cookie_header}")
+    else:
+        diary.praise(f"Cookie bit_role НЕ HttpOnly (JS может прочитать): {cookie_header[:80]}")
+    if "bit_role=main_technologist" in cookie_header:
+        diary.praise("Cookie bit_role=main_technologist в Set-Cookie")
+    c.post("/api/role/switch", data={"role": "technologist"})  # сброс
+
     # 19. Смена роли на админа
     r, t = diary.time_it("role_admin", c.post, "/api/role/switch", data={"role": "admin"})
     diary.log(f"POST /api/role/switch admin = {r.status_code} за {t:.3f}с")
