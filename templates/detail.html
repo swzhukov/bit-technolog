@@ -315,8 +315,15 @@
         <div class="more-card">
             <h3>📐 Чертёж</h3>
             {% if detail.drawing_path %}
-                <p>Загружен: <code>{{ detail.drawing_path }}</code></p>
+                <p>Загружен: <code>{{ detail.drawing_path|truncate(50) }}</code></p>
                 <a href="/drawings/{{ detail.id }}_{{ detail.drawing_format }}" target="_blank" class="btn btn-sm">📥 Открыть</a>
+                {% if detail.drawing_format in ('pdf', 'png', 'jpg', 'jpeg') and _cur in ('technologist', 'main_technologist', 'admin') %}
+                <button hx-post="/api/drawing/recognize"
+                        hx-vals='{"detail_id": "{{ detail.id }}"}'
+                        hx-target="#ocr-result" hx-swap="innerHTML"
+                        class="btn btn-sm btn-primary">🔍 Распознать чертёж</button>
+                <div id="ocr-result"></div>
+                {% endif %}
             {% else %}
                 <p class="hint">Чертёж не загружен</p>
                 {% if _cur in ('technologist', 'main_technologist', 'admin') %}

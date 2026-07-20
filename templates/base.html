@@ -62,6 +62,54 @@ document.addEventListener('keydown', function(e) {
         window.location.href = '/';
     }
 });
+
+async function applyOcrToDetail(result) {
+    if (!result || !result.ok) return;
+    const fields = result.extracted || {};
+    const detailId = window.location.pathname.split('/').pop();
+    if (!detailId || !/^[\w\-]+$/.test(detailId)) {
+        showToast('Не удалось определить ID детали', 'error');
+        return;
+    }
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Применяю...';
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const r = await fetch(`/api/details/${detailId}/apply-ocr`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({fields: fields})
+        });
+        const data = await r.json();
+        if (data.ok) {
+            showToast(`✅ Применено: ${data.applied_fields.join(', ')}`, 'success');
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showToast('❌ Ошибка: ' + (data.error || 'unknown'), 'error');
+            btn.disabled = false;
+            btn.textContent = '✨ Применить к детали';
+        }
+    } catch (e) {
+        showToast('❌ Ошибка сети: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '✨ Применить к детали';
+    }
+}
+
+function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = `toast toast-${type || 'info'}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('toast-show'), 50);
+    setTimeout(() => { t.classList.remove('toast-show'); setTimeout(() => t.remove(), 300); }, 3500);
+}
 </script>
     <header class="app-header">
         <div class="app-header-inner">

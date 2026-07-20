@@ -1,0 +1,101 @@
+{% if not result.ok %}
+<div class="ocr-error">
+    ❌ Ошибка распознавания: {{ result.error }}
+</div>
+{% else %}
+<div class="ocr-result">
+    <h4>🔍 Результат распознавания</h4>
+
+    <div class="ocr-confidence">
+        Уверенность: <strong>{{ result.confidence }}%</strong>
+        ({{ result.pages|length }} стр., {{ result.full_text|length }} символов)
+    </div>
+
+    {% if result.extracted %}
+    <div class="ocr-fields">
+        {% if result.extracted.designation %}
+        <div class="ocr-field">
+            <span class="ocr-label">Обозначение:</span>
+            <span class="ocr-value"><code>{{ result.extracted.designation }}</code></span>
+        </div>
+        {% endif %}
+        {% if result.extracted.material or result.extracted.material_grade %}
+        <div class="ocr-field">
+            <span class="ocr-label">Материал:</span>
+            <span class="ocr-value">{{ result.extracted.material or result.extracted.material_grade }}</span>
+        </div>
+        {% endif %}
+        {% if result.extracted.dimensions %}
+        <div class="ocr-field">
+            <span class="ocr-label">Габариты:</span>
+            <span class="ocr-value">{{ result.extracted.dimensions }} мм</span>
+        </div>
+        {% endif %}
+        {% if result.extracted.thickness_mm %}
+        <div class="ocr-field">
+            <span class="ocr-label">Толщина:</span>
+            <span class="ocr-value">{{ result.extracted.thickness_mm }} мм</span>
+        </div>
+        {% endif %}
+        {% if result.extracted.mass_kg %}
+        <div class="ocr-field">
+            <span class="ocr-label">Масса:</span>
+            <span class="ocr-value">{{ result.extracted.mass_kg }} кг</span>
+        </div>
+        {% endif %}
+        {% if result.extracted.blank_type %}
+        <div class="ocr-field">
+            <span class="ocr-label">Заготовка:</span>
+            <span class="ocr-value">{{ result.extracted.blank_type }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if result.warnings %}
+    <div class="ocr-warnings">
+        <strong>⚠️ Что проверить:</strong>
+        <ul>
+            {% for w in result.warnings %}
+            <li>{{ w }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <details class="ocr-text">
+        <summary>📄 Распознанный текст ({{ result.pages|length }} стр.)</summary>
+        {% for p in result.pages %}
+        <div class="ocr-page">
+            <h5>Страница {{ p.page }} ({{ p.char_count }} симв.)</h5>
+            <pre>{{ p.text[:2000] }}{% if p.text|length > 2000 %}...{% endif %}</pre>
+        </div>
+        {% endfor %}
+    </details>
+
+    {% if result.confidence >= 60 %}
+    <div class="ocr-actions">
+        <button class="btn btn-primary"
+                onclick="applyOcrToDetail({{ result|tojson }})">
+            ✨ Применить к детали
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.ocr-result { padding: 12px; background: var(--surface-1); border-radius: 8px; margin-top: 8px; }
+.ocr-confidence { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.ocr-fields { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.ocr-field { display: flex; gap: 8px; }
+.ocr-label { font-weight: 600; min-width: 100px; }
+.ocr-value { color: var(--text-primary); }
+.ocr-warnings { padding: 8px 12px; background: rgba(255, 180, 0, 0.1); border-left: 3px solid orange; border-radius: 4px; margin: 8px 0; }
+.ocr-warnings ul { margin: 4px 0 0 0; padding-left: 20px; }
+.ocr-text { margin-top: 8px; }
+.ocr-text summary { cursor: pointer; font-weight: 600; }
+.ocr-text pre { background: var(--surface-2); padding: 8px; border-radius: 4px; font-size: 12px; max-height: 200px; overflow: auto; }
+.ocr-error { padding: 8px 12px; background: rgba(255, 0, 0, 0.1); border-left: 3px solid red; border-radius: 4px; }
+.ocr-actions { margin-top: 12px; }
+</style>
+{% endif %}

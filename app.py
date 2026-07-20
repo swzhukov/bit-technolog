@@ -1658,7 +1658,53 @@ async def api_import_drawing(detail_id: str, request: Request):
     conn.commit()
     conn.close()
     add_history(detail_id, "drawing_uploaded", {"file": safe_filename, "size": len(contents)})
-    return JSONResponse({"ok": True, "file_path": file_path, "file_size": len(contents)})
+
+    # v0.5: M28 — auto-OCR для распознавания чертежа после загрузки
+    auto_ocr = (form.get("auto_ocr") or "true").lower() == "true"
+    ocr_result = None
+    if auto_ocr and suffix in ("pdf", "png", "jpg", "jpeg"):
+        try:
+            from drawing_recognize import recognize_drawing
+            ocr_result = recognize_drawing(file_path)
+        except Exception as e:
+            log.warning(f"Auto-OCR failed: {e}")
+            ocr_result = {"ok": False, "error": str(e)}
+
+    return JSONResponse({
+        "ok": True,
+        "file_path": file_path,
+        "file_size": len(contents),
+        "ocr": ocr_result,
+    })
+
+
+@app.post("/api/drawing/recognize")
+async def api_drawing_recognize(request: Request):
+    """
+    v0.5: M28 — распознаёт уже загруженный чертёж (по detail_id) через OCR.
+    Возвращает HTML partial с извлечёнными полями.
+    """
+    from drawing_recognize import recognize_drawing
+    detail_id = await _get_param(request, "detail_id")
+    if not detail_id:
+        return HTMLResponse("<div class='ocr-error'>detail_id required</div>")
+
+    conn = get_conn()
+    row = conn.execute("SELECT drawing_path FROM details WHERE id=?", (detail_id,)).fetchone()
+    conn.close()
+    if not row:
+        return HTMLResponse(f"<div class='ocr-error'>detail '{detail_id}' not found</div>")
+    file_path = row[0]
+    if not file_path or not os.path.exists(file_path):
+        return HTMLResponse(f"<div class='ocr-error'>drawing file not found for detail '{detail_id}'</div>")
+
+    try:
+        result = recognize_drawing(file_path)
+    except Exception as e:
+        log.error(f"OCR failed: {e}")
+        return HTMLResponse(f"<div class='ocr-error'>OCR failed: {e}</div>")
+
+    return templates.TemplateResponse("_ocr_result.html", {"request": request, "result": result})
 
 
 @app.get("/api/import/stats")
@@ -4576,6 +4622,57 @@ async def api_save_economics(detail_id: str,
     conn.commit()
     conn.close()
     return {"status": "ok"}
+
+
+@app.post("/api/details/{detail_id}/apply-ocr")
+async def api_apply_ocr(detail_id: str, request: Request):
+    """
+    v0.5: M28 — применяет распознанные поля чертежа к детали.
+    Поля из OCR: designation, material, material_grade, dimensions, thickness_mm, mass_kg, blank_type
+    """
+    data = await request.json()
+    fields = data.get("fields", {})
+
+    # Маппинг OCR полей → DB поля
+    field_map = {
+        "designation": "designation",
+        "material": "material",
+        "material_grade": "material_grade",
+        "thickness_mm": "thickness_mm",
+        "mass_kg": "mass_kg",
+        "blank_type": "blank_type",
+    }
+
+    updates = []
+    values = []
+    for ocr_key, db_key in field_map.items():
+        if ocr_key in fields and fields[ocr_key] is not None:
+            updates.append(f"{db_key}=?")
+            values.append(fields[ocr_key])
+
+    # dimensions в size_mm (100x50x20 → "100x50x20")
+    if "dimensions" in fields and fields["dimensions"]:
+        updates.append("size_mm=?")
+        values.append(fields["dimensions"])
+
+    if not updates:
+        return {"ok": False, "error": "no fields to apply"}
+
+    values.append(detail_id)
+    conn = get_conn()
+    # M28: убедиться что есть поля material_grade, thickness_mm, blank_type
+    for col in ("material_grade", "thickness_mm", "blank_type"):
+        try:
+            conn.execute(f"ALTER TABLE details ADD COLUMN {col} TEXT")
+        except Exception:
+            pass  # колонка уже есть
+    conn.commit()
+    sql = f"UPDATE details SET {', '.join(updates)}, updated_at=CURRENT_TIMESTAMP WHERE id=?"
+    conn.execute(sql, values)
+    conn.commit()
+    conn.close()
+    add_history(detail_id, "ocr_applied", fields)
+    return {"ok": True, "applied_fields": list(fields.keys())}
 
 
 def calc_cost_estimate(detail_id: str) -> dict:
