@@ -245,3 +245,38 @@
 4. **Попросить пароль у PM** — нормально. Не сиди и не жди, спроси явно.
 5. **pexpect** — альтернатива sshpass если sshpass недоступен.
 6. **scp_to через pexpect** — не работает с sandbox paths. Используй base64+stdin.
+
+---
+
+## M22 (2026-07-20) — UI redesign v2
+
+**Ситуация:** Сергей: *"UI пиздец некрасивый"*. Header был с 6 ссылками в ряд, в `detail.html` 9 свёрнутых `<details>` (пользователь не понимает где что), 11 кнопок в action-bar, inline-стили размазаны по шаблонам, CSS-фреймворка не было.
+
+**Что я сделал:**
+1. Создал `static/design-system.css` (18 KB) — единый фреймворк на CSS-переменных (--c-brand, --c-bg, --c-text-muted)
+2. Переписал `base.html` — sticky header, role-chip, dropdown'ы (Справочники/Отчёты/Админ), app-brand
+3. Переписал `index.html` — dashboard с 3 quick-role карточками (icon+name+desc), кликабельные KPI-карточки, filter-bar
+4. Переписал `_index_table.html` — компактная таблица, status-цвет (badge-new/draft/approved), 1 главная кнопка
+5. Переписал `detail.html` (частично) — убрал 9 свёрнутых `<details>`, заменил на компактные cards. Главная CTA + dropdown '📤 Ещё ▾'
+6. Обновил `help.html` и `docs/14-roles-user-guide.md`
+7. Зафиксил `test_app.py` под новые CSS-классы (kpi-card, quick-role, app-header, role-chip)
+8. git push + pexpect deploy — production: version=0.4.18, commit=c72d9b0
+
+**Тесты:** 269/269 passed стабильно (3 прогона подряд)
+
+**Проблемы которые встретил:**
+1. `class="details-table"` тест искал — а я обернул таблицу в `<div id="details-table">` для htmx. Забыл обернуть обратно. Fix: добавил wrapper div в `_index_table.html`.
+2. `bit_filter_v1` localStorage JS был в старом `index.html` — я переписал и забыл добавить обратно. Fix: добавил в script-block.
+3. `test_quick_role_buttons_on_index` был race condition с cookie — клиент не устанавливал роль явно. Fix: добавил `c.post('/api/role/switch')` в начало теста.
+4. `version` в коде была "0.4.9", а не "0.4.18" — забыл обновить при M22. Fix: sed в коде, отдельный commit.
+
+**Lesson:**
+1. **При большом рефакторе UI** — сначала grep по `style=` в шаблонах чтобы понять масштаб inline-стилей, потом plan замены.
+2. **При удалении `<details>`** — проверь что внутри не было JS-state (open/closed flags). У меня был `{% if status == "new" %}open{% endif %}` на AI-блоке — сохранил.
+3. **При переписывании HTML** — прогоняй grep по старому коду, ищи ключевые JS-функции (localStorage save, history.replaceState, etc.) — они могут не быть в тестах.
+4. **version + commit — atomic обновление** в одном коммите. Не забывай health-endpoint version.
+5. **CSS variables > inline styles** — это не "красивости", это maintainability. Поменял --c-brand в одном месте — поменялось всё.
+6. **Дизайн-система должна жить в одном файле** (design-system.css), не размазана. Тогда 5 минут на добавление нового компонента.
+7. **При больших UI-переделках** — лучше инкрементально (header → index → detail), не всё за раз. Я делал инкрементально — каждый шаг коммитил, тесты гонял.
+
+**Production ready:** /health → version=0.4.18, commit=c72d9b0, /help 200 (27КБ), /detail/detail-001 200 (70КБ), / 200, design-system.css 200.
