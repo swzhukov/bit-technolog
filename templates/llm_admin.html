@@ -1,84 +1,86 @@
 {% extends "base.html" %}
+{% set active_page = 'llm-admin' %}
 {% block title %}Модели LLM — БИТ.Технолог{% endblock %}
 {% block content %}
-<h1>🤖 Модели LLM</h1>
-<p class="sub">Доступно роли с правом <b>llm_admin</b>. Разные задачи — разные модели: дорогая там, где важно качество; дешёвая — на рутине. РС-фабрика в списке отсутствует — она не использует LLM.</p>
+<h1>Управление LLM</h1>
+<p class="lead">Назначение моделей на типы задач. Доступно только роли <code>llm_admin</code>.</p>
 
-{% if not is_llm_admin %}
-<div class="v7-note warn">⚠️ У вас нет права <b>llm_admin</b>. Показано в режиме чтения. Для управления войдите как <code>admin</code>.</div>
+<h2>Провайдеры</h2>
+<div class="panel">
+{% if providers %}
+<table class="tbl">
+  <thead>
+    <tr><th>Имя</th><th>Display</th><th>Endpoint</th><th>Стоимость (1K in/out)</th><th>Активен</th></tr>
+  </thead>
+  <tbody>
+    {% for p in providers %}
+    <tr>
+      <td><b>{{ p.name }}</b></td>
+      <td>{{ p.display_name }}</td>
+      <td><code style="font-size:12px;">{{ p.endpoint or '—' }}</code></td>
+      <td>{{ p.cost_per_1k_input or 0 }} / {{ p.cost_per_1k_output or 0 }} ₽</td>
+      <td>{% if p.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">Провайдеры не настроены.</div>
 {% endif %}
-
-<div class="v7-panel">
-    <h2 style="margin-top:0">Назначение моделей на задачи</h2>
-    <table style="margin-top:8px">
-        <tr><th>Тип задачи</th><th>Модель</th><th>Ср. стоимость</th><th>Кач-во (acceptance)</th><th></th></tr>
-        <tr>
-            <td>Генерация ТК</td>
-            <td>
-                <select {% if not is_llm_admin %}disabled{% endif %}>
-                    <option>MockLLM-Technologist-v1</option>
-                    <option>YandexGPT-Pro (реальный)</option>
-                </select>
-            </td>
-            <td>2,8 ₽</td>
-            <td>78% ▲</td>
-            <td><button class="v7-btn sec sm" {% if not is_llm_admin %}disabled{% endif %}>A/B-тест</button></td>
-        </tr>
-        <tr>
-            <td>Уточняющие вопросы</td>
-            <td>
-                <select {% if not is_llm_admin %}disabled{% endif %}>
-                    <option>MockLLM-Lite</option>
-                    <option>YandexGPT-Lite (реальный)</option>
-                </select>
-            </td>
-            <td>0,4 ₽</td>
-            <td>—</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Разбор архивных документов (OCR-постобработка)</td>
-            <td>
-                <select {% if not is_llm_admin %}disabled{% endif %}><option>MockLLM-OCR-v1</option></select>
-            </td>
-            <td>1,9 ₽</td>
-            <td>92% полей</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Предложения по извещениям</td>
-            <td>
-                <select {% if not is_llm_admin %}disabled{% endif %}><option>MockLLM-Technologist-v1</option></select>
-            </td>
-            <td>3,1 ₽</td>
-            <td>71%</td>
-            <td></td>
-        </tr>
-    </table>
 </div>
 
-<div class="v7-cards">
-    <div class="v7-card"><div class="num">{{ cost_today }} ₽</div><div class="lbl">Расход сегодня (лимит 500 ₽)</div></div>
-    <div class="v7-card"><div class="num">{{ cost_month }} ₽</div><div class="lbl">Расход за месяц</div></div>
-    <div class="v7-card"><div class="num">{{ avg_draft }} ₽</div><div class="lbl">Средняя цена черновика ТК</div></div>
+<h2>Назначения (модель на задачу)</h2>
+<div class="panel">
+{% if assignments %}
+<table class="tbl">
+  <thead>
+    <tr><th>Тип задачи</th><th>Провайдер</th><th>Модель</th><th>Температура</th><th>max_tokens</th><th>Активно</th></tr>
+  </thead>
+  <tbody>
+    {% for a in assignments %}
+    <tr>
+      <td><code>{{ a.task_type }}</code></td>
+      <td>{{ a.provider_display }}</td>
+      <td><code style="font-size:12px;">{{ a.model_name }}</code></td>
+      <td>{{ a.temperature }}</td>
+      <td>{{ a.max_tokens }}</td>
+      <td>{% if a.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">Назначения не настроены. По умолчанию используется MOCK провайдер.</div>
+{% endif %}
 </div>
 
-<div class="v7-panel">
-    <h2 style="margin-top:0">Текущее состояние LLM</h2>
-    <table>
-        <tr><td>Режим</td><td>{% if mock_mode %}<span class="badge warn">MOCK</span> ключ не задан{% else %}<span class="badge ok">REAL</span>{% endif %}</td></tr>
-        <tr><td>Модель</td><td><code>{{ llm_model }}</code></td></tr>
-        <tr><td>URL</td><td><code>{{ llm_url }}</code></td></tr>
-        <tr><td>latency (последний пинг)</td><td>{{ llm_latency_ms }} ms</td></tr>
-    </table>
-</div>
-
-<div class="v7-panel">
-    <h2 style="margin-top:0">Журнал изменений</h2>
-    <table style="margin-top:8px">
-        <tr><th>Когда</th><th>Кто</th><th>Что</th><th>Эффект</th></tr>
-        <tr><td>14.07</td><td>ИТ-служба (llm_admin)</td><td>Генерация ТК: YandexGPT-Lite → GigaChat-Max</td><td>acceptance 54% → 78%, цена черновика +1,6 ₽</td></tr>
-        <tr><td>02.07</td><td>ИТ-служба</td><td>Дневной лимит 200 → 500 ₽</td><td>—</td></tr>
-    </table>
+<h2>Последние вызовы ({{ recent_calls|length }})</h2>
+<div class="panel">
+{% if recent_calls %}
+<table class="tbl">
+  <thead>
+    <tr><th>Время</th><th>Задача</th><th>Модель</th><th>Tokens in/out</th><th>Стоимость</th><th>Статус</th></tr>
+  </thead>
+  <tbody>
+    {% for c in recent_calls %}
+    <tr>
+      <td><span class="muted" style="font-size:12px;">{{ c.ts }}</span></td>
+      <td><code style="font-size:12px;">{{ c.task_type }}</code></td>
+      <td><code style="font-size:12px;">{{ c.model_name or '—' }}</code></td>
+      <td>{{ c.prompt_tokens or 0 }} / {{ c.completion_tokens or 0 }}</td>
+      <td>{{ c.cost_rub or 0 }} ₽</td>
+      <td>
+        {% if c.status == 'ok' %}<span class="badge ok">ok</span>
+        {% elif c.status == 'fallback' %}<span class="badge warn">fallback</span>
+        {% elif c.status == 'error' %}<span class="badge bad">error</span>
+        {% else %}<span class="badge">{{ c.status }}</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">Журнал вызовов пуст.</div>
+{% endif %}
 </div>
 {% endblock %}

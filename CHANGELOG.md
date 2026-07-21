@@ -8,6 +8,60 @@
 - **F15.1**: db.py (17KB, 22 функции) — DB layer выделен из app.py
 - **F15.2-7**: auth.py, settings.py, notify.py, llm.py, economics.py, learning.py — 6 модулей
 - `/pilot/learning` endpoint + template — дашборд тренда acceptance rate
+
+# M34: v0.8 — полная переделка архитектуры (по разбору v2 Сергея)
+
+**Дата:** 2026-07-21
+**ADR:** [0011-v0.8-architecture.md](docs/adr/0011-v0.8-architecture.md)
+**Дизайн:** [21-v0.8-design.md](docs/21-v0.8-design.md)
+**Демо:** [v0.8-design-demo.html](docs/v0.8-design-demo.html)
+
+## Что сделано
+
+### Архитектура
+- ✅ 33 таблицы (13 новых по разбору v2): product_models, product_configurations, items (универсальная), bom_links (MANY-TO-MANY), change_notices, ext_attributes, work_history, etalons, llm_providers, llm_model_assignments, etc.
+- ✅ ref_1c у каждой сущности с двойником в 1С
+- ✅ 5 ролей (technologist / main_technologist / workshop_chief / tech_admin / llm_admin)
+- ✅ Снесли app.py 5153 строк → 439 строк (тонкий FastAPI)
+
+### Слои
+- `domain/llm_provider.py` — LLMProvider интерфейс + MockLLMProvider + YandexGPTProvider + GigaChat (заглушка)
+- `gateways/one_c_gateway.py` — OneCGateway интерфейс + FileGateway (XML) + HttpGateway (заглушка)
+- `services/rs_factory.py` — детерминированная РС-фабрика по 8 осям с аудит-цепочкой
+- `services/tp_parser.py` — парсер техпроцессов из OCR
+- `services/auth.py` — 5 ролей, хеширование, аудит входов
+- `repositories/db.py` — generic CRUD + миграция через 001_v0_8_init.sql
+- `seeds/seed_etalons.py` — загрузка 2 реальных ТП из PDF как эталонов
+- `seeds/seed_items.py` — загрузка номенклатуры (14 items)
+
+### UI
+- Тёмный header + светлый body (B2B SaaS, Linear/Vercel стиль)
+- Красный — только для primary CTA и важных бейджей
+- 8 экранов в едином дизайне: dashboard / products / detail (5 табов) / notices / profiles / knowledge / llm-admin / help
+
+### Реальные данные (2 PDF Техинкома)
+- ✅ ЛМША.301712.000 «Растяжка пружинная» (10 операций) — ВП 3237, Воробьев И.Ф.
+- ✅ ЛМША.301314.010 «Упор продольный» (9 операций) — ВП 3237, Баранов А.Н.
+- ✅ 14 items (2 главных + 12 составных: втулки, проушины, шпильки, шайбы, пружина 72 шт)
+- ✅ 5 цехов, 6 профессий, 3 материала, 2 шасси
+
+### Тесты
+- **41/41 зелёных** в test/test_v0_8.py
+- Покрытие: db, rs_factory (детерминизм!), auth, tp_parser, one_c_gateway, llm_provider, app routes
+
+### Деплой
+- ✅ v0.8.0 на Beget production: `http://217.114.7.5:8081/`
+- ✅ /health: ok, 14 items, 2 эталона, mock mode
+- ✅ 7 экранов 200, /detail/1 200
+
+## Что НЕ сделано (в пилот 27.07)
+- ❌ HttpGateway к 1С (заглушка) — реальная интеграция в пилот
+- ❌ Улучшение парсера (5 из 8-10 операций из-за OCR-мусора)
+- ❌ RAG-индексация эталонов (TBD в пилот)
+- ❌ Динамический few-shot (сейчас статичный в mock_llm)
+- ❌ Login-форма (сейчас Basic Auth)
+- ❌ КОМПАС-Watcher (Phase 3)
+- ❌ Файн-тюнинг (после 3+ клиентов)
 - `/api/pilot/learning` — JSON для графиков
 
 ### Added (F16 — 3 цикла аудита)

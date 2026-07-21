@@ -46,3 +46,8 @@ graphify-out/2026-*/
 graphify-out/cache/
 graphify-out/.graphify_*
 .github/workflows/
+
+_old/
+data/one_c_exchange/
+docs/v0.8-design-previews/
+bit_technolog.db

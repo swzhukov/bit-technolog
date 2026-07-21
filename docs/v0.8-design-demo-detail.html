@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>БИТ.Технолог v0.8 — Карточка ТК (детальный)</title>
+  <link rel="stylesheet" href="v0.8-design-demo.html#screen-detail">
+  <style>
+    :root {
+      --v8-brand: #dc2626; --v8-brand-2: #b91c1c; --v8-brand-soft: #fef2f2;
+      --v8-bg: #f9fafb; --v8-panel: #ffffff; --v8-panel-2: #f3f4f6;
+      --v8-line: #e5e7eb; --v8-line-2: #d1d5db;
+      --v8-header: #1c2733; --v8-header-2: #2c3e50;
+      --v8-header-text: #f1f5f9; --v8-header-muted: #94a3b8;
+      --v8-text: #0f172a; --v8-text-2: #334155; --v8-muted: #64748b; --v8-faint: #94a3b8;
+      --v8-ok: #16a34a; --v8-ok-bg: #dcfce7; --v8-warn: #d97706; --v8-warn-bg: #fef3c7;
+      --v8-bad: #dc2626; --v8-bad-bg: #fee2e2; --v8-blue: #2563eb; --v8-blue-bg: #dbeafe;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.55 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--v8-text); background: var(--v8-bg); }
+    a { color: var(--v8-blue); text-decoration: none; }
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+    .header { background: var(--v8-header); color: var(--v8-header-text); height: 52px; padding: 0 20px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 10; }
+    .header .brand { font-size: 15px; font-weight: 700; }
+    .header .brand .flame { color: var(--v8-brand); }
+    .header .env-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--v8-header-2); color: var(--v8-header-muted); }
+    .header .spacer { flex: 1; }
+    .header .cost { font-size: 12px; padding: 4px 10px; border-radius: 6px; background: var(--v8-ok-bg); color: var(--v8-ok); font-variant-numeric: tabular-nums; }
+    .header .user { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--v8-brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .body { display: flex; flex: 1; }
+    .nav { width: 220px; background: var(--v8-panel); border-right: 1px solid var(--v8-line); padding: 12px 0; flex-shrink: 0; }
+    .nav-section { font-size: 11px; text-transform: uppercase; color: var(--v8-muted); padding: 10px 18px 4px; font-weight: 600; letter-spacing: 0.5px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px 8px 15px; color: var(--v8-text-2); font-size: 13.5px; border-left: 3px solid transparent; cursor: pointer; }
+    .nav-item:hover { background: var(--v8-panel-2); }
+    .nav-item.active { background: var(--v8-brand-soft); color: var(--v8-brand); font-weight: 600; border-left-color: var(--v8-brand); }
+    .nav-icon { font-size: 14px; opacity: 0.7; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .main { flex: 1; padding: 24px 32px; max-width: 1280px; }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+    h2 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
+    .lead { color: var(--v8-muted); font-size: 13px; margin: 0 0 16px; }
+    .panel { background: var(--v8-panel); border: 1px solid var(--v8-line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+    .panel-head { padding: 12px 18px; border-bottom: 1px solid var(--v8-line); display: flex; align-items: center; justify-content: space-between; }
+    .panel-head .ttl { font-size: 14px; font-weight: 600; }
+    .panel-head .sub { font-size: 12px; color: var(--v8-muted); }
+    .panel-body { padding: 12px 18px; }
+    table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.tbl th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--v8-muted); font-weight: 600; letter-spacing: 0.4px; padding: 8px 10px; background: var(--v8-panel-2); border-bottom: 1px solid var(--v8-line); }
+    table.tbl td { padding: 9px 10px; border-bottom: 1px solid var(--v8-line); vertical-align: top; }
+    table.tbl tr:last-child td { border-bottom: none; }
+    table.tbl tr:hover td { background: var(--v8-panel-2); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; }
+    .btn-primary { background: var(--v8-brand); color: #fff; }
+    .btn-secondary { background: var(--v8-panel); color: var(--v8-text); border-color: var(--v8-line); }
+    .btn-secondary:hover { background: var(--v8-panel-2); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-ghost { background: transparent; color: var(--v8-blue); padding: 4px 8px; font-size: 12px; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 500; background: var(--v8-panel-2); color: var(--v8-text-2); white-space: nowrap; }
+    .badge.ok     { background: var(--v8-ok-bg);    color: var(--v8-ok); }
+    .badge.warn   { background: var(--v8-warn-bg);  color: var(--v8-warn); }
+    .badge.bad    { background: var(--v8-bad-bg);   color: var(--v8-bad); }
+    .badge.blue   { background: var(--v8-blue-bg);  color: var(--v8-blue); }
+    .badge.brand  { background: var(--v8-brand-soft); color: var(--v8-brand); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .dot.g { background: var(--v8-ok); }
+    .dot.y { background: var(--v8-warn); }
+    .dot.r { background: var(--v8-bad); }
+    .evidence { border-left: 3px solid var(--v8-ok); background: var(--v8-ok-bg); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 12.5px; margin-bottom: 8px; }
+    .evidence.warn { border-left-color: var(--v8-warn); background: var(--v8-warn-bg); }
+    .evidence.bad  { border-left-color: var(--v8-bad);  background: var(--v8-bad-bg); }
+    .evidence .src { color: var(--v8-muted); font-size: 11.5px; margin-top: 2px; }
+    .tabs { display: flex; border-bottom: 1px solid var(--v8-line); margin-bottom: 16px; }
+    .tab { padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--v8-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+    .tab:hover { color: var(--v8-text); }
+    .tab.active { color: var(--v8-brand); border-bottom-color: var(--v8-brand); }
+    .tab .badge { margin-left: 6px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .draw-area {
+      background: var(--v8-panel-2);
+      border: 1px dashed var(--v8-line-2);
+      border-radius: 8px;
+      height: 360px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--v8-muted);
+      font-size: 13px;
+    }
+    .screen-nav { position: fixed; bottom: 12px; right: 12px; background: var(--v8-header); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 11px; opacity: 0.9; z-index: 100; }
+    .screen-nav a { color: #fcd34d; margin: 0 4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <span class="brand"><span class="flame">🔥</span> БИТ.Технолог</span>
+    <span class="env-badge">ПРОТОТИП · v0.8</span>
+    <span class="env-badge" style="background: #dc2626; color: #fff;">MOCK LLM</span>
+    <span class="spacer"></span>
+    <span class="cost">💰 143₽ / 500₽</span>
+    <span class="user"><span class="avatar">БТ</span><span>Баранов А.Н.</span></span>
+  </header>
+  <div class="body">
+    <nav class="nav">
+      <div class="nav-section">Основное</div>
+      <div class="nav-item"><span class="nav-icon">🗂</span> Мои задачи</div>
+      <div class="nav-item active"><span class="nav-icon">🚒</span> Изделия</div>
+      <div class="nav-item"><span class="nav-icon">📄</span> Карточка ТК</div>
+      <div class="nav-item"><span class="nav-icon">📬</span> Извещения <span class="badge bad" style="margin-left:auto; font-size: 10px;">1</span></div>
+      <div class="nav-section">Конфигурация</div>
+      <div class="nav-item"><span class="nav-icon">⚙️</span> Профили РС</div>
+      <div class="nav-item"><span class="nav-icon">🧠</span> База знаний</div>
+      <div class="nav-item"><span class="nav-icon">🤖</span> Модели LLM</div>
+    </nav>
+
+    <main class="main" id="screen-detail">
+      <p class="lead" style="margin-bottom: 4px;"><a href="#">Изделия</a> → <a href="#">АЦ-8,0-40</a> → <a href="#">зав. №144</a> →</p>
+      <h1 style="margin-bottom: 4px;">Упор продольный <span class="muted" style="font-size: 14px; font-weight: 400;">ЛМША.301314.010</span></h1>
+      <p class="lead">
+        <span class="badge brand">Черновик v2</span>
+        <span class="badge">8 операций</span>
+        <span class="badge">0,89 н/ч</span>
+        <span class="badge blue">~12 мин</span>
+        <span class="muted">· обновлён 21.07.2026 14:48</span>
+      </p>
+      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <button class="btn btn-primary">✓ Утвердить и в эталоны</button>
+        <button class="btn btn-secondary">📤 Экспорт в 1С:ERP</button>
+        <button class="btn btn-secondary">↻ Перегенерировать</button>
+        <button class="btn btn-secondary">📋 Дублировать</button>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active">1. Чертёж + Операции</div>
+        <div class="tab">2. Ресурсная спецификация</div>
+        <div class="tab">3. Обоснование норм</div>
+        <div class="tab">4. Доп. параметры</div>
+        <div class="tab">5. История</div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel" style="margin: 0;">
+          <div class="panel-head"><span class="ttl">Чертёж (скан ЛМША.301314.010 СБ)</span><span class="sub">PDF · 2,3 МБ</span></div>
+          <div class="panel-body">
+            <div class="draw-area">📐 превью чертежа</div>
+            <div style="margin-top: 8px; font-size: 12px; color: var(--v8-muted);">
+              <span class="dot g"></span> 8 деталей распознано
+              &nbsp; <span class="dot y"></span> 1 требует проверки
+              &nbsp; <span class="dot r"></span> 0 не распознано
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin: 0;">
+          <div class="panel-head"><span class="ttl">Операции (8)</span><span class="sub">⏱ 0,89 н/ч</span></div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width: 26px;">№</th>
+                <th>Операция</th>
+                <th>Цех / Уч.</th>
+                <th>Оборудование</th>
+                <th>Проф.</th>
+                <th>Тшт</th>
+                <th>Тпз</th>
+                <th>Светофор</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>010</td><td>Резка листа</td><td>01/01</td><td>Гильотинные ножницы</td><td>Р-3</td><td>0,05</td><td>0,01</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr><td>015</td><td>Установка ножей</td><td>01/02</td><td>Стенд сборочный</td><td>С-4</td><td>0,10</td><td>0,02</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr style="background: #fef3c7;"><td>020</td><td><b>Приварка ножей к основанию</b></td><td>02/01</td><td>Полуавтомат сварочный</td><td>Э-5</td><td>0,15</td><td>0,02</td><td><span class="dot y"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr><td>025</td><td>Установка рёбер</td><td>02/01</td><td>Стенд сборочный</td><td>С-4</td><td>0,12</td><td>0,02</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr><td>030</td><td>Приварка рёбер</td><td>02/01</td><td>Полуавтомат сварочный</td><td>Э-5</td><td>0,18</td><td>0,03</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr><td>035</td><td>Установка настила</td><td>03/01</td><td>Стенд</td><td>С-4</td><td>0,10</td><td>0,02</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr><td>040</td><td>Сварка упора продольного</td><td>02/01</td><td>Полуавтомат сварочный</td><td>Э-5</td><td>0,17</td><td>0,03</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+              <tr><td>045</td><td>Контроль качества</td><td>04/01</td><td>Стол ОТК</td><td>К-3</td><td>0,04</td><td>0,01</td><td><span class="dot g"></span></td><td><a class="btn-ghost">…</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h2>Обоснование нормы по операции 020 (приварка ножей)</h2>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="evidence warn">
+            <b><span class="dot y"></span> Тшт 0,15 н/ч — жёлтый уровень.</b>
+            Похоже на правду, но точность невысокая. Подтверждение технолога желательно.
+            <div class="src">Источник: оценка по аналогам (3 операции в эталонах) · см. ниже</div>
+          </div>
+
+          <h3 style="margin-top: 12px;">Топ-3 аналога по базе эталонов:</h3>
+          <table class="tbl">
+            <thead><tr><th>Эталон</th><th>Деталь</th><th>Операция</th><th>Длина шва, мм</th><th>Тшт, н/ч</th><th>Схожесть</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge ok">Эталон</span></td><td>ЛМША.301314.020</td><td>Приварка ножей</td><td>320</td><td>0,18</td><td><b>92%</b></td></tr>
+              <tr><td><span class="badge ok">Эталон</span></td><td>ЛМША.301314.030</td><td>Приварка ножей</td><td>280</td><td>0,16</td><td><b>85%</b></td></tr>
+              <tr><td><span class="badge blue">Work history</span></td><td>Кронштейн КР-3 (12 нарядов)</td><td>Приварка рёбер</td><td>350</td><td>0,14-0,19</td><td><b>78%</b></td></tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="btn btn-primary btn-sm">✓ Подтвердить 0,15</button>
+            <button class="btn btn-secondary btn-sm">Изменить на 0,18 (как в эталоне)</button>
+            <button class="btn btn-secondary btn-sm">Запросить ещё аналоги</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="screen-nav">
+  2/8 <a href="v0.8-design-demo.html">1</a> <a href="#">●</a> <a href="v0.8-design-demo-products.html">3</a> <a href="v0.8-design-demo-notices.html">4</a> <a href="v0.8-design-demo-profiles.html">5</a> <a href="v0.8-design-demo-knowledge.html">6</a> <a href="v0.8-design-demo-llm.html">7</a> <a href="v0.8-design-demo-help.html">8</a>
+</div>
+</body>
+</html>

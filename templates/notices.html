@@ -1,55 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Извещения об изменениях — БИТ.Технолог{% endblock %}
+{% set active_page = 'notices' %}
+{% block title %}Извещения — БИТ.Технолог{% endblock %}
 {% block content %}
-<h1>📬 Извещения об изменениях (ГОСТ 2.503)</h1>
-<p class="sub">Извещение → система находит ВСЕ затронутые сборки, ТК и РС (через связи состава) → AI предлагает правки → человек решает → РС перегенерируется тем же профилем.</p>
+<h1>Извещения (ГОСТ 2.503)</h1>
+<p class="lead">{{ notices|length }} извещений. Каждое запускает автопоиск затронутых деталей через <code>bom_links</code> и AI diff.</p>
 
-{% for n in notices %}
-<div class="v7-panel">
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-        <b style="font-size:15px">{{ n.number }}</b>
-        <span class="badge {{ 'bad' if n.status == 'open' else 'ok' }}">{{ 'в работе' if n.status == 'open' else 'закрыто' }}</span>
-        <span class="badge">от {{ n.date }} · {{ n.author or '—' }}</span>
-        <span class="badge">основание: {{ n.foundation_doc or '—' }}</span>
-    </div>
-    <p style="margin:8px 0">{{ n.reason }}</p>
-
-    <h2>Область влияния (найдено автоматически по составу)</h2>
-    <table>
-        <tr><th>Объект</th><th>Связь</th><th>Что затронуто</th></tr>
-        {% for a in n.affected %}
-        <tr><td>{{ a.obj }}</td><td>{{ a.relation }}</td><td>{{ a.impacted }}</td></tr>
-        {% endfor %}
-    </table>
-
-    <h2>Предложение AI по ТК «Цистерна» <span class="badge blue">модель: {{ ai_model }}</span></h2>
-    <table>
-        <tr><th>Операция</th><th>Было</th><th>Станет</th><th>Почему</th><th>Риск</th></tr>
-        {% for ch in n.changes %}
-        <tr {% if ch.risk == 'red' %}style="background:#fff5f5"{% elif ch.risk == 'yellow' %}style="background:#fffbe6"{% endif %}>
-            <td>{{ ch.op_number }} {{ ch.name }}</td>
-            <td style="background:#fdecea; text-decoration:line-through; color:#8a3b34">{{ ch.was }}</td>
-            <td style="background:#e6f4ea; color:#1a5c2c; font-weight:600">{{ ch.now }}</td>
-            <td>{{ ch.reason }}</td>
-            <td>
-                {% if ch.risk == 'red' %}
-                    <span class="dot r"></span><span class="badge bad">🔴 требует подтверждения</span>
-                {% elif ch.risk == 'yellow' %}
-                    <span class="dot y"></span><span class="badge warn">🟡 проверить</span>
-                {% else %}
-                    <span class="dot g"></span><span class="badge ok">ок</span>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-
-    <div class="v7-toolbar" style="margin-top:12px">
-        <button class="v7-btn" onclick="alert('Правки приняты → ТК Цистерна v4 (черновик) → после утверждения РС-фабрика перегенерирует РС v4 профилем «КТ-этапы-по-участкам» и подготовит выгрузку в 1С с причиной «{{ n.number }}». (мок)')">Принять правки → новая версия ТК</button>
-        <button class="v7-btn sec">Править вручную</button>
-        <button class="v7-btn sec">Отклонить</button>
-        <span class="badge">после утверждения: РС v3 → v4, причина изменения в 1С = «{{ n.number }}»</span>
-    </div>
+<div class="panel">
+{% if notices %}
+<table class="tbl">
+  <thead>
+    <tr><th>Номер</th><th>Дата</th><th>Основание</th><th>Причина</th><th>Автор</th><th>Статус</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for n in notices %}
+    <tr>
+      <td><b>{{ n.number }}</b></td>
+      <td>{{ n.date }}</td>
+      <td>{{ n.foundation_doc or '—' }}</td>
+      <td>{{ n.reason or '—' }}</td>
+      <td>{{ n.author or '—' }}</td>
+      <td>
+        {% if n.status == 'open' %}<span class="badge bad">Требует решения</span>
+        {% elif n.status == 'in_progress' %}<span class="badge warn">В работе</span>
+        {% elif n.status == 'resolved' %}<span class="badge ok">Решено</span>
+        {% else %}<span class="badge">{{ n.status }}</span>{% endif %}
+      </td>
+      <td><a class="btn btn-ghost" href="#">Разобрать →</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <div class="ico">📬</div>
+  <div>Нет извещений. Создайте новое: <a href="#">+ Извещение</a></div>
 </div>
-{% endfor %}
+{% endif %}
+</div>
+
+<div class="panel">
+  <div class="panel-body">
+    <b>💡 Алгоритм обработки извещения:</b>
+    <ol style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px;">
+      <li>Регистрация извещения (номер, дата, основание, причина)</li>
+      <li>Автопоиск затронутых деталей через <code>bom_links</code> (вниз по дереву)</li>
+      <li>AI diff «было → стало» (через LLM, тип задачи <code>notice_diff</code>)</li>
+      <li>Подтверждение технологом</li>
+      <li>Пересчёт РС через <code>rs_factory.regenerate_for_notice()</code> для всех затронутых</li>
+      <li>Трассировка причины в <code>resource_specs.change_reason = № извещения</code></li>
+    </ol>
+  </div>
+</div>
 {% endblock %}

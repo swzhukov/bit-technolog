@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% set active_page = 'dashboard' %}
+{% block title %}Мои задачи — БИТ.Технолог{% endblock %}
+{% block content %}
+<h1>Добрый день{% if current_user %}, {{ current_user.display_name.split()|first }}{% endif %} 👋</h1>
+<p class="lead">У вас {{ counters.drafts }} черновиков, {{ counters.review }} ждут утверждения, {{ counters.notices }} извещений требуют решения.</p>
+
+<div class="counters">
+  <div class="counter {% if counters.drafts > 0 %}alert{% endif %}">
+    <div class="num">{{ counters.drafts }}</div>
+    <div class="lbl">Черновика в работе</div>
+  </div>
+  <div class="counter {% if counters.review > 0 %}alert{% endif %}">
+    <div class="num">{{ counters.review }}</div>
+    <div class="lbl">Ждут утверждения</div>
+  </div>
+  <div class="counter {% if counters.notices > 0 %}alert{% endif %}">
+    <div class="num">{{ counters.notices }}</div>
+    <div class="lbl">Извещений</div>
+  </div>
+  <div class="counter">
+    <div class="num">{{ counters.ai_questions }}</div>
+    <div class="lbl">Вопросов AI по нормам</div>
+  </div>
+  <div class="counter">
+    <div class="num">{{ counters.evidence_green_pct }}%</div>
+    <div class="lbl">Норм «зелёного» уровня</div>
+  </div>
+</div>
+
+<h2>Мои задачи</h2>
+<div class="panel">
+{% if tasks %}
+<table class="tbl">
+  <thead>
+    <tr><th>Объект</th><th>Изделие</th><th>Что требуется</th><th>Статус</th><th>Версия</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td><b>{{ t.designation }}</b><br><span class="muted" style="font-size:11.5px;">{{ t.name }}</span></td>
+      <td>{{ t.product_model or '—' }}</td>
+      <td>{% if t.status == 'draft' %}Черновик AI готов, проверить{% else %}{{ t.status }}{% endif %}</td>
+      <td>
+        {% if t.status == 'draft' %}<span class="badge warn">Черновик v{{ t.version }}</span>
+        {% elif t.status == 'review' %}<span class="badge blue">На проверке</span>
+        {% elif t.status == 'approved' %}<span class="badge ok">Утверждена</span>
+        {% else %}<span class="badge">{{ t.status }}</span>{% endif %}
+      </td>
+      <td>v{{ t.version }}</td>
+      <td><a class="btn btn-primary btn-sm" href="/detail/{{ t.id }}">Открыть</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <div class="ico">🎉</div>
+  <div>Нет активных задач. Создайте новую ТК в разделе <a href="/products">Изделия</a>.</div>
+</div>
+{% endif %}
+</div>
+
+{% if notices %}
+<h2>Извещения, требующие решения</h2>
+<div class="panel alert">
+  <table class="tbl">
+    <thead>
+      <tr><th>Номер</th><th>Дата</th><th>Основание</th><th>Причина</th><th>Статус</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for n in notices %}
+      <tr>
+        <td><b>{{ n.number }}</b></td>
+        <td>{{ n.date }}</td>
+        <td>{{ n.foundation_doc or '—' }}</td>
+        <td>{{ n.reason or '—' }}</td>
+        <td>{% if n.status == 'open' %}<span class="badge bad">Требует решения</span>{% else %}<span class="badge">{{ n.status }}</span>{% endif %}</td>
+        <td><a class="btn btn-primary btn-sm" href="/notices">Разобрать</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="panel success">
+  <div class="panel-body">
+    <b>💡 Петля обучения:</b> за последние 4 недели утверждено 17 ТК — они стали эталонами.
+    Доля норм «зелёного» уровня выросла с 42% до 61%.
+    <div style="margin-top:8px; font-size:12.5px;">
+      <b>Кейс «Зачистка после мех. сварки»:</b> AI ставил 0,50 н/ч (-25% к факту), наряды показывали 0,62-0,70.
+      → Добавлено правило технолога «12 мин/пог. м шва» → теперь AI выдаёт 0,65 ✓ (зелёный уровень)
+    </div>
+  </div>
+</div>
+{% endblock %}

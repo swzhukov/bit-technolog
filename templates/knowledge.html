@@ -1,42 +1,51 @@
 {% extends "base.html" %}
-{% block title %}База знаний предприятия — БИТ.Технолог{% endblock %}
+{% set active_page = 'knowledge' %}
+{% block title %}База знаний — БИТ.Технолог{% endblock %}
 {% block content %}
-<h1>🧠 База знаний предприятия</h1>
-<p class="sub">То, на чём AI «обучается на завод»: эталоны, факт трудоёмкости, правила. Пополняется автоматически с каждой утверждённой ТК.</p>
+<h1>База знаний</h1>
+<p class="lead">Эталоны (утверждённые ТП), work_history (наряды, карты 575), tech_rules (правила технолога).</p>
 
-<div class="v7-cards">
-    {% for m in metrics %}
-    <div class="v7-card"><div class="num">{{ m.value }}</div><div class="lbl">{{ m.text }}</div></div>
+<h2>Эталоны (утверждённые ТП, {{ etalons|length }})</h2>
+<div class="panel">
+{% if etalons %}
+<table class="tbl">
+  <thead>
+    <tr><th>Обозначение</th><th>Название</th><th>Продукт</th><th>Утвердил</th><th>Дата</th><th>Опубликован</th><th>Операций</th></tr>
+  </thead>
+  <tbody>
+    {% for e in etalons %}
+    <tr>
+      <td><b>{{ e.designation }}</b></td>
+      <td>{{ e.name }}</td>
+      <td><span class="badge">{{ e.product_type or '—' }}</span></td>
+      <td>{{ e.approved_by or '—' }}</td>
+      <td>{{ e.approved_date or '—' }}</td>
+      <td>{% if e.is_published %}<span class="badge ok">RAG</span>{% else %}<span class="badge">черновик</span>{% endif %}</td>
+      <td>{% if e.content_json %}{% set ops = e.content_json|from_json %}{{ ops.operations|length }}{% else %}0{% endif %}</td>
+    </tr>
     {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <div class="ico">📚</div>
+  <div>Эталоны не загружены. Запустите <code>python -m seeds.seed_etalons</code></div>
+</div>
+{% endif %}
 </div>
 
-<div class="v7-panel">
-    <h2 style="margin-top:0">Загрузка архива</h2>
-    <div class="sub">OCR + AI-разбор, человек проверяет перед добавлением в эталоны</div>
-    <div class="v7-toolbar">
-        <button class="v7-btn sec">⬆ Загрузить архивную ТК (PDF/скан)</button>
-        <button class="v7-btn sec">⬆ Ведомость трудоёмкости (Excel)</button>
-        <button class="v7-btn sec">⬆ Наряды (Excel)</button>
-    </div>
-    <table style="margin-top:10px">
-        <tr><th>Документ</th><th>Разобрано AI</th><th>Статус</th></tr>
-        <tr><td>ТК «Растяжка пружинная» (скан 2022, 31 стр.)</td><td>операции 005–030, состав 18 позиций</td><td><span class="badge warn">ждёт проверки Воробьёва</span></td></tr>
-        <tr><td>Наряды июнь-2026.xlsx</td><td>402 строки, 396 сопоставлено с НСИ</td><td><span class="badge ok">в базе</span> · 6 строк — <a>разобрать вручную</a></td></tr>
-    </table>
-</div>
-
-<div class="v7-panel">
-    <h2 style="margin-top:0">Правила технолога</h2>
-    <div class="sub">Подставляются в контекст AI по типу операции</div>
-    <table style="margin-top:8px">
-        <tr><th>Правило</th><th>Область</th><th>Источник</th></tr>
-        {% for r in rules %}
-        <tr>
-            <td>{{ r.rule_text }}</td>
-            <td><span class="badge">{{ r.scope }}</span></td>
-            <td>{{ r.source or '—' }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+<div class="panel success">
+  <div class="panel-body">
+    <b>💡 ML/LLM лестница (7 ступеней):</b>
+    <ol style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px;">
+      <li><b>OCR + LLM-парсинг архивов</b> — загрузка PDF → структурированный ТП (пилот) ✓</li>
+      <li><b>RAG + структурные фильтры</b> — поиск аналогов по (материал, тип операции, масса ±20%) ✓</li>
+      <li><b>Few-shot из архива</b> — динамический, по эталонам ✓</li>
+      <li><b>Петля обратной связи</b> — утверждённая ТК → эталон (автоматически) ✓</li>
+      <li><b>Правила технолога</b> — после 1-2 месяцев (после пилота)</li>
+      <li><b>ML-регрессия норм</b> — после 50+ наблюдений</li>
+      <li><b>Файн-тюнинг</b> — после 3+ клиентов (НЕ в пилоте)</li>
+    </ol>
+  </div>
 </div>
 {% endblock %}

@@ -1,609 +1,96 @@
 {% extends "base.html" %}
-{% block title %}{{ detail.designation }} — БИТ.Технолог{% endblock %}
+{% set active_page = 'products' %}
+{% block title %}{{ item.designation }} — БИТ.Технолог{% endblock %}
 {% block content %}
+<div class="breadcrumbs"><a href="/products">Изделия</a> → <a href="/products?level={{ item.level }}">{{ item.level }}</a> →</div>
+<h1>{{ item.name }} <span class="muted" style="font-size:14px; font-weight:400;">{{ item.designation }}</span></h1>
+<p class="lead">
+  <span class="badge brand">{{ item.level }}</span>
+  <span class="badge">{{ item.mass_kg|round(2) if item.mass_kg else '—' }} кг</span>
+  {% if item.sourcing == 'make' %}<span class="badge ok">Изготавливаем</span>
+  {% elif it.sourcing == 'coop_da' %}<span class="badge warn">Кооперация (давальч.)</span>{% endif %}
+</p>
 
-{# M25: Продуманный workflow технолога. Только то, что нужно для работы с деталью. #}
-{# Hero: обозначение + сводка + главная CTA. Никаких лишних блоков. #}
-
-<nav class="breadcrumbs">
-    <a href="/">Главная</a> ›
-    <a href="/?status={{ status }}">Детали</a> ›
-    <span>{{ detail.designation }}</span>
-</nav>
-
-<div class="detail-hero">
-    <div class="detail-hero-main">
-        <h1>{{ detail.designation }}</h1>
-        <p class="detail-hero-name">{{ detail.name or 'Без названия' }}</p>
-        <div class="detail-hero-tags">
-            {% if status == "approved" or status == "approved_chief" %}
-                <span class="badge badge-approved">🟢 Утверждена</span>
-            {% elif status_ext == "review" %}
-                <span class="badge badge-review">👀 На проверке</span>
-            {% elif status == "draft" %}
-                <span class="badge badge-draft">🟡 Черновик ТК</span>
-            {% else %}
-                <span class="badge badge-new">🔴 Новая</span>
-            {% endif %}
-            {% if detail.model %}<span class="badge">🚒 {{ detail.model }}</span>{% endif %}
-            {% if detail.chassis %}<span class="badge">🛻 {{ detail.chassis }}</span>{% endif %}
-            {% if detail.material %}<span class="badge">🔩 {{ detail.material }}</span>{% endif %}
-            {% if detail.mass_kg %}<span class="badge">⚖️ {{ detail.mass_kg }} кг</span>{% endif %}
-        </div>
-    </div>
-    <div class="detail-hero-cta">
-        {% set _cur = current_role_from_request(request) %}
-        {% if _cur in ('technologist', 'main_technologist', 'admin') %}
-            {% if not draft %}
-                <button type="button" class="btn btn-primary btn-lg" id="gen-cta"
-                        onclick="generateTK('{{ detail.id }}', this)">
-                    <span class="gen-icon">✨</span>
-                    <span class="gen-label">Сгенерировать ТК</span>
-                </button>
-            {% elif status == "approved" %}
-                <button hx-post="/api/reopen"
-                        hx-vals='{"detail_id": "{{ detail.id }}", "reason": "Возврат в работу"}'
-                        hx-confirm="Вернуть ТК в работу?"
-                        class="btn btn-warn">↩️ Вернуть в работу</button>
-            {% else %}
-                <button type="button" class="btn btn-success btn-lg" id="approve-cta"
-                        onclick="approveTK('{{ detail.id }}', this)">
-                    ✅ Утвердить
-                </button>
-            {% endif %}
-        {% endif %}
-    </div>
+<div style="display:flex; gap:8px; margin-bottom:16px;">
+  <button class="btn btn-primary">✓ Утвердить и в эталоны</button>
+  <button class="btn btn-secondary">📤 Экспорт в 1С:ERP</button>
+  <button class="btn btn-secondary">↻ Перегенерировать</button>
 </div>
 
-{# M33: 5 табов по макету из gptunnel #}
-{% set active_tab = active_tab or 'ops' %}
-<nav class="tabs" role="tablist">
-    <button type="button" class="tab {% if active_tab == 'ops' %}active{% endif %}" data-tab="ops" role="tab">
-        Чертёж + Операции
-        {% if draft and draft.operations %}<span class="tab-count">{{ draft.operations|length }}</span>{% endif %}
-    </button>
-    <button type="button" class="tab {% if active_tab == 'rs' %}active{% endif %}" data-tab="rs" role="tab">Ресурсная спецификация</button>
-    <button type="button" class="tab {% if active_tab == 'just' %}active{% endif %}" data-tab="just" role="tab">Обоснование норм</button>
-    <button type="button" class="tab {% if active_tab == 'more' %}active{% endif %}" data-tab="more" role="tab">Доп. параметры</button>
-    {% if versions and versions|length > 0 %}
-    <button type="button" class="tab {% if active_tab == 'versions' %}active{% endif %}" data-tab="versions" role="tab">
-        История <span class="tab-count">{{ versions|length }}</span>
-    </button>
-    {% endif %}
-</nav>
+<div class="tabs">
+  <div class="tab active">1. Чертёж + Операции</div>
+  <div class="tab">2. Ресурсная спецификация</div>
+  <div class="tab">3. Обоснование норм</div>
+  <div class="tab">4. Доп. параметры</div>
+  <div class="tab">5. История</div>
+</div>
 
-{# TAB: РС (перед route) #}
-<section class="tab-panel {% if active_tab == 'rs' %}active{% endif %}" id="panel-rs" role="tabpanel">
-    <div class="v7-note info">🔒 <b>РС-фабрика — без AI.</b> РС собирается алгоритмом из утверждённой ТК по выбранному профилю. Один и тот же вход всегда даёт один и тот же выход.</div>
-    <div class="v7-toolbar">
-        <span>Профиль выхода:</span>
-        <select>
-            <option>УМК-одноэтапная (по виду продукции — по умолчанию)</option>
-            <option>КТ-этапы-по-участкам</option>
-            <option>ВТ-по-цехозаходам (ВРЦ)</option>
-        </select>
-        <button class="v7-btn sec sm">Тестовый прогон</button>
-        <button class="v7-btn" onclick="alert('Сформирован файл RS по схеме «Техинком-ERP-2.5». Передан через OneCGateway. (мок)')">⬇ Выгрузить в 1С:ERP</button>
-        <span class="badge">схема: Техинком-ERP-2.5 (XML)</span>
+<div class="grid2">
+  <div class="panel" style="margin:0;">
+    <div class="panel-head">
+      <span class="ttl">Чертёж (скан {{ item.drawing_no or '—' }})</span>
+      <span class="sub">PDF</span>
     </div>
-    <div class="v7-panel">
-        <b>Предпросмотр РС</b>
-        <table style="margin-top:8px">
-            <tr><th>№</th><th>Этап РС</th><th>Подразделение</th><th>Трудозатраты</th><th>Материалы (сводно на этап)</th></tr>
-            <tr>
-                <td>1</td>
-                <td><b>Изготовление</b> <span class="badge">профиль «одноэтапная»</span></td>
-                <td>Мелкосерийное пр-во, уч. упоров</td>
-                <td>Сварщик 19905/4 — 4,35 н/ч<br>Слесарь 3 разр. — 0,65 н/ч<br>Комплектовщик — 0,30 н/ч<br>Контролёр — 0,40 н/ч</td>
-                <td>Св-08Г2С-О ⌀1,0 — <b>0,43 кг</b><br>Смесь М21 — <b>0,31 м³</b><br>Спрей антипригар. — 0,02 л</td>
-            </tr>
-        </table>
+    <div class="panel-body">
+      <div class="draw-area">📐 превью чертежа<br><span class="muted">{{ item.drawing_pdf or 'Файл не загружен' }}</span></div>
     </div>
-    <div class="v7-panel">
-        <b>Отчёт трансформации</b>
-        <div style="font-size:12.5px; background:#f8fafc; border:1px solid var(--v7-line); border-radius:8px; padding:10px 12px; margin-top:6px">
-            Строка «Сварщик 19905/4 — 4,35 н/ч» ← правило профиля <b>«операции: укрупнённо, по профессии»</b> ← операции ТК 015 (1,10) + 020 (1,45) + 025 (1,80)<br>
-            Строка «Св-08Г2С-О — 0,43 кг» ← правило <b>«материалы: сводно на этап»</b> ← 0,12 + 0,31 из операций 015, 020<br>
-            Этап «Изготовление» — один ← правило <b>«разрез этапов: вся РС одним этапом»</b>
-        </div>
-    </div>
-</section>
+  </div>
 
-{# TAB: Обоснование норм #}
-<section class="tab-panel {% if active_tab == 'just' %}active{% endif %}" id="panel-just" role="tabpanel">
-    <div class="v7-panel">
-        <b>Сводка доверия по ТК</b>
-        <table style="margin-top:8px">
-            <tr><th>Уровень</th><th>Операций</th><th>Доля времени</th><th>Что делать</th></tr>
-            <tr><td><span class="dot g"></span>Факт завода</td><td>4</td><td>72%</td><td>Ничего — источники: эталонная ТК 2022, ведомость 575 ДСЕ, наряды</td></tr>
-            <tr><td><span class="dot y"></span>Оценка по аналогам</td><td>1</td><td>21%</td><td>Проверить операцию 025 (интерполяция между 3 аналогами)</td></tr>
-            <tr><td><span class="dot r"></span>Гипотеза AI</td><td>1</td><td>7%</td><td>Подтвердить операцию 035 — факта по контролю в базе нет</td></tr>
-        </table>
+  <div class="panel" style="margin:0;">
+    <div class="panel-head">
+      <span class="ttl">Операции ({{ tech_card.operations|length if tech_card.operations else 0 }})</span>
+      <span class="sub">⏱ 0,89 н/ч</span>
     </div>
-    <div class="v7-panel">
-        <b>Аналоги, использованные AI</b>
-        <table style="margin-top:8px">
-            <tr><th>Деталь-аналог</th><th>Сходство</th><th>Источник</th><th>Σ н/ч</th></tr>
-            <tr><td>Упор продольный ЛМША.301314.020</td><td>97%</td><td>Эталонная ТК (утв. Баранов, 2022)</td><td>5,55</td></tr>
-            <tr><td>Кронштейн замка 53Б-ТВ.01.21.00</td><td>71%</td><td>Ведомость трудоёмкости</td><td>4,50</td></tr>
-            <tr><td>Основа растяжки ЛМША.302400.001</td><td>64%</td><td>Наряды 2025–26</td><td>6,2 (факт, n=118)</td></tr>
-        </table>
-    </div>
-</section>
-
-{# ===== Вкладка: МАРШРУТ ===== #}
-<section class="tab-panel {% if active_tab == 'route' %}active{% endif %}" id="panel-ops" role="tabpanel">
-    {% if not draft %}
-        <div class="empty empty-lg">
-            <div class="empty-icon">📋</div>
-            <div class="empty-title">ТК ещё не создана</div>
-            <div class="empty-desc">AI создаст черновик из 5-10 операций на основе материала, массы и шасси. Это займёт 30-60 секунд и ~3₽.</div>
-            {% if _cur in ('technologist', 'main_technologist', 'admin') %}
-            <button type="button" class="btn btn-primary btn-lg" onclick="generateTK('{{ detail.id }}', this)" style="margin-top:16px;">
-                ✨ Сгенерировать черновик
-            </button>
-            {% endif %}
-        </div>
+    {% if tech_card and tech_card.operations %}
+    <table class="tbl">
+      <thead>
+        <tr><th>№</th><th>Операция</th><th>Цех</th><th>Проф.</th><th>Тшт</th><th>Тпз</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for op in tech_card.operations %}
+        <tr>
+          <td>{{ "%03d"|format(op.op_number) }}</td>
+          <td>{{ op.name }}</td>
+          <td>{{ op.workshop_code }}/{{ op.site_code }}</td>
+          <td>{{ op.profession_code or '—' }}</td>
+          <td>{{ op.time_per_unit_min or 0 }}</td>
+          <td>{{ op.time_setup_min or 0 }}</td>
+          <td><span class="dot g"></span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
-        {# Сводка маршрута — одна строка (без кнопки Перегенерировать — она вкладке Ещё) #}
-        <div class="route-summary">
-            <div class="route-summary-item">
-                <span class="route-summary-label">Операций</span>
-                <span class="route-summary-value">{{ draft.operations|length }}</span>
-            </div>
-            <div class="route-summary-item">
-                <span class="route-summary-label">Общее время</span>
-                <span class="route-summary-value">{{ "%.1f"|format(draft.operations|sum(attribute='duration_hours') or 0) }} ч</span>
-            </div>
-            <div class="route-summary-item">
-                <span class="route-summary-label">Цехов</span>
-                <span class="route-summary-value">{{ draft.operations|map(attribute='department')|select|unique|list|length }}</span>
-            </div>
-        </div>
-
-        {# M26: Маршрут с расцеховкой — операции группируются по цехам (department) #}
-        {# Собираем уникальные цеха в порядке появления #}
-        {% set ns = namespace(workshops=[], seen=[]) %}
-        {% for op in draft.operations %}
-            {% if op.department and op.department not in ns.seen %}
-                {% set ns.workshops = ns.workshops + [op.department] %}
-                {% set ns.seen = ns.seen + [op.department] %}
-            {% endif %}
-        {% endfor %}
-
-        <div class="route-workshops">
-            {% for ws_name in ns.workshops %}
-            <div class="workshop-block">
-                <div class="workshop-head">
-                    <span class="workshop-icon">🏭</span>
-                    <strong>{{ ws_name }}</strong>
-                    <span class="workshop-count">
-                        {{ draft.operations|selectattr('department', 'equalto', ws_name)|list|length }} оп. ·
-                        {{ "%.1f"|format(draft.operations|selectattr('department', 'equalto', ws_name)|sum(attribute='duration_hours'))|float }} ч
-                    </span>
-                </div>
-                <div class="ops-list">
-                    {% for op in draft.operations %}
-                        {% if op.department == ws_name %}
-                        {% set op_key = op.op_index|string if op.op_index else loop.index|string %}
-                        <div class="op-card" data-op-id="{{ op_key }}">
-                            <div class="op-card-head">
-                                <code class="op-index">{{ op.op_index or (loop.index * 10)|string }}</code>
-                                <input type="text" class="op-name" value="{{ op.name }}"
-                                       onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'name', this.value)"
-                                       placeholder="Название операции">
-                                <span class="op-duration">
-                                    <input type="number" step="0.1" class="op-hours" value="{{ op.duration_hours or 0 }}"
-                                           onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'duration_hours', this.value)">
-                                    <span class="op-hours-unit">ч</span>
-                                </span>
-                                {% if op.confidence %}
-                                <span class="op-confidence" title="AI уверенность: {{ op.confidence }}%">
-                                    {% if op.confidence >= 80 %}🟢{% elif op.confidence >= 50 %}🟡{% else %}🔴{% endif %}
-                                </span>
-                                {% endif %}
-                                <button type="button" class="op-del" onclick="delOp('{{ detail.id }}', '{{ op_key }}', this)" title="Удалить операцию">🗑</button>
-                            </div>
-                            <div class="op-card-body">
-                                <div class="op-field">
-                                    <label>Оборудование</label>
-                                    <input list="eq-list" type="text" class="op-equipment" value="{{ op.equipment or '' }}"
-                                           onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'equipment', this.value)"
-                                           placeholder="Например: Сварочный аппарат Кедр-300">
-                                </div>
-                                <div class="op-field">
-                                    <label>Рабочее место</label>
-                                    <input type="text" class="op-workplace" value="{{ op.workplace or '' }}"
-                                           onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'workplace', this.value)"
-                                           placeholder="Например: 01/01/04">
-                                </div>
-                                <div class="op-field op-field-sm">
-                                    <label>Профессия</label>
-                                    <input type="text" class="op-profession" value="{{ op.profession or '' }}"
-                                           onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'profession', this.value)"
-                                           placeholder="Сварщик 4р">
-                                </div>
-                                <div class="op-field op-field-sm">
-                                    <label>Разряд</label>
-                                    <input type="number" min="1" max="6" class="op-rank" value="{{ op.rank or 4 }}"
-                                           onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'rank', this.value)">
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-
-            {# Операции без цеха (fallback) #}
-            {% set no_ws = draft.operations|rejectattr('department')|list %}
-            {% if no_ws %}
-            <div class="workshop-block workshop-block-empty">
-                <div class="workshop-head">
-                    <span class="workshop-icon">⚠️</span>
-                    <strong>Без цеха (заполните)</strong>
-                </div>
-                <div class="ops-list">
-                    {% for op in no_ws %}
-                    {% set op_key = 'noidx-' ~ loop.index %}
-                    <div class="op-card" data-op-id="{{ op_key }}">
-                        <div class="op-card-head">
-                            <code class="op-index">{{ loop.index * 10 }}</code>
-                            <input type="text" class="op-name" value="{{ op.name }}"
-                                   onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'name', this.value)">
-                            <span class="op-duration">
-                                <input type="number" step="0.1" class="op-hours" value="{{ op.duration_hours or 0 }}"
-                                       onblur="editOp('{{ detail.id }}', '{{ op_key }}', 'duration_hours', this.value)">
-                                <span class="op-hours-unit">ч</span>
-                            </span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        <datalist id="eq-list">
-            {% for eq in all_equipment %}<option value="{{ eq }}">{% endfor %}
-        </datalist>
-
-        {% if _cur in ('technologist', 'main_technologist', 'admin') %}
-        <div class="ops-add">
-            <button type="button" class="btn" onclick="addOp('{{ detail.id }}', this)">＋ Добавить операцию</button>
-        </div>
-        {% endif %}
-    {% endif %}
-</section>
-
-{# ===== Вкладка: ЭКОНОМИКА ===== #}
-<section class="tab-panel {% if active_tab == 'economics' %}active{% endif %}" id="panel-economics" role="tabpanel">
-    <form hx-post="/api/details/{{ detail.id }}/economics"
-          hx-target="#econ-status"
-          hx-swap="innerHTML"
-          hx-on::after-request="setTimeout(() => location.reload(), 800);"
-          class="form">
-        <div class="form-row">
-            <label class="form-field">
-                <span>Ставка в час (₽)</span>
-                <input name="cost_per_hour" type="number" step="0.01" value="{{ detail.cost_per_hour or 800 }}">
-            </label>
-            <label class="form-field">
-                <span>Накладные (%)</span>
-                <input name="overhead_pct" type="number" step="0.1" value="{{ detail.overhead_pct or 15 }}">
-            </label>
-            <label class="form-field">
-                <span>Стоимость материала (₽)</span>
-                <input name="material_cost_rub" type="number" step="0.01" value="{{ detail.material_cost_rub or 0 }}">
-            </label>
-        </div>
-        {% if _cur in ('technologist', 'main_technologist', 'admin') %}
-        <button type="submit" class="btn btn-primary">💾 Сохранить</button>
-        {% endif %}
-        <span id="econ-status"></span>
-    </form>
-
-    {% if economics %}
-    <div class="econ-summary">
-        <div class="econ-row">
-            <span>Трудозатраты</span>
-            <span class="econ-value">{{ "%.0f"|format(economics.labor_cost_rub or 0) }} ₽</span>
-        </div>
-        <div class="econ-row">
-            <span>Материалы</span>
-            <span class="econ-value">{{ "%.0f"|format(economics.material_cost_rub or 0) }} ₽</span>
-        </div>
-        <div class="econ-row">
-            <span>Накладные</span>
-            <span class="econ-value">{{ "%.0f"|format(economics.overhead_rub or 0) }} ₽</span>
-        </div>
-        <div class="econ-row econ-row-total">
-            <span>Итого себестоимость</span>
-            <span class="econ-value">{{ "%.0f"|format(economics.total_cost_rub or 0) }} ₽</span>
-        </div>
+    <div class="empty">
+      <div class="ico">📝</div>
+      <div>Нет утверждённой ТК. Нажмите «Сгенерировать» или загрузите чертёж для OCR.</div>
     </div>
     {% endif %}
-</section>
+  </div>
+</div>
 
-{# ===== Вкладка: ВЕРСИИ ===== #}
-{% if versions and versions|length > 0 %}
-<section class="tab-panel {% if active_tab == 'versions' %}active{% endif %}" id="panel-versions" role="tabpanel">
-    <div class="versions-list">
-        {% for v in versions %}
-        <div class="version-card">
-            <div class="version-head">
-                <strong>v{{ v.version }}</strong>
-                <span class="version-date">{{ v.created_at[:10] }}</span>
-            </div>
-            <div class="version-meta">
-                {{ v.output.operations|length if v.output and v.output.operations else 0 }} операций ·
-                {{ "%.1f"|format(v.output.operations|sum(attribute='duration_hours') if v.output and v.output.operations else 0) }} ч
-            </div>
-            <div class="version-actions">
-                <a href="/detail/{{ detail.id }}?active_tab=route&v={{ v.version }}" class="btn btn-sm">Открыть</a>
-                {% if loop.first == false %}
-                <a href="/detail/{{ detail.id }}/diff/{{ v.version }}/{{ versions[0].version }}" class="btn btn-sm">🔀 Сравнить с текущей</a>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</section>
-{% endif %}
-
-{# ===== Вкладка: ЕЩЁ ===== #}
-<section class="tab-panel {% if active_tab == 'more' %}active{% endif %}" id="panel-more" role="tabpanel">
-
-    {# M26: RAG — компактный блок (когда технолог сомневается, посмотреть аналоги) #}
-    <div class="more-section">
-        <h3>🔍 Похожие техкарты</h3>
-        <p class="hint">AI подобрал детали с похожими параметрами (материал, масса, шасси). Если устраивает чужая ТК — откройте её, возьмите маршрут за основу.</p>
-        <div hx-get="/api/rag/similar/{{ detail.id }}?top_k=3" hx-trigger="load" hx-swap="innerHTML" class="rag-compact">
-            <div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Подбираю аналоги...</div></div>
-        </div>
-    </div>
-
-    <div class="more-grid">
-        <div class="more-card">
-            <h3>🔀 Альтернативы маршрута</h3>
-            <p class="hint">2-3 варианта технологии (TIG, MIG, без термообработки и т.д.)</p>
-            <button hx-post="/api/alternatives" hx-vals='{"detail_id": "{{ detail.id }}"}'
-                    hx-target="#alts-area" hx-swap="innerHTML" class="btn btn-sm">🔀 Показать альтернативы</button>
-            <div id="alts-area" class="alts-compact"></div>
-        </div>
-
-        <div class="more-card">
-            <h3>📐 Чертёж</h3>
-            {% if detail.drawing_path %}
-                <p>Загружен: <code>{{ detail.drawing_path|truncate(50) }}</code></p>
-                <a href="/drawings/{{ detail.id }}_{{ detail.drawing_format }}" target="_blank" class="btn btn-sm">📥 Открыть</a>
-                {% if detail.drawing_format in ('pdf', 'png', 'jpg', 'jpeg') and _cur in ('technologist', 'main_technologist', 'admin') %}
-                <button hx-post="/api/drawing/recognize"
-                        hx-vals='{"detail_id": "{{ detail.id }}"}'
-                        hx-target="#ocr-result" hx-swap="innerHTML"
-                        class="btn btn-sm btn-primary">🔍 Распознать чертёж</button>
-                <div id="ocr-result"></div>
-                {% endif %}
-            {% else %}
-                <p class="hint">Чертёж не загружен</p>
-                {% if _cur in ('technologist', 'main_technologist', 'admin') %}
-                <form hx-post="/api/import/drawing/{{ detail.id }}"
-                      hx-target="#drawing-status" hx-swap="innerHTML"
-                      hx-encoding="multipart/form-data" enctype="multipart/form-data">
-                    <input type="file" name="file" accept=".frw,.dwg,.pdf,.png,.jpg,.jpeg" required>
-                    <button type="submit" class="btn btn-sm">📤 Загрузить</button>
-                    <span id="drawing-status"></span>
-                </form>
-                {% endif %}
-            {% endif %}
-        </div>
-
-        <div class="more-card">
-            <h3>📝 Правила технолога</h3>
-            <p class="hint">Учитываются AI при следующей генерации</p>
-            <form hx-post="/api/details/{{ detail.id }}/rules" hx-target="#rules-status" hx-swap="innerHTML">
-                <textarea name="tech_rules" rows="4" placeholder="Например: только TIG-сварка, не применять порошковую покраску">{{ detail.tech_rules or '' }}</textarea>
-                {% if _cur in ('technologist', 'main_technологолог', 'admin') %}
-                <button type="submit" class="btn btn-sm">💾 Сохранить</button>
-                {% endif %}
-                <span id="rules-status"></span>
-            </form>
-        </div>
-
-        <div class="more-card">
-            <h3>📋 Ресурсная спецификация (1С:ERP)</h3>
-            <p class="hint">Материалы и профессии по операциям</p>
-            <div hx-get="/api/resource-specs/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML" class="rs-compact">
-                <div class="empty"><div class="empty-icon">⏳</div></div>
-            </div>
-            <a href="/api/1c/export/rs/{{ detail.id }}" target="_blank" class="btn btn-sm" style="margin-top:8px;">📤 XML для 1С</a>
-        </div>
-
-        <div class="more-card">
-            <h3>🔗 Связанные детали (иерархия)</h3>
-            <p class="hint">Изделие, узел, соседние детали</p>
-            <div hx-get="/api/related/{{ detail.id }}" hx-trigger="load" hx-swap="innerHTML" class="related-compact">
-                <div class="empty"><div class="empty-icon">⏳</div></div>
-            </div>
-        </div>
-
-        <div class="more-card">
-            <h3>📊 Экспорт / Перегенерация</h3>
-            <p class="hint">Печатать когда ТК утверждена; перегенерировать когда не устраивает</p>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <a href="/detail/{{ detail.id }}/print" target="_blank" class="btn btn-sm">📄 PDF</a>
-                {% if _cur in ('technologist', 'main_technologist', 'admin') %}
-                <button type="button" class="btn btn-sm btn-warn" onclick="generateTK('{{ detail.id }}', this, true)">🔄 Перегенерировать ТК</button>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</section>
-
-<script>
-// M25: Workflow-функции. Простые, надёжные, без 3-step flow.
-function getCookie(name) {
-    const m = document.cookie.match(new RegExp(name + '=([^;]+)'));
-    return m ? m[1] : null;
-}
-
-function toast(msg, type) {
-    if (window.showToast) return window.showToast(msg, type);
-    alert(msg);
-}
-
-// === Генерация ТК — одна функция, один endpoint ===
-async function generateTK(detailId, btn, isRegen) {
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Генерирую (~30 сек)...';
-    if (isRegen && !confirm('Перегенерировать ТК? Текущие операции будут заменены.')) {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-        return;
-    }
-    try {
-        const r = await fetch('/api/draft-fast', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'  // CSRF bypass
-            },
-            body: JSON.stringify({detail_id: detailId})
-        });
-        const data = await r.json();
-        if (r.ok) {
-            toast('✨ ТК создана', 'success');
-            setTimeout(() => location.reload(), 800);
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = '❌ ' + (data.detail || data.error || r.status);
-            toast(data.detail || data.error || 'Ошибка генерации', 'error');
-        }
-    } catch (e) {
-        btn.disabled = false;
-        btn.innerHTML = '❌ ' + e.message;
-        toast('Сетевая ошибка: ' + e.message, 'error');
-    }
-}
-
-// === Утверждение ТК ===
-async function approveTK(detailId, btn) {
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Утверждаю...';
-    try {
-        const r = await fetch('/api/approve', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({detail_id: detailId})
-        });
-        if (r.ok) {
-            toast('✅ ТК утверждена', 'success');
-            setTimeout(() => location.reload(), 800);
-        } else {
-            const d = await r.json().catch(() => ({}));
-            btn.disabled = false;
-            btn.innerHTML = orig;
-            toast(d.detail || d.error || 'Ошибка', 'error');
-        }
-    } catch (e) {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-        toast('Сетевая ошибка: ' + e.message, 'error');
-    }
-}
-
-// === Inline-edit операции ===
-async function editOp(detailId, opId, field, value) {
-    try {
-        const fd = new FormData();
-        fd.append('detail_id', detailId);
-        fd.append('op_id', opId);
-        fd.append('field', field);
-        fd.append('value', value);
-        const r = await fetch('/api/edit/operation', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            body: fd
-        });
-        if (!r.ok) {
-            const d = await r.json().catch(() => ({}));
-            toast('Не сохранено: ' + (d.detail || d.error || r.status), 'error');
-        }
-    } catch (e) {
-        toast('Сетевая ошибка', 'error');
-    }
-}
-
-async function addOp(detailId, btn) {
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Добавляю...';
-    try {
-        const fd = new FormData();
-        fd.append('detail_id', detailId);
-        const r = await fetch('/api/edit/add-operation', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            body: fd
-        });
-        if (r.ok) location.reload();
-        else {
-            btn.disabled = false;
-            btn.innerHTML = orig;
-            toast('Ошибка добавления', 'error');
-        }
-    } catch (e) {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-        toast('Сетевая ошибка', 'error');
-    }
-}
-
-async function delOp(detailId, opId, btn) {
-    if (!confirm('Удалить операцию?')) return;
-    const card = btn.closest('.op-card');
-    try {
-        const fd = new FormData();
-        fd.append('detail_id', detailId);
-        fd.append('op_id', opId);
-        const r = await fetch('/api/edit/delete-operation', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            body: fd
-        });
-        if (r.ok) {
-            card.style.opacity = '0.4';
-            setTimeout(() => card.remove(), 300);
-            toast('Операция удалена', 'success');
-        } else {
-            toast('Ошибка удаления', 'error');
-        }
-    } catch (e) {
-        toast('Сетевая ошибка', 'error');
-    }
-}
-
-// === Tabs ===
-document.addEventListener('click', (e) => {
-    const tab = e.target.closest('.tab');
-    if (!tab) return;
-    const name = tab.dataset.tab;
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-    const url = new URL(location.href);
-    url.searchParams.set('active_tab', name);
-    history.replaceState(null, '', url);
-});
-</script>
-
+<h2>Эталоны (RAG, {{ etalons|length }})</h2>
+<div class="panel">
+  {% if etalons %}
+  <table class="tbl">
+    <thead>
+      <tr><th>Обозначение</th><th>Название</th><th>Продукт</th><th>Утвердил</th><th>Дата</th><th>Операций</th></tr>
+    </thead>
+    <tbody>
+      {% for e in etalons %}
+      <tr>
+        <td><b>{{ e.designation }}</b></td>
+        <td>{{ e.name }}</td>
+        <td><span class="badge">{{ e.product_type or '—' }}</span></td>
+        <td>{{ e.approved_by or '—' }}</td>
+        <td>{{ e.approved_date or '—' }}</td>
+        <td>{{ e.content_json and (e.content_json|from_json).operations|length if e.content_json else 0 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Эталоны не найдены.</div>
+  {% endif %}
+</div>
 {% endblock %}

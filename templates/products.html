@@ -1,81 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Изделия и состав — БИТ.Технолог{% endblock %}
+{% set active_page = 'products' %}
+{% block title %}Изделия — БИТ.Технолог{% endblock %}
 {% block content %}
-<h1>🚒 Изделия и состав</h1>
-<p class="sub">Дерево: модель → исполнение (заводской №) → сборки → детали. Одна деталь может входить в несколько сборок. Состав может отличаться по исполнениям.</p>
+<h1>Изделия и состав</h1>
+<p class="lead">{{ items|length }} номенклатурных позиций. Универсальная сущность <code>items</code> (деталь/узел/сборка/покупное/полуфабрикат).</p>
 
-<div class="v7-toolbar">
-    <input placeholder="🔍 Поиск по обозначению/наименованию" style="min-width:280px">
-    <select>
-        <option>Все виды продукции</option>
-        <option>АЦ — автоцистерны</option>
-        <option>ПСС — подъёмники</option>
-        <option>УМК — упоры/растяжки</option>
-    </select>
-    <select>
-        <option>Все исполнения</option>
-        <option>зав. №144–153 (контракт МЧС-2026/31)</option>
-        <option>зав. №147 (спец. исполнение)</option>
-    </select>
-    <select>
-        <option>Любой статус ТК</option>
-        <option>Нет ТК</option>
-        <option>Черновик</option>
-        <option>Утверждена</option>
-    </select>
+<div class="panel">
+{% if items %}
+<table class="tbl">
+  <thead>
+    <tr><th>Обозначение</th><th>Название</th><th>Уровень</th><th>Модель</th><th>Масса, кг</th><th>Кооперация</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td><b>{{ it.designation }}</b></td>
+      <td>{{ it.name }}</td>
+      <td><span class="badge">{{ it.level }}</span></td>
+      <td>{{ it.product_model_designation or '—' }}</td>
+      <td>{{ it.mass_kg|round(2) if it.mass_kg else '—' }}</td>
+      <td>
+        {% if it.sourcing == 'make' %}<span class="badge ok">Изготавливаем</span>
+        {% elif it.sourcing == 'buy' %}<span class="badge blue">Покупное</span>
+        {% elif it.sourcing == 'coop_da' %}<span class="badge warn">Кооперация (давальч.)</span>
+        {% elif it.sourcing == 'coop_full' %}<span class="badge warn">Кооперация (полная)</span>
+        {% else %}<span class="badge">{{ it.sourcing }}</span>{% endif %}
+      </td>
+      <td><a class="btn btn-ghost" href="/detail/{{ it.id }}">Карточка →</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <div class="ico">🚒</div>
+  <div>Номенклатура пуста. Загрузите данные или создайте изделие.</div>
+</div>
+{% endif %}
 </div>
 
-<div class="v7-panel">
-    <div style="font-size:13.5px">
-
-        <div style="padding:6px 8px; font-weight:700">🚒 АЦ-8,0-40 <span class="badge">модель</span> <span class="badge blue">шасси: КАМАЗ 43118 (из модели)</span> <span class="badge">вид: Кузовная техника</span> <span class="badge">профиль РС: КТ-этапы-по-участкам</span></div>
-        <div style="padding:6px 8px; margin-left:22px">📦 Исполнение зав. №144 <span class="badge ok">базовое · контракт МЧС-2026/31</span> <span class="badge blue">ТК: 84% готово</span></div>
-        <div style="padding:6px 8px; margin-left:22px; background:#fff8e1; border-radius:6px; cursor:pointer" onclick="document.getElementById('cfg147').style.display = document.getElementById('cfg147').style.display === 'none' ? 'block' : 'none'">
-            📦 <b>Исполнение зав. №147</b> <span class="badge warn">отличия: лебёдка + доп. отсек ПТВ</span> <span class="badge bad">затронуто извещением И-2026-014</span>
-            <span style="color:var(--v7-muted); font-size:11px; margin-left:6px">▼ раскрыть отличия</span>
-        </div>
-        <div id="cfg147" style="display:none; margin-left:44px; margin-top:4px; background:#fff8e1; padding:10px; border-left:3px solid #e6a700; border-radius:6px; font-size:12.5px">
-            <b>Отличия исполнения №147 от базового №144</b>
-            <table style="margin-top:6px; font-size:12.5px">
-                <tr><th>Узел / деталь</th><th>В базовом №144</th><th>В №147</th><th>Причина</th></tr>
-                <tr><td>🔧 Лебёдка</td><td>— (отсутствует)</td><td><b>Лебёдка гидравлическая ЛБГ-3000</b> <span class="badge">+12 кг</span></td><td>Спец. заказ МЧС (десантирование)</td></tr>
-                <tr><td>📦 Отсек ПТВ</td><td>Стандартный</td><td><b>Увеличенный на 350 мм</b> <span class="badge">+2 места для ПТВ</span></td><td>Доп. оборудование по ТЗ</td></tr>
-                <tr><td>🔩 Днище заднее 53-ТВ.05.02.001</td><td>Сталь 09Г2С</td><td style="background:#fdecea"><b>Сталь 10ХСНД</b> (по извещению И-2026-014)</td><td>Коррозионная стойкость (морской климат)</td></tr>
-                <tr><td>⚙️ Гидрооборудование 53-ТВ.03.00.00</td><td>Штатное</td><td>Усиленное (насос НШ-100)</td><td>Для привода лебёдки</td></tr>
-                <tr><td>🔌 Электрооборудование</td><td>1 контур 24В</td><td>2 контура 24В (основной + доп.)</td><td>Доп. освещение отсека ПТВ</td></tr>
-            </table>
-            <div class="sub" style="margin-top:6px">
-                Наследует от модели: <b>шасси КАМАЗ 43118</b> (из модели, не дублируется в деталях).
-                <br>Профиль РС: <b>КТ-этапы-по-участкам</b> (схема выгрузки: <code>tehinkom_erp25_xml_special</code> — для доработанной конфигурации заказчика, 2 доп. поля).
-            </div>
-        </div>
-        <div style="padding:6px 8px; margin-left:44px">🔩 Цистерна 53-ТВ.05.00.00 <span class="badge">сборка</span> <span class="badge ok">ТК утверждена</span> <span class="badge ok">РС в 1С · v3</span></div>
-        <div style="padding:6px 8px; margin-left:66px">Днище заднее 53-ТВ.05.02.001 <span class="badge">деталь</span> <span class="badge bad">материал меняется (И-2026-014)</span></div>
-        <div style="padding:6px 8px; margin-left:66px">Обечайка 53-ТВ.05.01.000 <span class="badge">узел</span></div>
-        <div style="padding:6px 8px; margin-left:44px">🔩 Каркас КБР 53-ТВ.15.00.00 <span class="badge">сборка</span> <span class="badge ok">ТК утверждена</span> <span class="badge warn">РС не сформирована</span></div>
-        <div style="padding:6px 8px; margin-left:44px">⚙️ Гидрооборудование 53-ТВ.03.00.00 <span class="badge coop">кооперация: давальческая · ООО «ГидроТверь»</span></div>
-
-        <div style="padding:6px 8px; margin-top:14px; font-weight:700">🔗 УМК — упоры и растяжки для АО КАМАЗ <span class="badge">массовая продукция · 9442 шт/год</span> <span class="badge">профиль РС: УМК-одноэтапная</span></div>
-        <div style="padding:6px 8px; margin-left:22px; background:#fbeef0; border-radius:6px">
-            📄 <b>Упор продольный ЛМША.301314.010</b> <span class="badge blue">входит в 3 сборки ↗</span> <span class="badge blue">ТК: черновик v2</span> —
-            <a href="/detail/detail-lmsha-301314-010">открыть карточку →</a>
-        </div>
-        <div style="padding:6px 8px; margin-left:22px">📄 Растяжка пружинная ЛМША.301712.000 <span class="badge warn">вопрос AI</span></div>
-        <div style="padding:6px 8px; margin-left:44px">Пластина ЛМША.301714.006 <span class="badge blue">входит в 4 сборки ↗</span> — пример many-to-many: одна деталь → упор, растяжка, каркас КБР, отсек</div>
-
-        {% if real_details %}
-        <div style="padding:6px 8px; margin-top:14px; font-weight:700">📦 Реальные детали в БД ({{ real_details|length }})</div>
-        {% for d in real_details[:10] %}
-        <div style="padding:4px 8px; margin-left:22px; font-size:12.5px">
-            <a href="/detail/{{ d.id }}">{{ d.designation }}</a> — {{ d.name }} {% if d.material %}<span class="badge">{{ d.material }}</span>{% endif %}
-        </div>
-        {% endfor %}
-        {% endif %}
-    </div>
-</div>
-
-<div class="v7-note ok">
-    🧭 <b>Как читать:</b> шасси указано один раз — в модели (не дублируется в деталях). Исполнение №147 наследует состав модели, храним только отличия.
-    Значок «входит в N сборок» — извещение по такой детали автоматически найдёт все затронутые ТК и РС.
+<div class="panel">
+  <div class="panel-body">
+    <b>💡 Концепция универсальной <code>items</code>:</b>
+    вместо трёх таблиц (<code>details</code>, <code>assemblies</code>, <code>purchased</code>) — одна.
+    Иерархия через <code>parent_item_id</code> (recursive). Состав many-to-many через <code>bom_links</code>.
+    Кооперация — поле <code>sourcing</code> (<code>make</code>/<code>buy</code>/<code>coop_da</code>/<code>coop_full</code>).
+  </div>
 </div>
 {% endblock %}
