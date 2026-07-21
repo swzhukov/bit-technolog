@@ -1,61 +1,56 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-*.egg-info/
-
-# venv
 venv/
-env/
 .venv/
+ENV/
+*.egg-info/
+.pytest_cache/
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Secrets — никогда не коммитим
-.env
-.master_key
-# Fernet encryption key for global settings (v0.4.3+)
-
-# Runtime
-server.log
-*.db
-*.sqlite
-*.sqlite3
-
-# RAG index (regenerable from DB)
-.rag/
-
-# User uploads
-drawings/
-
-# Misc
-*.tar.gz
-
-
-# Graphify backup & cache (regenerable, not needed in git)
-graphify-out/2026-*/
-graphify-out/cache/
-graphify-out/.graphify_*
-.github/workflows/
-
-_old/
-data/one_c_exchange/
-docs/v0.8-design-previews/
-bit_technolog.db
-
-# БД и runtime данные (regenerable)
-data/bit_technolog*.db
+# Project-specific
+data/*.db
 data/one_c_exchange/in/
 data/one_c_exchange/out/
+.rag/
+.master_key
+.env
+.env.local
+.ENV
+*.log
 
-# Check buttons script (тестовый)
-check_buttons.py
+# Sprint 4 stuff
+audit_logs/
+qdrant_data/
+chroma_data/
+test_results/
+
+# OCR промежуточные (из attachments)
+attachments/ocr/
+attachments/extracted/
+attachments/ocr_output/
+
+# Backup
+backups/
+*.tar.gz
+!wiki-2026-07-03.tar.gz
+
+# Мусор
+*.bak
+*.tmp
+*.orig
+
+# GitHub Actions — нужно PAT с workflow scope
+.github/workflows/
