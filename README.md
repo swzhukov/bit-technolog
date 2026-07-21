@@ -176,6 +176,71 @@ PILOT_AUTH_DISABLED=true python -m pytest test_app.py -v
 - **Deploy:** systemd + Beget VPS, backup cron 03:00
 - **Тесты:** pytest (173 теста)
 
+## Knowledge graph (M29)
+
+Весь проект проиндексирован в **queryable knowledge graph** через [graphify](https://github.com/safishamsi/graphify).
+
+**Текущее состояние:** 1069 nodes, 2197 edges, 184 communities (Leiden), построено за 30 сек через AST-only (`--code-only`).
+
+### Артефакты
+
+- `graphify-out/GRAPH_REPORT.md` — обзор community hubs (397 строк) **в git**
+- `graphify-out/graph.html` — интерактивная визуализация (1 MB) **в .gitignore**
+- `graphify-out/graph.json` — данные графа (1.1 MB) **в .gitignore**
+
+### Как пользоваться
+
+```bash
+cd /workspace/bit-technolog-prototype
+
+# Обновить граф после изменений (без LLM, ~30 сек)
+./venv/bin/graphify . --code-only && ./venv/bin/graphify cluster-only .
+
+# Запросы (BFS по графу, ~2 сек)
+./venv/bin/graphify query "where is api_refine defined"
+./venv/bin/graphify query "what connects recognize_drawing to FastAPI?"
+./venv/bin/graphify query "all admin endpoints"
+
+# Поиск пути между двумя узлами
+./venv/bin/graphify path "recognize_drawing" "FastAPI"
+
+# Объяснение одного узла
+./venv/bin/graphify explain "api_refine"
+
+# Бенчмарк (token reduction vs raw context)
+./venv/bin/graphify benchmark
+```
+
+### Визуализация
+
+Открой `graphify-out/graph.html` в браузере — кликабельный граф с фильтрами и поиском.
+
+### С LLM-семантикой (опционально)
+
+Code-only режим даёт AST-граф без семантики (доки, PDF, docstrings).
+Для полной экстракции нужен API key:
+
+```bash
+GOOGLE_API_KEY=... ./venv/bin/graphify .         # Gemini (default)
+ANTHROPIC_API_KEY=... ./venv/bin/graphify .      # Claude
+OPENAI_API_KEY=... ./venv/bin/graphify .         # OpenAI / совместимые
+DEEPSEEK_API_KEY=... ./venv/bin/graphify .       # DeepSeek
+MOONSHOT_API_KEY=... ./venv/bin/graphify .       # Kimi
+```
+
+Без ключа graphify работает с кодом, доки/PDF пропускает.
+
+### Экономия
+
+По бенчмарку: **2.8x меньше токенов** на запрос (на маленьком проекте; до 71.5x на больших).
+Вместо чтения всех 13 331 строк Python — 25K токенов BFS-выдачи с file paths и line numbers.
+
+### Mavis skill
+
+Я (Mavis) использую `/workspace/.skills/graphify-bit/SKILL.md` для архитектурных запросов.
+Skill активируется на триггерах: "где определена X", "что вызывает Y", "путь от A к B", "покажи архитектуру модуля X", и т.п.
+
+
 ## Учтено для России
 
 - **YandexGPT** (российский LLM, не западный)

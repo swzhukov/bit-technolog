@@ -440,3 +440,48 @@
 - ❌ **Детали в БД на production ≠ детали в local БД**: drawing_path нужно заполнять руками или через /api/import/drawing
 - ❌ **workshop-ы в DOCX имеют разный формат**: оглавление (cell[0]="Уч-к X", cell[1]="") vs operations (cell[0]="", cell[1]="Уч-к X | Операция"). Парсер должен понимать оба.
 - ❌ **Первый workshop в DOCX = оглавление (без операций)**: фильтровать по `len(operations) > 0`
+
+# M29 (2026-07-21): graphify — knowledge graph БИТ.Технолог
+
+**Контекст:** Сергей попросил применить скилл https://github.com/safishamsi/graphify к проекту.
+
+**Что это:** graphifyy (PyPI) → CLI `graphify` — превращает папку проекта в queryable knowledge graph (1069 nodes, 2197 edges, 184 communities). AST-парсинг через tree-sitter (~40 языков), Leiden community detection, BFS-поиск.
+
+**Что сделано:**
+
+## 1. Установка
+- `pip install graphifyy` в venv проекта → `./venv/bin/graphify --version` → 0.9.22
+- Поддерживает Python <3.14, у нас 3.11 — OK
+
+## 2. .graphifyignore
+Исключает: venv/, __pycache__/, *.db, attachments/, ocr_output/, .git/, .pytest_cache/, docs/internal/
+Без этого — graphify парсит 692M venv и тонет.
+
+## 3. Сборка графа
+- `graphify . --code-only` — AST-only, без LLM (30 сек)
+- `graphify cluster-only .` — Leiden communities + GRAPH_REPORT.md
+- Результат: 1069 nodes, 2197 edges, 184 communities
+
+## 4. Артефакты в репо
+- `graphify-out/GRAPH_REPORT.md` (397 строк, 22 KB) — в git
+- `graphify-out/graph.html` (1 MB) — в .gitignore (регенерируемый)
+- `graphify-out/graph.json` (1.1 MB) — в .gitignore
+
+## 5. Mavis skill
+- `/workspace/.skills/graphify-bit/SKILL.md` — для меня (Mavis) использую при архитектурных вопросах
+- Триггеры: "где определена X", "что вызывает Y", "путь от A к B", и т.п.
+- Команды: query, path, explain, benchmark
+
+## 6. Бенчмарк
+- На нашем проекте: 2.8x reduction (graphify обещает до 71.5x на больших)
+- Вместо 71K токенов на чтение всего кода → 25K токенов BFS-выдачи
+
+## 7. Тестирование
+- `graphify query "where is api_refine defined"` → 115 nodes (BFS depth=2)
+- `graphify path "api_import_drawing" "recognize_drawing"` → 1 hop (прямой вызов)
+- `graphify path "recognize_drawing" "FastAPI"` → 3 hops: recognize_drawing → app.py → _lifespan → FastAPI
+
+## 8. Что НЕ сделано (out of scope)
+- LLM-семантическая экстракция (нужен API key, Сергей не дал)
+- MCP-сервер для AI agents (graphify serve)
+- Git hook auto-update (graphify hook install)
