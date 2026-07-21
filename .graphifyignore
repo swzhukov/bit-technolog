@@ -1,0 +1,67 @@
+# Graphify ignore — exclude from knowledge graph
+# Build artifacts
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.tox/
+*.egg-info/
+build/
+dist/
+*.whl
+
+# Data & runtime
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/
+drawings/
+graphify-out/
+.rag/
+.ocr_temp/
+*.log
+*.pid
+
+# Git & IDE
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+.DS_Store
+
+# Tests fixtures & attachments (large files)
+attachments/
+ocr_output/
+tests/fixtures/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Cache
+.cache/
+tmp/
+temp/
+node_modules/
+
+# Documentation we don't need in code graph
+docs/internal/
+CHANGELOG.md
+MISTAKES.md
+AUDIT_*.md
+E2E_REPORT.md
