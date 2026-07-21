@@ -5028,6 +5028,15 @@ async def v6_dashboard(request: Request):
             "status_class": "ok", "status_label": "ТК утверждена",
             "deadline": "24.07", "url": "/v6/detail/53-ТВ.15.00.00",
         })
+    # Конфликт РС с 1С — всегда показываем для демо
+    if conflicts_count > 0:
+        tasks.append({
+            "icon": "🔄", "title": "Цистерна", "subtitle": "53-ТВ.05.00.00",
+            "product": "АЦ-6,0-40 · зав. №151",
+            "action": "РС изменена вручную в 1С (этап «Сварка» +2 н/ч). Принять из 1С или перезаписать?",
+            "status_class": "bad", "status_label": "Конфликт РС",
+            "deadline": "сегодня", "url": "/v6/detail/detail-cisterna",
+        })
     conn.close()
 
     # Метрики пилота
@@ -5052,6 +5061,10 @@ async def v6_dashboard(request: Request):
         "tasks": tasks[:5],
         "learning": {
             "approved_4w": 17, "green_now": 61, "green_4w_ago": 42, "bias": True,
+            "case_title": "Зачистка после мех. сварки",
+            "case_old": "0,50 н/ч (−25% к факту)",
+            "case_new": "0,65 н/ч (после правила)",
+            "case_rule": "Зачистка после мех. сварки = 12 мин/пог.м шва",
         },
         "pilot_metrics": pilot_metrics,
     })

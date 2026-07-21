@@ -30,7 +30,25 @@
 
         <div style="padding:6px 8px; font-weight:700">🚒 АЦ-8,0-40 <span class="badge">модель</span> <span class="badge blue">шасси: КАМАЗ 43118 (из модели)</span> <span class="badge">вид: Кузовная техника</span> <span class="badge">профиль РС: КТ-этапы-по-участкам</span></div>
         <div style="padding:6px 8px; margin-left:22px">📦 Исполнение зав. №144 <span class="badge ok">базовое · контракт МЧС-2026/31</span> <span class="badge blue">ТК: 84% готово</span></div>
-        <div style="padding:6px 8px; margin-left:22px">📦 Исполнение зав. №147 <span class="badge warn">отличия: лебёдка + доп. отсек ПТВ</span> <span class="badge bad">затронуто извещением И-2026-014</span></div>
+        <div style="padding:6px 8px; margin-left:22px; background:#fff8e1; border-radius:6px; cursor:pointer" onclick="document.getElementById('cfg147').style.display = document.getElementById('cfg147').style.display === 'none' ? 'block' : 'none'">
+            📦 <b>Исполнение зав. №147</b> <span class="badge warn">отличия: лебёдка + доп. отсек ПТВ</span> <span class="badge bad">затронуто извещением И-2026-014</span>
+            <span style="color:var(--v6-muted); font-size:11px; margin-left:6px">▼ раскрыть отличия</span>
+        </div>
+        <div id="cfg147" style="display:none; margin-left:44px; margin-top:4px; background:#fff8e1; padding:10px; border-left:3px solid #e6a700; border-radius:6px; font-size:12.5px">
+            <b>Отличия исполнения №147 от базового №144</b>
+            <table style="margin-top:6px; font-size:12.5px">
+                <tr><th>Узел / деталь</th><th>В базовом №144</th><th>В №147</th><th>Причина</th></tr>
+                <tr><td>🔧 Лебёдка</td><td>— (отсутствует)</td><td><b>Лебёдка гидравлическая ЛБГ-3000</b> <span class="badge">+12 кг</span></td><td>Спец. заказ МЧС (десантирование)</td></tr>
+                <tr><td>📦 Отсек ПТВ</td><td>Стандартный</td><td><b>Увеличенный на 350 мм</b> <span class="badge">+2 места для ПТВ</span></td><td>Доп. оборудование по ТЗ</td></tr>
+                <tr><td>🔩 Днище заднее 53-ТВ.05.02.001</td><td>Сталь 09Г2С</td><td style="background:#fdecea"><b>Сталь 10ХСНД</b> (по извещению И-2026-014)</td><td>Коррозионная стойкость (морской климат)</td></tr>
+                <tr><td>⚙️ Гидрооборудование 53-ТВ.03.00.00</td><td>Штатное</td><td>Усиленное (насос НШ-100)</td><td>Для привода лебёдки</td></tr>
+                <tr><td>🔌 Электрооборудование</td><td>1 контур 24В</td><td>2 контура 24В (основной + доп.)</td><td>Доп. освещение отсека ПТВ</td></tr>
+            </table>
+            <div class="sub" style="margin-top:6px">
+                Наследует от модели: <b>шасси КАМАЗ 43118</b> (из модели, не дублируется в деталях).
+                <br>Профиль РС: <b>КТ-этапы-по-участкам</b> (схема выгрузки: <code>tehinkom_erp25_xml_special</code> — для доработанной конфигурации заказчика, 2 доп. поля).
+            </div>
+        </div>
         <div style="padding:6px 8px; margin-left:44px">🔩 Цистерна 53-ТВ.05.00.00 <span class="badge">сборка</span> <span class="badge ok">ТК утверждена</span> <span class="badge ok">РС в 1С · v3</span></div>
         <div style="padding:6px 8px; margin-left:66px">Днище заднее 53-ТВ.05.02.001 <span class="badge">деталь</span> <span class="badge bad">материал меняется (И-2026-014)</span></div>
         <div style="padding:6px 8px; margin-left:66px">Обечайка 53-ТВ.05.01.000 <span class="badge">узел</span></div>

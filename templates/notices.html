@@ -25,13 +25,22 @@
 
         <h2>Предложение AI по ТК «Цистерна» <span class="badge blue">модель: {{ ai_model or 'MockLLM-Technologist-v1' }}</span></h2>
         <table>
-            <tr><th>Операция</th><th>Было</th><th>Станет</th><th>Почему</th></tr>
+            <tr><th>Операция</th><th>Было</th><th>Станет</th><th>Почему</th><th>Риск</th></tr>
             {% for ch in changes %}
-            <tr>
+            <tr {% if ch.risk == 'red' %}style="background:#fff5f5"{% elif ch.risk == 'yellow' %}style="background:#fffbe6"{% endif %}>
                 <td>{{ ch.op_number }} {{ ch.name }}</td>
                 <td style="background:#fdecea; text-decoration:line-through; color:#8a3b34">{{ ch.was }}</td>
                 <td style="background:#e6f4ea; color:#1a5c2c; font-weight:600">{{ ch.now }}</td>
                 <td>{{ ch.reason }}</td>
+                <td>
+                    {% if ch.risk == 'red' %}
+                        <span class="dot r"></span><span class="badge bad">🔴 требует подтверждения</span>
+                    {% elif ch.risk == 'yellow' %}
+                        <span class="dot y"></span><span class="badge warn">🟡 проверить</span>
+                    {% else %}
+                        <span class="dot g"></span><span class="badge ok">ок</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </table>
