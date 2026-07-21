@@ -51,3 +51,11 @@ _old/
 data/one_c_exchange/
 docs/v0.8-design-previews/
 bit_technolog.db
+
+# БД и runtime данные (regenerable)
+data/bit_technolog*.db
+data/one_c_exchange/in/
+data/one_c_exchange/out/
+
+# Check buttons script (тестовый)
+check_buttons.py

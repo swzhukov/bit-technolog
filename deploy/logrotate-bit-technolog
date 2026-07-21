@@ -1,0 +1,61 @@
+# V7-4: logrotate конфиг для /var/log/bit-technolog*
+# Скопировать в /etc/logrotate.d/bit-technolog на production
+
+/var/log/bit-technolog.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 root root
+    sharedscripts
+    postrotate
+        # Переоткрыть логи (systemd делает это сам, но на всякий случай)
+        systemctl kill -s HUP bit-technolog.service 2>/dev/null || true
+    endscript
+}
+
+/var/log/bit-technolog.err.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 root root
+    sharedscripts
+    postrotate
+        systemctl kill -s HUP bit-technolog.service 2>/dev/null || true
+    endscript
+}
+
+/var/log/bit-technolog-backup.log {
+    weekly
+    rotate 4
+    compress
+    notifempty
+    create 0640 root root
+}
+
+/var/log/bit-technolog-weekly.log {
+    weekly
+    rotate 4
+    compress
+    notifempty
+    create 0640 root root
+}
+
+/var/log/bit-technolog-verify.log {
+    weekly
+    rotate 4
+    compress
+    notifempty
+    create 0640 root root
+}
+
+/var/log/bit-technolog-health.log {
+    daily
+    rotate 7
+    compress
+    notifempty
+    create 0640 root root
+}
