@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% set active_page = 'metrics' %}
+{% block title %}Метрики пилота — БИТ.Технолог{% endblock %}
+{% block content %}
+<h1>Метрики пилота</h1>
+<p class="lead">Две ключевые метрики по разбору v2 Сергея: <b>b</b> (время генерации ТК) и <b>c</b> (% норм зелёного уровня).</p>
+
+{% if recorded %}
+<div class="panel" style="background: #1a3a1f; margin-bottom: 16px;">
+  <div class="panel-body">Замер зафиксирован.</div>
+</div>
+{% endif %}
+
+<h2>c) % норм зелёного уровня (светофор)</h2>
+<div class="counters">
+ <div class="counter">
+ <div class="num">{{ green_all.green_pct }}%</div>
+ <div class="lbl">За всё время ({{ green_all.total }} оп.)</div>
+ </div>
+ <div class="counter">
+ <div class="num">{{ green_7d.green_pct }}%</div>
+ <div class="lbl">За 7 дней ({{ green_7d.total }} оп.)</div>
+ </div>
+ <div class="counter">
+ <div class="num">{{ green_30d.green_pct }}%</div>
+ <div class="lbl">За 30 дней ({{ green_30d.total }} оп.)</div>
+ </div>
+</div>
+
+<div class="panel">
+ <div class="panel-body">
+ <table class="tbl">
+ <thead>
+ <tr><th>Уровень</th><th>Что значит</th><th>Всего</th><th>7 дней</th><th>30 дней</th></tr>
+ </thead>
+ <tbody>
+ <tr><td><span class="dot g"></span> Зелёный</td><td>Подтверждено технологом</td><td>{{ green_all.green }}</td><td>{{ green_7d.green }}</td><td>{{ green_30d.green }}</td></tr>
+ <tr><td><span class="dot y"></span> Жёлтый</td><td>Похоже на правду (аналог)</td><td>{{ green_all.yellow }}</td><td>{{ green_7d.yellow }}</td><td>{{ green_30d.yellow }}</td></tr>
+ <tr><td><span class="dot r"></span> Красный</td><td>Догадка AI</td><td>{{ green_all.red }}</td><td>{{ green_7d.red }}</td><td>{{ green_30d.red }}</td></tr>
+ <tr><td colspan="2"><b>Итого операций</b></td><td><b>{{ green_all.total }}</b></td><td><b>{{ green_7d.total }}</b></td><td><b>{{ green_30d.total }}</b></td></tr>
+ </tbody>
+ </table>
+ </div>
+</div>
+
+<form method="POST" action="/metrics/record-green" style="margin: 12px 0;">
+ <button class="btn btn-primary" type="submit">Зафиксировать замер (точка на графике)</button>
+</form>
+
+<h2>b) Время генерации ТК (от «Сгенерировать» до «Утвердить»)</h2>
+<div class="panel">
+ <div class="panel-body">
+ <table class="tbl">
+ <thead>
+ <tr><th>Дата</th><th>Длительность, сек</th><th>Длительность, мин</th><th>run_id</th><th>tc_id</th><th>Заметка</th></tr>
+ </thead>
+ <tbody>
+ {% for r in b_history %}
+ <tr>
+ <td>{{ r.measured_at or '—' }}</td>
+ <td><b>{{ r.metric_value|round(1) if r.metric_value else '—' }}</b></td>
+ <td>{{ (r.metric_value / 60)|round(2) if r.metric_value else '—' }}</td>
+ <td><span class="muted" style="font-size: 12px;">{{ r.notes or '—' }}</span></td>
+ </tr>
+ {% endfor %}
+ {% if not b_history %}
+ <tr><td colspan="6" class="muted">Нет замеров. Замер появится когда технолог сгенерирует и утвердит ТК.</td></tr>
+ {% endif %}
+ </tbody>
+ </table>
+ </div>
+</div>
+
+<h2>История c) % зелёных</h2>
+<div class="panel">
+ <div class="panel-body">
+ <table class="tbl">
+ <thead>
+ <tr><th>Дата</th><th>% зелёных</th><th>Заметка</th></tr>
+ </thead>
+ <tbody>
+ {% for r in metrics.green_history %}
+ <tr>
+ <td>{{ r.measured_at or '—' }}</td>
+ <td><b>{{ r.metric_value|round(1) }}%</b></td>
+ <td><span class="muted" style="font-size: 12px;">{{ r.notes or '—' }}</span></td>
+ </tr>
+ {% endfor %}
+ {% if not metrics.green_history %}
+ <tr><td colspan="3" class="muted">Нет замеров.</td></tr>
+ {% endif %}
+ </tbody>
+ </table>
+ </div>
+</div>
+{% endblock %}

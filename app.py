@@ -77,7 +77,17 @@ def from_json(value):
     except (ValueError, TypeError):
         return {}
 
+def ru_level(level):
+    return {"detail": "Деталь", "assembly": "Узел/Сборка", "product": "Продукт",
+            "purchased": "Покупное", "semi": "Полуфабрикат"}.get(level, level or "—")
+
+def ru_sourcing(s):
+    return {"make": "Изготавливаем", "buy": "Покупное",
+            "coop_da": "Кооперация (давальч.)", "coop_full": "Кооперация (полная)"}.get(s, s or "—")
+
 templates.env.filters["from_json"] = from_json
+templates.env.filters["ru_level"] = ru_level
+templates.env.filters["ru_sourcing"] = ru_sourcing
 
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 
@@ -268,14 +278,23 @@ async def dashboard(request: Request):
     user = get_user_from_request(request)
     ctx = get_template_context(request, user)
 
+    # Метрики (b — время генерации, c — % зелёных)
+    from services.metrics import get_dashboard_metrics, calc_green_pct
+    metrics = get_dashboard_metrics()
+    green = metrics["green_pct_all"]
+
     # Счётчики
     counters = {
         "drafts": db.query_one("SELECT COUNT(*) AS n FROM tech_cards WHERE status='draft'")["n"],
         "review": db.query_one("SELECT COUNT(*) AS n FROM tech_cards WHERE status='review'")["n"],
         "notices": db.query_one("SELECT COUNT(*) AS n FROM change_notices WHERE status='open'")["n"],
         "ai_questions": 3,  # Заглушка
-        "evidence_green_pct": 61,  # Из метрик
+        "evidence_green_pct": green["green_pct"],
         "etalons": db.query_one("SELECT COUNT(*) AS n FROM etalons")["n"],
+        "green_total": green["total"],
+        "green_confirmed": green["green"],
+        "green_analog": green["yellow"],
+        "green_guess": green["red"],
     }
 
     # Задачи (последние 5)
@@ -299,10 +318,15 @@ async def dashboard(request: Request):
     """)
     notices = [db.row_to_dict(n) for n in notices]
 
+    # История b (время генерации)
+    b_history = metrics["gen_history"]
+
     ctx.update({
         "counters": counters,
         "tasks": tasks,
         "notices": notices,
+        "metrics": metrics,
+        "b_history": b_history,
     })
     return templates.TemplateResponse("dashboard.html", ctx)
 
@@ -448,6 +472,10 @@ async def item_generate_post(request: Request, item_id: int):
     if not item:
         raise HTTPException(404, "Item not found")
 
+    # Метрика b: старт замера
+    from services.metrics import start_tc_generation
+    run_id = start_tc_generation(item_id, user.username)
+
     # Генерация ТК через LLM (mock) — подбор аналогов + фабрика РС
     from services.rs_factory import build_rs, to_one_c_spec
     from services.rag import load_etalons, find_analogs
@@ -567,7 +595,7 @@ async def item_generate_post(request: Request, item_id: int):
         })
 
     return RedirectResponse(
-        url=f"/detail/{item_id}?flash_kind=ok&flash_message=ТК сгенерирована: {len(operations)} операций",
+        url=f"/detail/{item_id}?flash_kind=ok&flash_message=ТК сгенерирована: {len(operations)} операций&run_id={run_id}",
         status_code=303,
     )
 
@@ -753,6 +781,33 @@ async def help_page(request: Request):
 
 
 # ============================================================
+# МЕТРИКИ ПИЛОТА
+# ============================================================
+
+@app.get("/metrics", response_class=HTMLResponse)
+async def metrics_page(request: Request):
+    user = get_user_from_request(request)
+    ctx = get_template_context(request, user)
+    from services.metrics import get_dashboard_metrics, calc_green_pct
+    ctx["metrics"] = get_dashboard_metrics()
+    ctx["green_all"] = calc_green_pct("all")
+    ctx["green_7d"] = calc_green_pct("last_7_days")
+    ctx["green_30d"] = calc_green_pct("last_30_days")
+    return templates.TemplateResponse("metrics.html", ctx)
+
+
+@app.post("/metrics/record-green")
+async def metrics_record_green(request: Request):
+    """Записать текущий % зелёных (кнопка 'Зафиксировать замер')."""
+    user = get_user_from_request(request)
+    if not user or not (has_permission(user.role, "view_llm_calls") if user else False):
+        raise HTTPException(403)
+    from services.metrics import record_green_pct
+    record_green_pct("all")
+    return RedirectResponse(url="/metrics?recorded=1", status_code=303)
+
+
+# ============================================================
 # API ENDPOINTS
 # ============================================================
 
@@ -831,6 +886,12 @@ async def api_confirm_operation(operation_id: int, request: Request, new_time: f
         body = await request.json()
         new_time = float(body.get("new_time", 0))
     ok = update_operation_evidence(operation_id, new_time, user.display_name, "Подтверждение в UI")
+    # Метрика c: после подтверждения записать % зелёных
+    try:
+        from services.metrics import record_green_pct
+        record_green_pct("all")
+    except Exception:
+        pass
     return {"status": "ok" if ok else "error", "operation_id": operation_id, "new_time": new_time}
 
 
@@ -924,7 +985,18 @@ async def api_approve(tech_card_id: int, request: Request):
         WHERE id = ?
     """, (user.display_name, tech_card_id))
 
-    return {"status": "ok", "etalon_id": etalon_id, "message": "ТК утверждена и добавлена в эталоны"}
+    # Метрика b: финиш замера (если был start в pilot_runs)
+    from services.metrics import finish_tc_generation, record_green_pct
+    last_run = db.query_one(
+        "SELECT id FROM pilot_runs WHERE item_id = (SELECT item_id FROM tech_cards WHERE id = ?) AND finished_at IS NULL ORDER BY id DESC LIMIT 1",
+        (tech_card_id,),
+    )
+    if last_run:
+        finish_tc_generation(last_run["id"], tech_card_id, notes=f"approved by {user.username}")
+    # Метрика c: записать % зелёных
+    record_green_pct("all")
+
+    return {"status": "ok", "etalon_id": etalon_id, "message": "ТК утверждена и добавлена в эталоны", "duration_sec": None}
 
 
 @app.post("/api/change-notices/{notice_id}/process")

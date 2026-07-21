@@ -2,10 +2,10 @@
 {% set active_page = 'products' %}
 {% block title %}{{ item.designation }} — БИТ.Технолог{% endblock %}
 {% block content %}
-<div class="breadcrumbs"><a href="/products">Изделия</a> → <a href="/products?level={{ item.level }}">{{ item.level }}</a> →</div>
+<div class="breadcrumbs"><a href="/products">Изделия</a> → <a href="/products?level={{ item.level }}">{{ item.level|ru_level }}</a> →</div>
 <h1>{{ item.name }} <span class="muted" style="font-size:14px; font-weight:400;">{{ item.designation }}</span></h1>
 <p class="lead">
-  <span class="badge brand">{{ item.level }}</span>
+  <span class="badge brand">{{ item.level|ru_level }}</span>
   <span class="badge">{{ item.mass_kg|round(2) if item.mass_kg else '—' }} кг</span>
   {% if item.sourcing == 'make' %}<span class="badge ok">Изготавливаем</span>
   {% elif item.sourcing == 'buy' %}<span class="badge blue">Покупное</span>
@@ -84,7 +84,7 @@
         </td>
         <td>
           <b>{{ workshop_names.get(op.workshop_code, op.workshop_code) or '—' }}</b>
-          {% if op.workshop_code %}<br><span class="muted" style="font-size: 11px;">{{ op.workshop_code }}/{{ op.site_code or '—' }}</span>{% endif %}
+          {% if op.workshop_code and workshop_names.get(op.workshop_code) %}<br><span class="muted" style="font-size: 11px;">{{ op.workshop_code }}/{{ op.site_code or '—' }}</span>{% endif %}
         </td>
         <td>
           <b>{{ profession_names.get(op.profession_code, op.profession_code) or '—' }}</b>
@@ -105,7 +105,12 @@
 
             <a class="btn btn-ghost" onclick="document.getElementById('ev-{{ ev.operation_id }}').style.display = (document.getElementById('ev-{{ ev.operation_id }}').style.display === 'none' ? 'block' : 'none')">Аналоги</a>
           {% endif %}
-          <button class="btn btn-ghost" onclick="confirmOp({{ op.id }}, {{ op.time_per_unit_min or 0 }})">Подтвердить</button>
+          <button class="btn btn-ghost" id="confirm-btn-{{ op.id }}" onclick="showConfirmInput({{ op.id }}, {{ op.time_per_unit_min or 0 }})">Подтвердить</button>
+          <span id="confirm-input-{{ op.id }}" style="display:none; margin-left:8px;">
+            <input type="number" step="0.1" min="0" id="confirm-val-{{ op.id }}" value="{{ op.time_per_unit_min or 0 }}" style="width: 70px; padding: 4px 6px; border: 1px solid var(--v8-line); background: var(--v8-panel-2); color: var(--v8-fg); border-radius: 4px;">
+            <button class="btn btn-primary btn-sm" onclick="submitConfirm({{ op.id }})">OK</button>
+            <button class="btn btn-ghost btn-sm" onclick="hideConfirmInput({{ op.id }})">Отмена</button>
+          </span>
         </td>
       </tr>
       {% if ev and ev.analogs %}
@@ -243,10 +248,50 @@ if (btnExport) {
 }
 
 async function confirmOp(opId, currentTime) {
+  // Старая функция через prompt() — оставлена для совместимости, но не используется
   const v = prompt('Подтвердить норму Тшт (мин). Текущее: ' + currentTime, currentTime);
   if (v === null) return;
   const newTime = parseFloat(v.replace(',', '.'));
   if (isNaN(newTime) || newTime < 0) { alert('Введите число ≥ 0'); return; }
+  try {
+    const r = await fetch(`/api/operations/${opId}/confirm?new_time=${newTime}`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+      credentials: 'same-origin'
+    });
+    if (r.status === 401) { window.location.href = '/login'; return; }
+    const data = await r.json();
+    if (r.ok && data.status === 'ok') {
+      location.reload();
+    } else {
+      alert('Ошибка: ' + JSON.stringify(data));
+    }
+  } catch (e) {
+    alert('Сетевая ошибка: ' + e.message);
+  }
+}
+
+function showConfirmInput(opId) {
+  document.getElementById('confirm-input-' + opId).style.display = 'inline';
+  document.getElementById('confirm-btn-' + opId).style.display = 'none';
+  const input = document.getElementById('confirm-val-' + opId);
+  input.focus();
+  input.select();
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') submitConfirm(opId);
+    if (e.key === 'Escape') hideConfirmInput(opId);
+  };
+}
+
+function hideConfirmInput(opId) {
+  document.getElementById('confirm-input-' + opId).style.display = 'none';
+  document.getElementById('confirm-btn-' + opId).style.display = 'inline';
+}
+
+async function submitConfirm(opId) {
+  const input = document.getElementById('confirm-val-' + opId);
+  const newTime = parseFloat(input.value.replace(',', '.'));
+  if (isNaN(newTime) || newTime < 0) { alert('Введите число ≥ 0'); input.focus(); return; }
   try {
     const r = await fetch(`/api/operations/${opId}/confirm?new_time=${newTime}`, {
       method: 'POST',
@@ -285,8 +330,8 @@ async function confirmOp(opId, currentTime) {
   <tbody>
     {% for r in rs_preview.rows %}
     <tr>
-      <td>{{ r.workshop_code or '—' }}</td>
-      <td>{{ r.profession_code or '—' }}</td>
+      <td><b>{{ workshop_names.get(r.stage, r.stage) or '—' }}</b>{% if r.stage and workshop_names.get(r.stage) %}<br><span class="muted" style="font-size: 11px;">{{ r.stage }}</span>{% endif %}</td>
+      <td>{{ profession_names.get(r.profession, r.profession) or '—' }}</td>
       <td>{{ r.equipment or '—' }}</td>
       <td><b>{{ r.name or '—' }}</b></td>
       <td>{{ r.time_setup_min or 0 }}</td>
@@ -330,7 +375,7 @@ async function confirmOp(opId, currentTime) {
     <tr>
       <td><a href="/detail/{{ ch.id }}"><b>{{ ch.designation }}</b></a></td>
       <td>{{ ch.name }}</td>
-      <td><span class="badge">{{ ch.level }}</span></td>
+      <td><span class="badge">{{ ch.level|ru_level }}</span></td>
       <td>{{ ch.qty }}</td>
       <td>{{ ch.mass_kg or '—' }}</td>
     </tr>
@@ -348,9 +393,9 @@ async function confirmOp(opId, currentTime) {
 <table class="tbl">
   <tr><th style="width: 30%;">Обозначение</th><td>{{ item.designation }}</td></tr>
   <tr><th>Название</th><td>{{ item.name }}</td></tr>
-  <tr><th>Уровень</th><td>{{ item.level }}</td></tr>
+  <tr><th>Уровень</th><td>{{ item.level|ru_level }}</td></tr>
   <tr><th>Масса, кг</th><td>{{ item.mass_kg or '—' }}</td></tr>
-  <tr><th>Кооперация</th><td>{{ item.sourcing or '—' }}</td></tr>
+  <tr><th>Кооперация</th><td>{{ item.sourcing|ru_sourcing }}</td></tr>
   <tr><th>Материал (код)</th><td>{{ item.material_code or '—' }}</td></tr>
   <tr><th>Модель продукта</th><td>{{ item.product_model_designation or '—' }}</td></tr>
   {% if tech_card %}
