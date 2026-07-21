@@ -134,6 +134,15 @@ def parse_llm_json(text: str) -> dict:
             pass
     raise ValueError(f"could not parse JSON from LLM response (first 200 chars): {s[:200]}")
 
+
+def parse_llm_json_safe(text: str) -> dict:
+    """Safe wrapper: возвращает {} при любой ошибке, не raise.
+    Используй в местах, где LLM-сбой не должен ломать UX."""
+    try:
+        return parse_llm_json(text)
+    except Exception:
+        return {}
+
 # V6-25: timezone-aware datetime
 try:
     from zoneinfo import ZoneInfo

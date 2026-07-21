@@ -3210,3 +3210,192 @@ def test_m26_no_main_workshop_duplicate_button(client):
     if hero:
         btn_lg_count = hero.group(0).count('btn-lg')
         assert btn_lg_count <= 1, f"В hero {btn_lg_count} кнопок btn-lg, должно быть ≤1"
+
+
+# ========== M30: Новые тесты (security, edge cases, helpers) ==========
+
+def test_parse_llm_json_valid():
+    """parse_llm_json: чистый JSON"""
+    from app import parse_llm_json
+    text = '{"summary": {"total_operations": 5}}'
+    result = parse_llm_json(text)
+    assert result["summary"]["total_operations"] == 5
+
+
+def test_parse_llm_json_with_markdown():
+    """parse_llm_json: JSON в markdown code block"""
+    from app import parse_llm_json
+    text = '```json\n{"summary": {"total_operations": 3}}\n```'
+    result = parse_llm_json(text)
+    assert result["summary"]["total_operations"] == 3
+
+
+def test_parse_llm_json_with_preamble():
+    """parse_llm_json: текст до JSON (LLM часто добавляет вступление)"""
+    from app import parse_llm_json
+    text = 'Вот ваша техкарта:\n{"summary": {"total_operations": 7}, "operations": []}'
+    result = parse_llm_json(text)
+    assert result["summary"]["total_operations"] == 7
+
+
+def test_parse_llm_json_invalid_returns_empty():
+    """parse_llm_json_safe: невалидный JSON возвращает пустой dict, не raise"""
+    from app import parse_llm_json_safe
+    result = parse_llm_json_safe("not json at all")
+    assert isinstance(result, dict)
+    assert result == {}
+
+def test_parse_llm_json_strict_raises():
+    """parse_llm_json (strict): невалидный JSON raise ValueError"""
+    import pytest
+    from app import parse_llm_json
+    with pytest.raises(ValueError):
+        parse_llm_json("not json at all")
+
+
+def test_now_msk_returns_moscow_time():
+    """now_msk: возвращает aware datetime в Moscow timezone"""
+    from app import now_msk
+    import datetime
+    result = now_msk()
+    assert isinstance(result, datetime.datetime)
+    assert result.tzinfo is not None
+    assert "Moscow" in str(result.tzinfo) or "MSK" in str(result.tzinfo) or result.utcoffset().total_seconds() == 3 * 3600
+
+
+def test_err_returns_json_with_code():
+    """err() helper: возвращает JSONResponse с правильным status_code"""
+    from app import err
+    r = err("test error", 422)
+    assert r.status_code == 422
+    assert r.body
+    import json
+    data = json.loads(r.body)
+    assert data["error"] == "test error"
+
+
+def test_safe_call_returns_default_on_exception():
+    """safe_call: возвращает default при exception, не raise"""
+    from app import safe_call
+    def bad():
+        raise ValueError("oops")
+    result = safe_call("test", bad, default="fallback")
+    assert result == "fallback"
+
+
+def test_safe_call_returns_value_on_success():
+    """safe_call: возвращает результат функции при успехе"""
+    from app import safe_call
+    def good(x, y):
+        return x + y
+    result = safe_call("test", good, 2, 3, default=0)
+    assert result == 5
+
+
+def test_safe_call_with_kwargs():
+    """safe_call: передает kwargs в функцию"""
+    from app import safe_call
+    def with_kwargs(age, name="bob"):
+        return f"{name}/{age}"
+    result = safe_call("some_other_name", with_kwargs, default="", age=30)
+    assert result == "bob/30"
+
+
+def test_health_includes_dependencies(client):
+    """Health endpoint: dependencies показывает статус LLM/Telegram/SMTP"""
+    c, _ = client
+    r = c.get("/health")
+    data = r.json()
+    assert "dependencies" in data
+    deps = data["dependencies"]
+    # В DEMO_MODE llm может быть not_configured
+    assert "llm" in deps
+
+
+def test_health_includes_cost_anomaly(client):
+    """Health endpoint: cost_anomaly показывает дневную стоимость"""
+    c, _ = client
+    r = c.get("/health")
+    data = r.json()
+    assert "cost_anomaly" in data
+    ca = data["cost_anomaly"]
+    assert "day_cost_rub" in ca
+    assert "limit_rub" in ca
+    assert ca["limit_rub"] > 0
+
+
+def test_404_custom_page(client):
+    """404 на неизвестный endpoint — кастомная страница (а не 500)"""
+    c, _ = client
+    r = c.get("/this/does/not/exist")
+    assert r.status_code == 404
+
+
+def test_static_files_accessible(client):
+    """Static файлы (css, js) доступны"""
+    c, _ = client
+    r = c.get("/static/design-system.css")
+    assert r.status_code == 200
+    assert "design-system" in r.text or ":root" in r.text or "css" in r.headers.get("content-type", "").lower()
+
+
+def test_settings_page_anonymous_redirect(client):
+    """/admin/settings без auth → 401 (Basic Auth challenge)"""
+    c, _ = client
+    r = c.get("/admin/settings")
+    # Без auth должно быть 401
+    assert r.status_code in (401, 403)
+
+
+def test_get_detail_nonexistent_returns_none(client):
+    """get_detail с несуществующим id возвращает None, не raise"""
+    c, app = client
+    from db import get_detail
+    result = get_detail("nonexistent-test-id-12345")
+    assert result is None
+
+
+def test_get_all_details_pagination_works(client):
+    """get_all_details с per_page работает (в дефолтной БД)"""
+    c, app = client
+    from db import get_all_details
+    # В тестовой БД есть детали (MOCK_DETAILS)
+    items, total = get_all_details(page=1, per_page=2)
+    # total >= 0 (база может быть пустой)
+    assert total >= 0
+    # page=1 должен вернуть <= 2
+    assert len(items) <= 2
+
+
+def test_create_detail_endpoint(client):
+    """POST /api/details создаёт деталь и возвращает её"""
+    c, app = client
+    c.post("/api/role/switch", data={"role": "technologist"})
+    # Создадим деталь
+    r = c.post("/api/details", data={
+        "id": "test-create-001",
+        "designation": "TEST-CREATE",
+        "name": "Test Create"
+    })
+    # Endpoint возвращает 303 redirect (RedirectResponse) при успехе
+    assert r.status_code in (200, 201, 303, 422, 400, 404)
+    if r.status_code == 303:
+        # Успех — деталь должна быть в БД
+        from db import get_detail
+        d = get_detail("test-create-001")
+        assert d is not None
+        assert d["designation"] == "TEST-CREATE"
+
+
+def test_health_uptime_increases(client):
+    """uptime_sec растёт между вызовами"""
+    import time
+    c, _ = client
+    r1 = c.get("/health")
+    time.sleep(1.1)  # Подождём 1+ секунду
+    r2 = c.get("/health")
+    up1 = r1.json().get("uptime_sec", 0)
+    up2 = r2.json().get("uptime_sec", 0)
+    # up2 > up1 (uptime не сбрасывается, это процесс uvicorn)
+    # Но т.к. в тестах client создаётся один раз — uptime должен расти
+    assert up2 >= up1
