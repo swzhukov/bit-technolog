@@ -2,42 +2,42 @@
 {% block title %}Система — Admin{% endblock %}
 {% block content %}
 <div class="breadcrumb"><a href="/admin">← К дашборду</a></div>
-<h1>💻 Системные метрики</h1>
+<h1> Системные метрики</h1>
 
 <h2>Сервис</h2>
 <div class="info-block">
-    <p><strong>Статус:</strong>
-        {% if svc_status == 'active' %}<span style="color:green;">✅ {{ svc_status }}</span>
-        {% else %}<span style="color:red;">❌ {{ svc_status }}</span>{% endif %}
-    </p>
-    <p><strong>Uptime:</strong> {{ uptime_human }} ({{ uptime_sec|round|int }} сек)</p>
-    <p><strong>Платформа:</strong> <code>{{ platform }}</code></p>
-    <p><strong>Python:</strong> {{ python }}</p>
+ <p><strong>Статус:</strong>
+ {% if svc_status == 'active' %}<span style="color:green;"> {{ svc_status }}</span>
+ {% else %}<span style="color:red;"> {{ svc_status }}</span>{% endif %}
+ </p>
+ <p><strong>Uptime:</strong> {{ uptime_human }} ({{ uptime_sec|round|int }} сек)</p>
+ <p><strong>Платформа:</strong> <code>{{ platform }}</code></p>
+ <p><strong>Python:</strong> {{ python }}</p>
 </div>
 
 <h2>Память</h2>
 <div class="stat-bar">
-    <div style="background:{% if mem.pct > 80 %}#ef4444{% elif mem.pct > 60 %}#eab308{% else %}#22c55e{% endif %}; height:24px; width:{{ mem.pct }}%; border-radius:4px;"></div>
+ <div style="background:{% if mem.pct> 80 %}#ef4444{% elif mem.pct> 60 %}#eab308{% else %}#22c55e{% endif %}; height:24px; width:{{ mem.pct }}%; border-radius:4px;"></div>
 </div>
 <p>{{ mem.used_mb|round|int }} МБ / {{ mem.total_mb|round|int }} МБ ({{ mem.pct }}%)</p>
 
 <h2>Диск /opt/beget/bit-technolog</h2>
 <div class="stat-bar">
-    <div style="background:{% if disk.pct > 80 %}#ef4444{% elif disk.pct > 60 %}#eab308{% else %}#22c55e{% endif %}; height:24px; width:{{ disk.pct }}%; border-radius:4px;"></div>
+ <div style="background:{% if disk.pct> 80 %}#ef4444{% elif disk.pct> 60 %}#eab308{% else %}#22c55e{% endif %}; height:24px; width:{{ disk.pct }}%; border-radius:4px;"></div>
 </div>
 <p>{{ disk.used_gb }} ГБ / {{ disk.total_gb }} ГБ ({{ disk.pct }}%) — свободно {{ disk.free_gb }} ГБ</p>
 
 <h2>Размеры каталогов</h2>
 <table class="data-table">
-    <thead><tr><th>Каталог</th><th>Размер</th></tr></thead>
-    <tbody>
-    {% for k, v in sizes.items() %}
-        <tr><td><code>{{ k }}</code></td><td>{{ v }} МБ</td></tr>
-    {% endfor %}
-    </tbody>
+ <thead><tr><th>Каталог</th><th>Размер</th></tr></thead>
+ <tbody>
+ {% for k, v in sizes.items() %}
+ <tr><td><code>{{ k }}</code></td><td>{{ v }} МБ</td></tr>
+ {% endfor %}
+ </tbody>
 </table>
 
 <p style="margin-top:24px;">
-    <button class="btn" onclick="location.reload()">🔄 Обновить</button>
+ <button class="btn" onclick="location.reload()"> Обновить</button>
 </p>
 {% endblock %}

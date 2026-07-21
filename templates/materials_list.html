@@ -2,42 +2,42 @@
 {% block title %}Материалы — БИТ.Технолог{% endblock %}
 {% block content %}
 <div class="breadcrumb"><a href="/">← На главную</a></div>
-<h1>📋 Справочник материалов</h1>
+<h1> Справочник материалов</h1>
 <p class="lead">Стали, сплавы, покрытия — для LLM и форм ввода</p>
 
 <details class="add-form">
-    <summary>🔄 Импорт из 1С</summary>
-    <form method="post" action="/api/import/materials" class="form">
-        <div class="form-row">
-            <label>Название *<br><input name="name" required placeholder="Сталь 3"></label>
-            <label>Марка<br><input name="grade" placeholder="Ст3сп"></label>
-            <label>ГОСТ<br><input name="gost" placeholder="ГОСТ 380-2005"></label>
-        </div>
-        <label>Примечания<br><textarea name="notes" rows="2"></textarea></label>
-        <button type="submit" class="btn btn-primary">Добавить</button>
-    </form>
+ <summary> Импорт из 1С</summary>
+ <form method="post" action="/api/import/materials" class="form">
+ <div class="form-row">
+ <label>Название *<br><input name="name" required placeholder="Сталь 3"></label>
+ <label>Марка<br><input name="grade" placeholder="Ст3сп"></label>
+ <label>ГОСТ<br><input name="gost" placeholder="ГОСТ 380-2005"></label>
+ </div>
+ <label>Примечания<br><textarea name="notes" rows="2"></textarea></label>
+ <button type="submit" class="btn btn-primary">Добавить</button>
+ </form>
 </details>
 
 <form hx-get="/materials/search" hx-target="#materials-list" hx-trigger="keyup changed delay:300ms from:input[name='q']" hx-swap="innerHTML" hx-push-url="true" class="form" style="display:flex; gap:8px; align-items:center;">
-    <input type="search" name="q" value="{{ q or '' }}" placeholder="🔍 Поиск материалов (название, марка, ГОСТ)..." style="flex:1; min-width:280px;" autocomplete="off">
-    <a href="/materials" class="btn">Сбросить</a>
+ <input type="search" name="q" value="{{ q or '' }}" placeholder=" Поиск материалов (название, марка, ГОСТ)..." style="flex:1; min-width:280px;" autocomplete="off">
+ <a href="/materials" class="btn">Сбросить</a>
 </form>
 <div id="materials-list">
 <table class="data-table">
-    <thead><tr><th>ID</th><th>Название</th><th>Марка</th><th>ГОСТ</th><th>Примечания</th></tr></thead>
-    <tbody>
-        {% for m in items %}
-        <tr>
-            <td><code>{{ m.id }}</code></td>
-            <td><strong>{{ m.name }}</strong></td>
-            <td>{{ m.grade or "—" }}</td>
-            <td>{{ m.gost or "—" }}</td>
-            <td>{{ m.notes }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="5" style="text-align:center; padding:32px; color:var(--text-light);">Ничего не найдено</td></tr>
-        {% endfor %}
-    </tbody>
+ <thead><tr><th>ID</th><th>Название</th><th>Марка</th><th>ГОСТ</th><th>Примечания</th></tr></thead>
+ <tbody>
+ {% for m in items %}
+ <tr>
+ <td><code>{{ m.id }}</code></td>
+ <td><strong>{{ m.name }}</strong></td>
+ <td>{{ m.grade or "—" }}</td>
+ <td>{{ m.gost or "—" }}</td>
+ <td>{{ m.notes }}</td>
+ </tr>
+ {% else %}
+ <tr><td colspan="5" style="text-align:center; padding:32px; color:var(--text-light);">Ничего не найдено</td></tr>
+ {% endfor %}
+ </tbody>
 </table>
 </div>
 {% endblock %}

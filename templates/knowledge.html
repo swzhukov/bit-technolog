@@ -9,43 +9,43 @@
 <div class="panel">
 {% if etalons %}
 <table class="tbl">
-  <thead>
-    <tr><th>Обозначение</th><th>Название</th><th>Продукт</th><th>Утвердил</th><th>Дата</th><th>Опубликован</th><th>Операций</th></tr>
-  </thead>
-  <tbody>
-    {% for e in etalons %}
-    <tr>
-      <td><b>{{ e.designation }}</b></td>
-      <td>{{ e.name }}</td>
-      <td><span class="badge">{{ e.product_type or '—' }}</span></td>
-      <td>{{ e.approved_by or '—' }}</td>
-      <td>{{ e.approved_date or '—' }}</td>
-      <td>{% if e.is_published %}<span class="badge ok">RAG</span>{% else %}<span class="badge">черновик</span>{% endif %}</td>
-      <td>{% if e.content_json %}{% set ops = e.content_json|from_json %}{{ ops.operations|length }}{% else %}0{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead>
+ <tr><th>Обозначение</th><th>Название</th><th>Продукт</th><th>Утвердил</th><th>Дата</th><th>Опубликован</th><th>Операций</th></tr>
+ </thead>
+ <tbody>
+ {% for e in etalons %}
+ <tr>
+ <td><b>{{ e.designation }}</b></td>
+ <td>{{ e.name }}</td>
+ <td><span class="badge">{{ e.product_type or '—' }}</span></td>
+ <td>{{ e.approved_by or '—' }}</td>
+ <td>{{ e.approved_date or '—' }}</td>
+ <td>{% if e.is_published %}<span class="badge ok">RAG</span>{% else %}<span class="badge">черновик</span>{% endif %}</td>
+ <td>{% if e.content_json %}{% set ops = e.content_json|from_json %}{{ ops.operations|length }}{% else %}0{% endif %}</td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <div class="empty">
-  <div class="ico">📚</div>
-  <div>Эталоны не загружены. Запустите <code>python -m seeds.seed_etalons</code></div>
+ <div class="ico"> </div>
+ <div>Эталоны не загружены. Запустите <code>python -m seeds.seed_etalons</code></div>
 </div>
 {% endif %}
 </div>
 
 <div class="panel success">
-  <div class="panel-body">
-    <b>💡 ML/LLM лестница (7 ступеней):</b>
-    <ol style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px;">
-      <li><b>OCR + LLM-парсинг архивов</b> — загрузка PDF → структурированный ТП (пилот) ✓</li>
-      <li><b>RAG + структурные фильтры</b> — поиск аналогов по (материал, тип операции, масса ±20%) ✓</li>
-      <li><b>Few-shot из архива</b> — динамический, по эталонам ✓</li>
-      <li><b>Петля обратной связи</b> — утверждённая ТК → эталон (автоматически) ✓</li>
-      <li><b>Правила технолога</b> — после 1-2 месяцев (после пилота)</li>
-      <li><b>ML-регрессия норм</b> — после 50+ наблюдений</li>
-      <li><b>Файн-тюнинг</b> — после 3+ клиентов (НЕ в пилоте)</li>
-    </ol>
-  </div>
+ <div class="panel-body">
+ <b> ML/LLM лестница (7 ступеней):</b>
+ <ol style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px;">
+ <li><b>OCR + LLM-парсинг архивов</b> — загрузка PDF → структурированный ТП (пилот) </li>
+ <li><b>RAG + структурные фильтры</b> — поиск аналогов по (материал, тип операции, масса ±20%) </li>
+ <li><b>Few-shot из архива</b> — динамический, по эталонам </li>
+ <li><b>Петля обратной связи</b> — утверждённая ТК → эталон (автоматически) </li>
+ <li><b>Правила технолога</b> — после 1-2 месяцев (после пилота)</li>
+ <li><b>ML-регрессия норм</b> — после 50+ наблюдений</li>
+ <li><b>Файн-тюнинг</b> — после 3+ клиентов (НЕ в пилоте)</li>
+ </ol>
+ </div>
 </div>
 {% endblock %}

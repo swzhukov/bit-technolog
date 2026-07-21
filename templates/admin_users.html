@@ -2,57 +2,57 @@
 {% block title %}Пользователи — Admin{% endblock %}
 {% block content %}
 <div class="breadcrumb"><a href="/admin">← К дашборду</a></div>
-<h1>👥 Пользователи пилота</h1>
+<h1> Пользователи пилота</h1>
 
 <details style="background:#f9fafb; padding:12px; border-radius:6px; margin-bottom:16px;">
-    <summary style="cursor:pointer; font-weight:600;">➕ Добавить пользователя</summary>
-    <form method="POST" action="/api/admin/users/create" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <input name="username" placeholder="Логин" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
-        <input name="password" type="password" placeholder="Пароль (≥6)" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
-        <input name="display_name" placeholder="Имя (для UI)" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
-        <select name="role" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
-            {% for r, info in roles.items() %}
-            <option value="{{ r }}">{{ info.name }}</option>
-            {% endfor %}
-        </select>
-        <button class="btn btn-primary" type="submit">Создать</button>
-    </form>
+ <summary style="cursor:pointer; font-weight:600;"> Добавить пользователя</summary>
+ <form method="POST" action="/api/admin/users/create" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+ <input name="username" placeholder="Логин" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+ <input name="password" type="password" placeholder="Пароль (≥6)" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+ <input name="display_name" placeholder="Имя (для UI)" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+ <select name="role" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+ {% for r, info in roles.items() %}
+ <option value="{{ r }}">{{ info.name }}</option>
+ {% endfor %}
+ </select>
+ <button class="btn btn-primary" type="submit">Создать</button>
+ </form>
 </details>
 
 {% if users %}
 <table class="data-table">
-    <thead><tr>
-        <th>ID</th><th>Логин</th><th>Роль</th><th>Имя</th><th>Активен</th>
-        <th>Создан</th><th>Посл. вход</th><th>Действия</th>
-    </tr></thead>
-    <tbody>
-    {% for u in users %}
-        <tr>
-            <td>{{ u.id }}</td>
-            <td><strong>{{ u.username }}</strong></td>
-            <td><span class="badge">{{ roles.get(u.role, {}).get('name', u.role) }}</span></td>
-            <td>{{ u.display_name or "—" }}</td>
-            <td>{% if u.is_active %}<span style="color:green;">✅</span>{% else %}<span style="color:gray;">⛔</span>{% endif %}</td>
-            <td>{{ u.created_at[:19] if u.created_at else "—" }}</td>
-            <td>{{ u.last_login[:19] if u.last_login else "—" }}</td>
-            <td style="white-space:nowrap;">
-                <details style="display:inline-block;">
-                    <summary style="cursor:pointer; color:blue;">🔑 пароль</summary>
-                    <form method="POST" action="/api/admin/users/{{ u.id }}/password" style="margin-top:4px; display:flex; gap:4px;">
-                        <input name="password" type="password" placeholder="Новый" required style="width:100px; padding:3px; font-size:12px;">
-                        <button type="submit" class="btn btn-sm">✓</button>
-                    </form>
-                </details>
-                <form method="POST" action="/api/admin/users/{{ u.id }}/toggle" style="display:inline;">
-                    <button type="submit" class="btn btn-sm" title="Активировать/деактивировать">⏯</button>
-                </form>
-                <form method="POST" action="/api/admin/users/{{ u.id }}/delete" style="display:inline;" onsubmit="return confirm('Удалить {{ u.username }}?');">
-                    <button type="submit" class="btn btn-sm" style="color:red;">🗑</button>
-                </form>
-            </td>
-        </tr>
-    {% endfor %}
-    </tbody>
+ <thead><tr>
+ <th>ID</th><th>Логин</th><th>Роль</th><th>Имя</th><th>Активен</th>
+ <th>Создан</th><th>Посл. вход</th><th>Действия</th>
+ </tr></thead>
+ <tbody>
+ {% for u in users %}
+ <tr>
+ <td>{{ u.id }}</td>
+ <td><strong>{{ u.username }}</strong></td>
+ <td><span class="badge">{{ roles.get(u.role, {}).get('name', u.role) }}</span></td>
+ <td>{{ u.display_name or "—" }}</td>
+ <td>{% if u.is_active %}<span style="color:green;"> </span>{% else %}<span style="color:gray;"> </span>{% endif %}</td>
+ <td>{{ u.created_at[:19] if u.created_at else "—" }}</td>
+ <td>{{ u.last_login[:19] if u.last_login else "—" }}</td>
+ <td style="white-space:nowrap;">
+ <details style="display:inline-block;">
+ <summary style="cursor:pointer; color:blue;"> пароль</summary>
+ <form method="POST" action="/api/admin/users/{{ u.id }}/password" style="margin-top:4px; display:flex; gap:4px;">
+ <input name="password" type="password" placeholder="Новый" required style="width:100px; padding:3px; font-size:12px;">
+ <button type="submit" class="btn btn-sm"> </button>
+ </form>
+ </details>
+ <form method="POST" action="/api/admin/users/{{ u.id }}/toggle" style="display:inline;">
+ <button type="submit" class="btn btn-sm" title="Активировать/деактивировать">⏯</button>
+ </form>
+ <form method="POST" action="/api/admin/users/{{ u.id }}/delete" style="display:inline;" onsubmit="return confirm('Удалить {{ u.username }}?');">
+ <button type="submit" class="btn btn-sm" style="color:red;"> </button>
+ </form>
+ </td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <p>Пользователей пока нет. Создай первого.</p>

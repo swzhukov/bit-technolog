@@ -380,3 +380,127 @@ class TestAppRoutes:
         data = r.json()
         assert data["total"] >= 1
         assert "items" in data
+
+
+# ============================================================
+# ТЕСТЫ SPRINT 5: RAG + EVIDENCE
+# ============================================================
+
+class TestRAG:
+    def test_load_etalons(self):
+        from services.rag import load_etalons
+        etalons = load_etalons(force=True)
+        assert len(etalons) >= 2
+        for et in etalons:
+            assert et.designation
+            assert et.tfidf  # TF-IDF построен
+
+    def test_find_analogs_similar(self):
+        from services.rag import find_analogs
+        # "Сварка" — должно найти аналоги в эталонах
+        results = find_analogs("Сварка", top_k=3)
+        assert len(results) > 0
+        for r in results:
+            assert r.similarity > 0
+            assert r.evidence_level in ("green", "yellow", "red")
+
+    def test_find_analogs_unique(self):
+        from services.rag import find_analogs
+        results = find_analogs("Контроль", top_k=3)
+        # Каждый аналог — уникальный эталон
+        designations = [r.etalon_designation for r in results]
+        assert len(designations) == len(set(designations))
+
+    def test_detect_operation_type(self):
+        from services.rag import detect_operation_type
+        assert detect_operation_type("Сварка трубы") == "сварка"
+        assert detect_operation_type("Резка листа") == "резка"
+        assert detect_operation_type("Гибка заготовки") == "гибка"
+        assert detect_operation_type("Контроль качества") == "контроль"
+        assert detect_operation_type("Что-то неизвестное") == "прочее"
+
+    def test_tfidf_similarity(self):
+        from services.rag import _cosine, _build_tfidf, _idf
+        # Идентичные векторы = 1.0
+        v1 = {"a": 1.0, "b": 1.0}
+        assert _cosine(v1, v1) == pytest.approx(1.0, abs=1e-9)
+        # Ортогональные = 0.0
+        v2 = {"c": 1.0}
+        assert _cosine(v1, v2) == 0.0
+
+    def test_index_for_rag(self):
+        from services.rag import index_for_rag
+        etalon = db.query_one("SELECT id FROM etalons LIMIT 1")
+        assert etalon is not None
+        ok = index_for_rag(etalon["id"])
+        assert ok is True
+
+
+class TestEvidence:
+    def test_evidence_for_ai_tech_card(self):
+        """ТК 3 (Кронштейн) с AI-нормами должна иметь mixed светофор."""
+        from services.evidence import collect_evidence_for_tech_card, tech_card_evidence_summary
+        # Сначала убедимся, что ТК 3 существует (от seed_test_ai_tc)
+        tc = db.query_one("SELECT id FROM tech_cards WHERE id = 3")
+        if not tc:
+            pytest.skip("Test TC not seeded")
+        evs = collect_evidence_for_tech_card(3)
+        assert len(evs) >= 1
+        # Должны быть разные уровни (yellow/red/gray)
+        levels = {e.evidence_level for e in evs}
+        assert len(levels) >= 2  # Хотя бы 2 разных уровня
+
+    def test_evidence_for_factory_tech_card(self):
+        """ТК 1 или 2 (из эталонов) — все операции должны быть зелёными."""
+        from services.evidence import collect_evidence_for_tech_card
+        # ТК 1 — ЛМША.301712.000 (эталон)
+        tc = db.query_one("SELECT id FROM tech_cards WHERE id = 1")
+        if not tc:
+            pytest.skip("TC 1 not seeded")
+        evs = collect_evidence_for_tech_card(1)
+        for e in evs:
+            assert e.evidence_level == "green"
+            assert e.source == "factory_data"
+
+    def test_summary(self):
+        from services.evidence import tech_card_evidence_summary
+        s = tech_card_evidence_summary(3)
+        assert "total" in s
+        assert "green" in s
+        assert "green_pct" in s
+        assert s["total"] >= 0
+
+    def test_update_operation_evidence(self):
+        from services.evidence import update_operation_evidence
+        # Возьмём операцию 11 (Резка листа, AI guess)
+        op = db.query_one("SELECT id, time_per_unit_min FROM operations WHERE id = 11")
+        if not op:
+            pytest.skip("Operation not seeded")
+        old_time = op["time_per_unit_min"]
+        new_time = old_time + 5.0
+        ok = update_operation_evidence(11, new_time, "TestUser", "Test confirm")
+        assert ok is True
+        # Проверим, что обновлено
+        op_after = db.query_one("SELECT source, time_per_unit_min FROM operations WHERE id = 11")
+        assert op_after["source"] == "factory_data"
+        assert op_after["time_per_unit_min"] == new_time
+        # Откатим
+        update_operation_evidence(11, old_time, "TestUser", "rollback")
+
+    def test_evidence_api(self):
+        from app import app
+        client = TestClient(app)
+        r = client.get("/api/tech-cards/3/evidence")
+        assert r.status_code == 200
+        data = r.json()
+        assert "summary" in data
+        assert "operations" in data
+        assert data["summary"]["total"] >= 1
+
+    def test_detail_with_evidence(self):
+        from app import app
+        client = TestClient(app)
+        r = client.get("/detail/15")
+        assert r.status_code == 200
+        # Светофор в HTML
+        assert "Светофор норм" in r.text or "Светофор" in r.text

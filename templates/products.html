@@ -8,43 +8,43 @@
 <div class="panel">
 {% if items %}
 <table class="tbl">
-  <thead>
-    <tr><th>Обозначение</th><th>Название</th><th>Уровень</th><th>Модель</th><th>Масса, кг</th><th>Кооперация</th><th></th></tr>
-  </thead>
-  <tbody>
-    {% for it in items %}
-    <tr>
-      <td><b>{{ it.designation }}</b></td>
-      <td>{{ it.name }}</td>
-      <td><span class="badge">{{ it.level }}</span></td>
-      <td>{{ it.product_model_designation or '—' }}</td>
-      <td>{{ it.mass_kg|round(2) if it.mass_kg else '—' }}</td>
-      <td>
-        {% if it.sourcing == 'make' %}<span class="badge ok">Изготавливаем</span>
-        {% elif it.sourcing == 'buy' %}<span class="badge blue">Покупное</span>
-        {% elif it.sourcing == 'coop_da' %}<span class="badge warn">Кооперация (давальч.)</span>
-        {% elif it.sourcing == 'coop_full' %}<span class="badge warn">Кооперация (полная)</span>
-        {% else %}<span class="badge">{{ it.sourcing }}</span>{% endif %}
-      </td>
-      <td><a class="btn btn-ghost" href="/detail/{{ it.id }}">Карточка →</a></td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead>
+ <tr><th>Обозначение</th><th>Название</th><th>Уровень</th><th>Модель</th><th>Масса, кг</th><th>Кооперация</th><th></th></tr>
+ </thead>
+ <tbody>
+ {% for it in items %}
+ <tr>
+ <td><b>{{ it.designation }}</b></td>
+ <td>{{ it.name }}</td>
+ <td><span class="badge">{{ it.level }}</span></td>
+ <td>{{ it.product_model_designation or '—' }}</td>
+ <td>{{ it.mass_kg|round(2) if it.mass_kg else '—' }}</td>
+ <td>
+ {% if it.sourcing == 'make' %}<span class="badge ok">Изготавливаем</span>
+ {% elif it.sourcing == 'buy' %}<span class="badge blue">Покупное</span>
+ {% elif it.sourcing == 'coop_da' %}<span class="badge warn">Кооперация (давальч.)</span>
+ {% elif it.sourcing == 'coop_full' %}<span class="badge warn">Кооперация (полная)</span>
+ {% else %}<span class="badge">{{ it.sourcing }}</span>{% endif %}
+ </td>
+ <td><a class="btn btn-ghost" href="/detail/{{ it.id }}">Карточка →</a></td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <div class="empty">
-  <div class="ico">🚒</div>
-  <div>Номенклатура пуста. Загрузите данные или создайте изделие.</div>
+ <div class="ico"> </div>
+ <div>Номенклатура пуста. Загрузите данные или создайте изделие.</div>
 </div>
 {% endif %}
 </div>
 
 <div class="panel">
-  <div class="panel-body">
-    <b>💡 Концепция универсальной <code>items</code>:</b>
-    вместо трёх таблиц (<code>details</code>, <code>assemblies</code>, <code>purchased</code>) — одна.
-    Иерархия через <code>parent_item_id</code> (recursive). Состав many-to-many через <code>bom_links</code>.
-    Кооперация — поле <code>sourcing</code> (<code>make</code>/<code>buy</code>/<code>coop_da</code>/<code>coop_full</code>).
-  </div>
+ <div class="panel-body">
+ <b> Концепция универсальной <code>items</code>:</b>
+ вместо трёх таблиц (<code>details</code>, <code>assemblies</code>, <code>purchased</code>) — одна.
+ Иерархия через <code>parent_item_id</code> (recursive). Состав many-to-many через <code>bom_links</code>.
+ Кооперация — поле <code>sourcing</code> (<code>make</code>/<code>buy</code>/<code>coop_da</code>/<code>coop_full</code>).
+ </div>
 </div>
 {% endblock %}

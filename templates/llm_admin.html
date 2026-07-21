@@ -9,20 +9,20 @@
 <div class="panel">
 {% if providers %}
 <table class="tbl">
-  <thead>
-    <tr><th>Имя</th><th>Display</th><th>Endpoint</th><th>Стоимость (1K in/out)</th><th>Активен</th></tr>
-  </thead>
-  <tbody>
-    {% for p in providers %}
-    <tr>
-      <td><b>{{ p.name }}</b></td>
-      <td>{{ p.display_name }}</td>
-      <td><code style="font-size:12px;">{{ p.endpoint or '—' }}</code></td>
-      <td>{{ p.cost_per_1k_input or 0 }} / {{ p.cost_per_1k_output or 0 }} ₽</td>
-      <td>{% if p.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead>
+ <tr><th>Имя</th><th>Display</th><th>Endpoint</th><th>Стоимость (1K in/out)</th><th>Активен</th></tr>
+ </thead>
+ <tbody>
+ {% for p in providers %}
+ <tr>
+ <td><b>{{ p.name }}</b></td>
+ <td>{{ p.display_name }}</td>
+ <td><code style="font-size:12px;">{{ p.endpoint or '—' }}</code></td>
+ <td>{{ p.cost_per_1k_input or 0 }} / {{ p.cost_per_1k_output or 0 }} ₽</td>
+ <td>{% if p.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <div class="empty">Провайдеры не настроены.</div>
@@ -33,21 +33,21 @@
 <div class="panel">
 {% if assignments %}
 <table class="tbl">
-  <thead>
-    <tr><th>Тип задачи</th><th>Провайдер</th><th>Модель</th><th>Температура</th><th>max_tokens</th><th>Активно</th></tr>
-  </thead>
-  <tbody>
-    {% for a in assignments %}
-    <tr>
-      <td><code>{{ a.task_type }}</code></td>
-      <td>{{ a.provider_display }}</td>
-      <td><code style="font-size:12px;">{{ a.model_name }}</code></td>
-      <td>{{ a.temperature }}</td>
-      <td>{{ a.max_tokens }}</td>
-      <td>{% if a.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead>
+ <tr><th>Тип задачи</th><th>Провайдер</th><th>Модель</th><th>Температура</th><th>max_tokens</th><th>Активно</th></tr>
+ </thead>
+ <tbody>
+ {% for a in assignments %}
+ <tr>
+ <td><code>{{ a.task_type }}</code></td>
+ <td>{{ a.provider_display }}</td>
+ <td><code style="font-size:12px;">{{ a.model_name }}</code></td>
+ <td>{{ a.temperature }}</td>
+ <td>{{ a.max_tokens }}</td>
+ <td>{% if a.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <div class="empty">Назначения не настроены. По умолчанию используется MOCK провайдер.</div>
@@ -58,26 +58,26 @@
 <div class="panel">
 {% if recent_calls %}
 <table class="tbl">
-  <thead>
-    <tr><th>Время</th><th>Задача</th><th>Модель</th><th>Tokens in/out</th><th>Стоимость</th><th>Статус</th></tr>
-  </thead>
-  <tbody>
-    {% for c in recent_calls %}
-    <tr>
-      <td><span class="muted" style="font-size:12px;">{{ c.ts }}</span></td>
-      <td><code style="font-size:12px;">{{ c.task_type }}</code></td>
-      <td><code style="font-size:12px;">{{ c.model_name or '—' }}</code></td>
-      <td>{{ c.prompt_tokens or 0 }} / {{ c.completion_tokens or 0 }}</td>
-      <td>{{ c.cost_rub or 0 }} ₽</td>
-      <td>
-        {% if c.status == 'ok' %}<span class="badge ok">ok</span>
-        {% elif c.status == 'fallback' %}<span class="badge warn">fallback</span>
-        {% elif c.status == 'error' %}<span class="badge bad">error</span>
-        {% else %}<span class="badge">{{ c.status }}</span>{% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead>
+ <tr><th>Время</th><th>Задача</th><th>Модель</th><th>Tokens in/out</th><th>Стоимость</th><th>Статус</th></tr>
+ </thead>
+ <tbody>
+ {% for c in recent_calls %}
+ <tr>
+ <td><span class="muted" style="font-size:12px;">{{ c.ts }}</span></td>
+ <td><code style="font-size:12px;">{{ c.task_type }}</code></td>
+ <td><code style="font-size:12px;">{{ c.model_name or '—' }}</code></td>
+ <td>{{ c.prompt_tokens or 0 }} / {{ c.completion_tokens or 0 }}</td>
+ <td>{{ c.cost_rub or 0 }} ₽</td>
+ <td>
+ {% if c.status == 'ok' %}<span class="badge ok">ok</span>
+ {% elif c.status == 'fallback' %}<span class="badge warn">fallback</span>
+ {% elif c.status == 'error' %}<span class="badge bad">error</span>
+ {% else %}<span class="badge">{{ c.status }}</span>{% endif %}
+ </td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <div class="empty">Журнал вызовов пуст.</div>

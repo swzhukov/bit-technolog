@@ -25,9 +25,9 @@ PDF_TEXTS = [
         "name": "Растяжка пружинная",
         "product_type": "АЦ",
         "source_doc": "/workspace/attachments/5c6e1e30__60905589-c0d4-402a-a939-46a4221d2183.pdf",
-        "approved_by": "Воробьев И.Ф. (ВП 3237)",
+        "approved_by": "ВП 3237",  # Скрыто по запросу Сергея (для 50+ технолога)
         "approved_date": "2022-08-09",
-        "is_published": 1,  # Сразу публикуем для RAG
+        "is_published": 1,
     },
     {
         "pdf_text_path": "/tmp/tp2_full.txt",
@@ -35,7 +35,7 @@ PDF_TEXTS = [
         "name": "Упор продольный",
         "product_type": "АЦ",
         "source_doc": "/workspace/attachments/cd9db5eb__94afa317-7dfa-4367-b0f1-ddadb77e6b77.pdf",
-        "approved_by": "Баранов А.Н. (ВП 3237)",
+        "approved_by": "ВП 3237",  # Скрыто по запросу Сергея
         "approved_date": "2022-07-12",
         "is_published": 1,
     },

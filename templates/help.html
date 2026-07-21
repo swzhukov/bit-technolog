@@ -7,89 +7,89 @@
 
 <h2>Три слоя</h2>
 <div class="grid3">
-  <div class="panel" style="margin:0;">
-    <div class="panel-body">
-      <b>1. AI (LLM)</b><br>
-      Генерация черновика ТК, OCR чертежей, уточняющие вопросы, AI-diff извещений.
-      <br><br>
-      <span class="badge brand">llm_provider</span>
-      <span class="badge brand">YandexGPT</span>
-      <span class="badge brand">Mock</span>
-    </div>
-  </div>
-  <div class="panel" style="margin:0;">
-    <div class="panel-body">
-      <b>2. РС-фабрика (алгоритм)</b><br>
-      Детерминированный расчёт РС по 8 осям профиля. Не LLM.
-      <br><br>
-      <span class="badge brand">rs_factory</span>
-      <span class="badge brand">8 осей</span>
-      <span class="badge brand">Аудит-цепочка</span>
-    </div>
-  </div>
-  <div class="panel" style="margin:0;">
-    <div class="panel-body">
-      <b>3. 1С:ERP (мастер)</b><br>
-      НСИ, РС. Мы только черновики/версии/AI-метаданные.
-      <br><br>
-      <span class="badge brand">OneCGateway</span>
-      <span class="badge brand">FileGateway</span>
-      <span class="badge brand">HttpGateway</span>
-    </div>
-  </div>
+ <div class="panel" style="margin:0;">
+ <div class="panel-body">
+ <b>1. AI (LLM)</b><br>
+ Генерация черновика ТК, OCR чертежей, уточняющие вопросы, AI-diff извещений.
+ <br><br>
+ <span class="badge brand">llm_provider</span>
+ <span class="badge brand">YandexGPT</span>
+ <span class="badge brand">Mock</span>
+ </div>
+ </div>
+ <div class="panel" style="margin:0;">
+ <div class="panel-body">
+ <b>2. РС-фабрика (алгоритм)</b><br>
+ Детерминированный расчёт РС по 8 осям профиля. Не LLM.
+ <br><br>
+ <span class="badge brand">rs_factory</span>
+ <span class="badge brand">8 осей</span>
+ <span class="badge brand">Аудит-цепочка</span>
+ </div>
+ </div>
+ <div class="panel" style="margin:0;">
+ <div class="panel-body">
+ <b>3. 1С:ERP (мастер)</b><br>
+ НСИ, РС. Мы только черновики/версии/AI-метаданные.
+ <br><br>
+ <span class="badge brand">OneCGateway</span>
+ <span class="badge brand">FileGateway</span>
+ <span class="badge brand">HttpGateway</span>
+ </div>
+ </div>
 </div>
 
 <h2>Пять ролей</h2>
 <div class="panel">
 <table class="tbl">
-  <thead><tr><th>Роль</th><th>Иконка</th><th>Права</th></tr></thead>
-  <tbody>
-    {% for code, info in ROLES.items() %}
-    <tr>
-      <td><b>{{ code }}</b></td>
-      <td>{{ info.icon }}</td>
-      <td>{{ info.permissions|join(', ') }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead><tr><th>Роль</th><th>Иконка</th><th>Права</th></tr></thead>
+ <tbody>
+ {% for code, info in ROLES.items() %}
+ <tr>
+ <td><b>{{ code }}</b></td>
+ <td>{{ info.icon }}</td>
+ <td>{{ info.permissions|join(', ') }}</td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 </div>
 
 <h2>Сквозной сценарий (5 минут)</h2>
 <div class="panel">
-  <div class="panel-body">
-    <div class="help-step" style="margin-bottom: 12px;">
-      <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">1</span>
-      <b>Технолог</b> получает новую деталь → открывает <a href="/products">Изделия</a> → выбирает → нажимает «Сгенерировать ТК».
-    </div>
-    <div class="help-step" style="margin-bottom: 12px;">
-      <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">2</span>
-      <b>AI</b> (YandexGPT / Mock) генерирует черновик ТК: 5-10 операций с Тшт+Тпз. На обоснование — ссылки на эталоны (RAG + few-shot).
-    </div>
-    <div class="help-step" style="margin-bottom: 12px;">
-      <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">3</span>
-      <b>Технолог</b> проверяет светофор норм (зелёный — подтверждено, жёлтый — аналог, красный — догадка). Inline-правка 1-2 операций.
-    </div>
-    <div class="help-step" style="margin-bottom: 12px;">
-      <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">4</span>
-      <b>РС-фабрика</b> (детерминированный алгоритм) по утверждённой ТК + профилю → готовая РС. Каждая строка с аудит-цепочкой.
-    </div>
-    <div class="help-step" style="margin-bottom: 12px;">
-      <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">5</span>
-      <b>Технолог</b> утверждает ТК → автоматически попадает в <a href="/knowledge">эталоны</a> (петля обратной связи). Экспорт РС в 1С:ERP.
-    </div>
-  </div>
+ <div class="panel-body">
+ <div class="help-step" style="margin-bottom: 12px;">
+ <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">1</span>
+ <b>Технолог</b> получает новую деталь → открывает <a href="/products">Изделия</a> → выбирает → нажимает «Сгенерировать ТК».
+ </div>
+ <div class="help-step" style="margin-bottom: 12px;">
+ <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">2</span>
+ <b>AI</b> (YandexGPT / Mock) генерирует черновик ТК: 5-10 операций с Тшт+Тпз. На обоснование — ссылки на эталоны (RAG + few-shot).
+ </div>
+ <div class="help-step" style="margin-bottom: 12px;">
+ <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">3</span>
+ <b>Технолог</b> проверяет светофор норм (зелёный — подтверждено, жёлтый — аналог, красный — догадка). Inline-правка 1-2 операций.
+ </div>
+ <div class="help-step" style="margin-bottom: 12px;">
+ <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">4</span>
+ <b>РС-фабрика</b> (детерминированный алгоритм) по утверждённой ТК + профилю → готовая РС. Каждая строка с аудит-цепочкой.
+ </div>
+ <div class="help-step" style="margin-bottom: 12px;">
+ <span class="badge brand" style="display:inline-block; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-weight:600;">5</span>
+ <b>Технолог</b> утверждает ТК → автоматически попадает в <a href="/knowledge">эталоны</a> (петля обратной связи). Экспорт РС в 1С:ERP.
+ </div>
+ </div>
 </div>
 
 <h2>Архитектурный закон</h2>
 <div class="panel alert">
-  <div class="panel-body">
-    <b>1С:ERP = мастер по НСИ и РС.</b>
-    Мы НЕ дублируем номенклатуру, материалы, оборудование, профессии.
-    <br><br>
-    Храним <b>локально</b> только: черновики ТК, версии, AI-метаданные, ext_attributes.
-    <br><br>
-    Каждая сущность с двойником в 1С имеет <code>ref_1c</code> с первого дня.
-  </div>
+ <div class="panel-body">
+ <b>1С:ERP = мастер по НСИ и РС.</b>
+ Мы НЕ дублируем номенклатуру, материалы, оборудование, профессии.
+ <br><br>
+ Храним <b>локально</b> только: черновики ТК, версии, AI-метаданные, ext_attributes.
+ <br><br>
+ Каждая сущность с двойником в 1С имеет <code>ref_1c</code> с первого дня.
+ </div>
 </div>
 {% endblock %}

@@ -2,72 +2,72 @@
 {% block title %}Бэкап — Админ{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h1>💾 Бэкап БД</h1>
-    <p class="lead">Создание и управление резервными копиями базы данных</p>
+ <h1> Бэкап БД</h1>
+ <p class="lead">Создание и управление резервными копиями базы данных</p>
 </div>
 
 <div class="card" style="margin-bottom:16px;">
-    <div class="card-header">
-        <h3 class="card-title">Создать бэкап</h3>
-    </div>
-    <p class="hint">Файл сохраняется в <code>{{ db_path }}/backups/</code> с timestamp в имени</p>
-    <button type="button" class="btn btn-primary" onclick="doBackup(this)">💾 Создать бэкап сейчас</button>
-    <span id="backup-status" style="margin-left:12px;"></span>
+ <div class="card-header">
+ <h3 class="card-title">Создать бэкап</h3>
+ </div>
+ <p class="hint">Файл сохраняется в <code>{{ db_path }}/backups/</code> с timestamp в имени</p>
+ <button type="button" class="btn btn-primary" onclick="doBackup(this)"> Создать бэкап сейчас</button>
+ <span id="backup-status" style="margin-left:12px;"></span>
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <h3 class="card-title">Существующие бэкапы ({{ backups|length }})</h3>
-    </div>
-    {% if backups %}
-    <table class="data-table" style="font-size:13px;">
-        <thead><tr><th>Имя</th><th>Размер</th><th>Когда</th><th>Действие</th></tr></thead>
-        <tbody>
-        {% for b in backups %}
-        <tr>
-            <td><code>{{ b.name }}</code></td>
-            <td>{{ b.size_mb }} МБ</td>
-            <td>{{ b.created_at }}</td>
-            <td><a href="/backups/{{ b.name }}" class="btn btn-sm">📥 Скачать</a></td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty">
-        <div class="empty-icon">📦</div>
-        <div class="empty-title">Бэкапов ещё нет</div>
-        <div class="empty-desc">Создайте первый бэкап — будет сохранён в папку backups/</div>
-    </div>
-    {% endif %}
+ <div class="card-header">
+ <h3 class="card-title">Существующие бэкапы ({{ backups|length }})</h3>
+ </div>
+ {% if backups %}
+ <table class="data-table" style="font-size:13px;">
+ <thead><tr><th>Имя</th><th>Размер</th><th>Когда</th><th>Действие</th></tr></thead>
+ <tbody>
+ {% for b in backups %}
+ <tr>
+ <td><code>{{ b.name }}</code></td>
+ <td>{{ b.size_mb }} МБ</td>
+ <td>{{ b.created_at }}</td>
+ <td><a href="/backups/{{ b.name }}" class="btn btn-sm"> Скачать</a></td>
+ </tr>
+ {% endfor %}
+ </tbody>
+ </table>
+ {% else %}
+ <div class="empty">
+ <div class="empty-icon"> </div>
+ <div class="empty-title">Бэкапов ещё нет</div>
+ <div class="empty-desc">Создайте первый бэкап — будет сохранён в папку backups/</div>
+ </div>
+ {% endif %}
 </div>
 
 <script>
 async function doBackup(btn) {
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Создаю...';
-    const status = document.getElementById('backup-status');
-    try {
-        const r = await fetch('/api/admin/backup', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        });
-        const data = await r.json();
-        if (r.ok) {
-            status.innerHTML = '<span style="color:#10b981;">✅ ' + (data.message || 'Готово') + '</span>';
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = orig;
-            status.innerHTML = '<span style="color:#ef4444;">❌ ' + (data.detail || data.error || r.status) + '</span>';
-        }
-    } catch (e) {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-        status.innerHTML = '<span style="color:#ef4444;">❌ ' + e.message + '</span>';
-    }
+ const orig = btn.innerHTML;
+ btn.disabled = true;
+ btn.innerHTML = '⏳ Создаю...';
+ const status = document.getElementById('backup-status');
+ try {
+ const r = await fetch('/api/admin/backup', {
+ method: 'POST',
+ credentials: 'same-origin',
+ headers: {'X-Requested-With': 'XMLHttpRequest'}
+ });
+ const data = await r.json();
+ if (r.ok) {
+ status.innerHTML = '<span style="color:#10b981;"> ' + (data.message || 'Готово') + '</span>';
+ setTimeout(() => location.reload(), 1000);
+ } else {
+ btn.disabled = false;
+ btn.innerHTML = orig;
+ status.innerHTML = '<span style="color:#ef4444;"> ' + (data.detail || data.error || r.status) + '</span>';
+ }
+ } catch (e) {
+ btn.disabled = false;
+ btn.innerHTML = orig;
+ status.innerHTML = '<span style="color:#ef4444;"> ' + e.message + '</span>';
+ }
 }
 </script>
 {% endblock %}

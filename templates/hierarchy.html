@@ -3,12 +3,12 @@
 {% block content %}
 
 <div class="page-header">
-    <h1>📦 Иерархия изделий</h1>
-    <p class="lead">Продукт → Узел → Деталь. Дерево спецтехники Техинкома.</p>
+ <h1> Иерархия изделий</h1>
+ <p class="lead">Продукт → Узел → Деталь. Дерево спецтехники Техинкома.</p>
 </div>
 
 <div class="hierarchy-tree" hx-get="/api/hierarchy" hx-trigger="load" hx-swap="innerHTML">
-    <div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Загружаю иерархию...</div></div>
+ <div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Загружаю иерархию...</div></div>
 </div>
 
 <style>

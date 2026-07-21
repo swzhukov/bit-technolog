@@ -1,213 +1,213 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Техкарта {{ detail.designation }} — Печатная форма</title>
-    <style>
-        @page { size: A4; margin: 15mm; }
-        body { font-family: "Times New Roman", serif; font-size: 16pt; color: #000; max-width: 180mm; margin: 0 auto; padding: 10mm; }
-        h1 { font-size: 16pt; text-align: center; margin: 0 0 4pt; }
-        h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
-        .meta { display: flex; flex-wrap: wrap; gap: 4pt 16pt; margin: 4pt 0 12pt; font-size: 11pt; }
-        .meta-item { padding: 0; }
-        .meta-label { color: #555; font-size: 9pt; }
-        table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-        th, td { border: 1px solid #000; padding: 4pt 6pt; font-size: 12pt; text-align: left; vertical-align: top; }
-        th { background: #f0f0f0; font-weight: bold; }
-        .signature { margin-top: 32pt; display: flex; gap: 24pt; }
-        .signature-block { flex: 1; }
-        .signature-line { border-bottom: 1px solid #000; height: 24pt; }
-        .signature-label { font-size: 10pt; color: #555; margin-top: 2pt; }
-        .header-print { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8pt; font-size: 10pt; }
-        .print-only { display: block; }
-        .no-print { display: none; }
-        @media print {
-            .no-print { display: none; }
-            body { padding: 0; }
-        }
-        .footer-print { margin-top: 24pt; font-size: 9pt; color: #555; text-align: center; border-top: 1px solid #ccc; padding-top: 8pt; }
-    </style>
+ <meta charset="UTF-8">
+ <title>Техкарта {{ detail.designation }} — Печатная форма</title>
+ <style>
+ @page { size: A4; margin: 15mm; }
+ body { font-family: "Times New Roman", serif; font-size: 16pt; color: #000; max-width: 180mm; margin: 0 auto; padding: 10mm; }
+ h1 { font-size: 16pt; text-align: center; margin: 0 0 4pt; }
+ h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
+ .meta { display: flex; flex-wrap: wrap; gap: 4pt 16pt; margin: 4pt 0 12pt; font-size: 11pt; }
+ .meta-item { padding: 0; }
+ .meta-label { color: #555; font-size: 9pt; }
+ table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+ th, td { border: 1px solid #000; padding: 4pt 6pt; font-size: 12pt; text-align: left; vertical-align: top; }
+ th { background: #f0f0f0; font-weight: bold; }
+ .signature { margin-top: 32pt; display: flex; gap: 24pt; }
+ .signature-block { flex: 1; }
+ .signature-line { border-bottom: 1px solid #000; height: 24pt; }
+ .signature-label { font-size: 10pt; color: #555; margin-top: 2pt; }
+ .header-print { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8pt; font-size: 10pt; }
+ .print-only { display: block; }
+ .no-print { display: none; }
+ @media print {
+ .no-print { display: none; }
+ body { padding: 0; }
+ }
+ .footer-print { margin-top: 24pt; font-size: 9pt; color: #555; text-align: center; border-top: 1px solid #ccc; padding-top: 8pt; }
+ </style>
 </head>
 <body>
-    <div class="no-print" style="background:#fef3c7; padding:8pt 12pt; border-radius:4pt; margin-bottom:8pt; font-size:11pt;">
-        💡 Это печатная форма ТК. Нажми <strong>Ctrl+P</strong> для печати или сохранения в PDF. Всё лишнее (кнопки, цвета) скрыто.
-    </div>
+ <div class="no-print" style="background:#fef3c7; padding:8pt 12pt; border-radius:4pt; margin-bottom:8pt; font-size:11pt;">
+ Это печатная форма ТК. Нажми <strong>Ctrl+P</strong> для печати или сохранения в PDF. Всё лишнее (кнопки, цвета) скрыто.
+ </div>
 
-    <div class="header-print">
-        {# V8-17: логотип placeholder (Техинком заменит на свой) #}
-        <div style="display:flex; align-items:center; gap:8pt;">
-            <div style="width:36pt; height:36pt; background:#1a4789; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18pt; border-radius:4pt;">ПК</div>
-            <div>
-                <strong>ПК «Техинком-Центр»</strong><br>
-                <small>Технологическая карта</small>
-            </div>
-        </div>
-        <div style="text-align:right;"><small>Дата: {{ draft.created_at[:10] if draft and draft.created_at else '—' }}<br>ID: {{ detail.id }}</small></div>
-    </div>
-    <div style="text-align:right; margin-bottom:8pt;">
-        <div id="qr-code" style="display:inline-block; padding:4pt; border:1px solid #ccc; background:white;"></div>
-        <br><small style="font-size:8pt;">QR для проверки</small>
-    </div>
-    <script src="/static/qrcode.min.js"></script>
-    <script>
-    // QR-код локально через qrcode-generator (без CDN, on-prem)
-    (function() {
-        var url = window.location.origin + '/detail/{{ detail.id }}';
-        try {
-            // qrcode-generator API: typeNumber=0 (auto), errorCorrectionLevel='M'
-            var qr = qrcode(0, 'M');
-            qr.addData(url);
-            qr.make();
-            // Используем createSvgTag (поддерживается в qrcode-generator >= 1.4)
-            var svg = qr.createSvgTag({cellSize: 4, margin: 1, scalable: true});
-            document.getElementById('qr-code').innerHTML = svg;
-        } catch (e) {
-            // Fallback: показать ID текстом
-            document.getElementById('qr-code').innerHTML = '<small>{{ detail.id }}</small>';
-        }
-    })();
-    </script>
+ <div class="header-print">
+ {# V8-17: логотип placeholder (Техинком заменит на свой) #}
+ <div style="display:flex; align-items:center; gap:8pt;">
+ <div style="width:36pt; height:36pt; background:#1a4789; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18pt; border-radius:4pt;">ПК</div>
+ <div>
+ <strong>ПК «Техинком-Центр»</strong><br>
+ <small>Технологическая карта</small>
+ </div>
+ </div>
+ <div style="text-align:right;"><small>Дата: {{ draft.created_at[:10] if draft and draft.created_at else '—' }}<br>ID: {{ detail.id }}</small></div>
+ </div>
+ <div style="text-align:right; margin-bottom:8pt;">
+ <div id="qr-code" style="display:inline-block; padding:4pt; border:1px solid #ccc; background:white;"></div>
+ <br><small style="font-size:8pt;">QR для проверки</small>
+ </div>
+ <script src="/static/qrcode.min.js"></script>
+ <script>
+ // QR-код локально через qrcode-generator (без CDN, on-prem)
+ (function() {
+ var url = window.location.origin + '/detail/{{ detail.id }}';
+ try {
+ // qrcode-generator API: typeNumber=0 (auto), errorCorrectionLevel='M'
+ var qr = qrcode(0, 'M');
+ qr.addData(url);
+ qr.make();
+ // Используем createSvgTag (поддерживается в qrcode-generator>= 1.4)
+ var svg = qr.createSvgTag({cellSize: 4, margin: 1, scalable: true});
+ document.getElementById('qr-code').innerHTML = svg;
+ } catch (e) {
+ // Fallback: показать ID текстом
+ document.getElementById('qr-code').innerHTML = '<small>{{ detail.id }}</small>';
+ }
+ })();
+ </script>
 
-    <h1>Техкарта № {{ detail.designation }}</h1>
-    <div style="text-align:center; font-size:13pt; margin-bottom:8pt;">{{ detail.name }}</div>
+ <h1>Техкарта № {{ detail.designation }}</h1>
+ <div style="text-align:center; font-size:13pt; margin-bottom:8pt;">{{ detail.name }}</div>
 
-    <h2>1. Свойства детали</h2>
-    <div class="meta">
-        <div class="meta-item"><span class="meta-label">Модель:</span> {{ detail.model or '—' }}</div>
-        <div class="meta-item"><span class="meta-label">Шасси:</span> {{ detail.chassis or '—' }}</div>
-        <div class="meta-item"><span class="meta-label">Материал:</span> {{ detail.material or '—' }}</div>
-        <div class="meta-item"><span class="meta-label">Масса:</span> {{ detail.mass_kg or '—' }} кг</div>
-        <div class="meta-item"><span class="meta-label">Обработка поверхности:</span> {{ detail.surface_treatment or '—' }}</div>
-    </div>
+ <h2>1. Свойства детали</h2>
+ <div class="meta">
+ <div class="meta-item"><span class="meta-label">Модель:</span> {{ detail.model or '—' }}</div>
+ <div class="meta-item"><span class="meta-label">Шасси:</span> {{ detail.chassis or '—' }}</div>
+ <div class="meta-item"><span class="meta-label">Материал:</span> {{ detail.material or '—' }}</div>
+ <div class="meta-item"><span class="meta-label">Масса:</span> {{ detail.mass_kg or '—' }} кг</div>
+ <div class="meta-item"><span class="meta-label">Обработка поверхности:</span> {{ detail.surface_treatment or '—' }}</div>
+ </div>
 
-    {% if draft and draft.operations %}
-    <h2>2. Маршрут обработки</h2>
-    <table>
-        <thead>
-            <tr>
-                <th style="width:8%;">№</th>
-                <th style="width:32%;">Операция</th>
-                <th style="width:18%;">Оборудование</th>
-                <th style="width:8%;">Время, ч</th>
-                <th style="width:10%;">Цех / РМ</th>
-                <th style="width:8%;">Уверен-ность</th>
-                <th style="width:16%;">Материалы / ГОСТы</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for op in draft.operations %}
-            <tr>
-                <td style="text-align:center;">{{ loop.index }}</td>
-                <td>{{ op.name }}</td>
-                <td>{{ op.equipment or '—' }}</td>
-                <td style="text-align:center;">{{ op.duration_hours }}</td>
-                <td>{{ op.department or '—' }}{% if op.workplace %} / {{ op.workplace }}{% endif %}</td>
-                <td style="text-align:center;">
-                    {% if op.confidence >= 80 %}высокая
-                    {% elif op.confidence >= 60 %}средняя
-                    {% else %}низкая{% endif %}
-                </td>
-                <td>
-                    {% if op.materials %}{{ op.materials | join(', ') }}{% endif %}
-                    {% if op.gosts %}<br><small>ГОСТ: {{ op.gosts | join(', ') }}</small>{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+ {% if draft and draft.operations %}
+ <h2>2. Маршрут обработки</h2>
+ <table>
+ <thead>
+ <tr>
+ <th style="width:8%;">№</th>
+ <th style="width:32%;">Операция</th>
+ <th style="width:18%;">Оборудование</th>
+ <th style="width:8%;">Время, ч</th>
+ <th style="width:10%;">Цех / РМ</th>
+ <th style="width:8%;">Уверен-ность</th>
+ <th style="width:16%;">Материалы / ГОСТы</th>
+ </tr>
+ </thead>
+ <tbody>
+ {% for op in draft.operations %}
+ <tr>
+ <td style="text-align:center;">{{ loop.index }}</td>
+ <td>{{ op.name }}</td>
+ <td>{{ op.equipment or '—' }}</td>
+ <td style="text-align:center;">{{ op.duration_hours }}</td>
+ <td>{{ op.department or '—' }}{% if op.workplace %} / {{ op.workplace }}{% endif %}</td>
+ <td style="text-align:center;">
+ {% if op.confidence>= 80 %}высокая
+ {% elif op.confidence>= 60 %}средняя
+ {% else %}низкая{% endif %}
+ </td>
+ <td>
+ {% if op.materials %}{{ op.materials | join(', ') }}{% endif %}
+ {% if op.gosts %}<br><small>ГОСТ: {{ op.gosts | join(', ') }}</small>{% endif %}
+ </td>
+ </tr>
+ {% endfor %}
+ </tbody>
+ </table>
 
-    <h2>3. Сводка</h2>
-    <table style="width:auto;">
-        <tr><th>Всего операций</th><td>{{ draft.summary.total_operations }}</td></tr>
-        <tr><th>Общее время</th><td>{{ draft.summary.total_hours }} ч</td></tr>
-        <tr><th>Время подготовки</th><td>{{ draft.summary.prep_hours }} ч</td></tr>
-        <tr><th>Сложность</th><td>{{ draft.summary.complexity }}</td></tr>
-        {% if draft.summary.closest_analog %}
-        <tr><th>Ближайший аналог</th><td>{{ draft.summary.closest_analog }}</td></tr>
-        {% endif %}
-    </table>
+ <h2>3. Сводка</h2>
+ <table style="width:auto;">
+ <tr><th>Всего операций</th><td>{{ draft.summary.total_operations }}</td></tr>
+ <tr><th>Общее время</th><td>{{ draft.summary.total_hours }} ч</td></tr>
+ <tr><th>Время подготовки</th><td>{{ draft.summary.prep_hours }} ч</td></tr>
+ <tr><th>Сложность</th><td>{{ draft.summary.complexity }}</td></tr>
+ {% if draft.summary.closest_analog %}
+ <tr><th>Ближайший аналог</th><td>{{ draft.summary.closest_analog }}</td></tr>
+ {% endif %}
+ </table>
 
-    <h2>3.1. Ведомость материалов (МК-М) <small style="font-weight:normal; color:#6b7280;">по ГОСТ 3.1105-2011</small></h2>
-    {% set all_materials = [] %}
-    {% for op in draft.operations %}
-        {% if op.materials %}
-            {% for m in op.materials %}
-                {% if m not in all_materials %}
-                    {% set _ = all_materials.append(m) %}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    {% endfor %}
-    {% if all_materials %}
-    <table class="print-table">
-        <thead>
-            <tr>
-                <th style="width:5%;">№</th>
-                <th style="width:40%;">Наименование материала</th>
-                <th style="width:20%;">Обозначение (марка)</th>
-                <th style="width:15%;">Кол-во</th>
-                <th style="width:10%;">Ед.</th>
-                <th style="width:10%;">Примечание</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for m in all_materials %}
-            <tr>
-                <td style="text-align:center;">{{ loop.index }}</td>
-                <td>{{ m }}</td>
-                <td style="text-align:center;color:#9ca3af;">—</td>
-                <td style="text-align:center;color:#9ca3af;">—</td>
-                <td style="text-align:center;color:#9ca3af;">—</td>
-                <td style="color:#9ca3af;font-style:italic;">уточнить</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <p style="font-size:10px;color:#6b7280;margin-top:4px;">
-        ⚠️ Нормы расхода не заполнены автоматически. Заполняет технолог перед утверждением (Т_шт × коэффициент расхода).
-    </p>
-    {% else %}
-    <p style="color:#6b7280;font-style:italic;">Материалы не указаны в операциях.</p>
-    {% endif %}
+ <h2>3.1. Ведомость материалов (МК-М) <small style="font-weight:normal; color:#6b7280;">по ГОСТ 3.1105-2011</small></h2>
+ {% set all_materials = [] %}
+ {% for op in draft.operations %}
+ {% if op.materials %}
+ {% for m in op.materials %}
+ {% if m not in all_materials %}
+ {% set _ = all_materials.append(m) %}
+ {% endif %}
+ {% endfor %}
+ {% endif %}
+ {% endfor %}
+ {% if all_materials %}
+ <table class="print-table">
+ <thead>
+ <tr>
+ <th style="width:5%;">№</th>
+ <th style="width:40%;">Наименование материала</th>
+ <th style="width:20%;">Обозначение (марка)</th>
+ <th style="width:15%;">Кол-во</th>
+ <th style="width:10%;">Ед.</th>
+ <th style="width:10%;">Примечание</th>
+ </tr>
+ </thead>
+ <tbody>
+ {% for m in all_materials %}
+ <tr>
+ <td style="text-align:center;">{{ loop.index }}</td>
+ <td>{{ m }}</td>
+ <td style="text-align:center;color:#9ca3af;">—</td>
+ <td style="text-align:center;color:#9ca3af;">—</td>
+ <td style="text-align:center;color:#9ca3af;">—</td>
+ <td style="color:#9ca3af;font-style:italic;">уточнить</td>
+ </tr>
+ {% endfor %}
+ </tbody>
+ </table>
+ <p style="font-size:10px;color:#6b7280;margin-top:4px;">
+ ️ Нормы расхода не заполнены автоматически. Заполняет технолог перед утверждением (Т_шт × коэффициент расхода).
+ </p>
+ {% else %}
+ <p style="color:#6b7280;font-style:italic;">Материалы не указаны в операциях.</p>
+ {% endif %}
 
-    {% if draft.замечания %}
-    <h2>4. Предупреждения</h2>
-    {% for w in draft.замечания %}
-    <div style="border-left: 3px solid #000; padding: 4pt 8pt; margin: 4pt 0; background: #f9f9f9;">
-        <strong>{{ w.type | upper }}:</strong> {{ w.concern }}<br>
-        <em>Цитата из свойств:</em> «{{ w.quote }}»<br>
-        <em>Вопрос:</em> {{ w.question }}
-    </div>
-    {% endfor %}
-    {% endif %}
+ {% if draft.замечания %}
+ <h2>4. Предупреждения</h2>
+ {% for w in draft.замечания %}
+ <div style="border-left: 3px solid #000; padding: 4pt 8pt; margin: 4pt 0; background: #f9f9f9;">
+ <strong>{{ w.type | upper }}:</strong> {{ w.concern }}<br>
+ <em>Цитата из свойств:</em> «{{ w.quote }}»<br>
+ <em>Вопрос:</em> {{ w.question }}
+ </div>
+ {% endfor %}
+ {% endif %}
 
-    {% if detail.tech_rules %}
-    <h2>5. Правила технолога</h2>
-    <div style="border: 1px solid #000; padding: 6pt 8pt; white-space: pre-wrap; font-size: 11pt;">{{ detail.tech_rules }}</div>
-    {% endif %}
-    {% else %}
-    <h2>Проект ТК отсутствует</h2>
-    <p>Сначала сгенерируйте проект ТК техкарты (кнопка «Сгенерировать проект ТК ТК» на странице детали).</p>
-    {% endif %}
+ {% if detail.tech_rules %}
+ <h2>5. Правила технолога</h2>
+ <div style="border: 1px solid #000; padding: 6pt 8pt; white-space: pre-wrap; font-size: 11pt;">{{ detail.tech_rules }}</div>
+ {% endif %}
+ {% else %}
+ <h2>Проект ТК отсутствует</h2>
+ <p>Сначала сгенерируйте проект ТК техкарты (кнопка «Сгенерировать проект ТК ТК» на странице детали).</p>
+ {% endif %}
 
-    <div class="signature">
-        <div class="signature-block">
-            <div class="signature-line"></div>
-            <div class="signature-label">Технолог (ФИО, подпись, дата)</div>
-        </div>
-        <div class="signature-block">
-            <div class="signature-line"></div>
-            <div class="signature-label">Начальник техотдела (Баранов М.А.)</div>
-        </div>
-        <div class="signature-block">
-            <div class="signature-line"></div>
-            <div class="signature-label">Утвердил (НТК, {{ "____" }} ч.№___, дата)</div>
-        </div>
-    </div>
+ <div class="signature">
+ <div class="signature-block">
+ <div class="signature-line"></div>
+ <div class="signature-label">Технолог (ФИО, подпись, дата)</div>
+ </div>
+ <div class="signature-block">
+ <div class="signature-line"></div>
+ <div class="signature-label">Начальник техотдела (Баранов М.А.)</div>
+ </div>
+ <div class="signature-block">
+ <div class="signature-line"></div>
+ <div class="signature-label">Утвердил (НТК, {{ "____" }} ч.№___, дата)</div>
+ </div>
+ </div>
 
-    <div class="footer-print">
-        БИТ.Технолог v0.4 · {{ draft.created_at[:19] if draft and draft.created_at else 'проект ТК' }} ·
-        Источник: AI-генерация, требует верификации
-    </div>
+ <div class="footer-print">
+ БИТ.Технолог v0.4 · {{ draft.created_at[:19] if draft and draft.created_at else 'проект ТК' }} ·
+ Источник: AI-генерация, требует верификации
+ </div>
 </body>
 </html>

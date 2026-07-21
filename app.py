@@ -50,6 +50,10 @@ from services.rs_factory import (  # noqa
     build_rs, to_one_c_spec, DEFAULT_PROFILE, is_deterministic,
 )
 from services.tp_parser import parse_tp_text, validate_parsed_tp
+from services.evidence import (  # noqa
+    collect_evidence_for_tech_card, tech_card_evidence_summary,
+    update_operation_evidence,
+)
 from gateways.one_c_gateway import get_gateway, OneCResourceSpec  # noqa
 
 # === Инициализация ===
@@ -213,8 +217,13 @@ async def detail(request: Request, item_id: int):
     """, (item_id,))
     if tc:
         tc_full = db.get_tech_card_full(tc["id"])
+        # Sprint 5: собираем доказательства (светофор + аналоги)
+        evidences = collect_evidence_for_tech_card(tc["id"])
+        evidence_summary = tech_card_evidence_summary(tc["id"])
     else:
         tc_full = {}
+        evidences = []
+        evidence_summary = {"total": 0, "green": 0, "yellow": 0, "red": 0, "gray": 0, "green_pct": 0}
 
     # Эталоны (для обоснования)
     etalons = db.get_etalons_for_rag(product_type=item.get("product_type") or "", limit=5)
@@ -222,6 +231,8 @@ async def detail(request: Request, item_id: int):
     ctx.update({
         "item": item,
         "tech_card": tc_full,
+        "evidences": evidences,
+        "evidence_summary": evidence_summary,
         "etalons": etalons,
     })
     return templates.TemplateResponse("detail.html", ctx)
@@ -343,6 +354,30 @@ async def api_rs_preview(tech_card_id: int, profile_code: str = "default"):
         tech_card_id=tech_card_id,
     )
     return report.to_dict()
+
+
+@app.get("/api/tech-cards/{tech_card_id}/evidence")
+async def api_evidence(tech_card_id: int):
+    """Sprint 5: «Норма с доказательством» — светофор + топ-3 аналога для каждой операции."""
+    evidences = collect_evidence_for_tech_card(tech_card_id)
+    return {
+        "tech_card_id": tech_card_id,
+        "summary": tech_card_evidence_summary(tech_card_id),
+        "operations": [e.to_dict() for e in evidences],
+    }
+
+
+@app.post("/api/operations/{operation_id}/confirm")
+async def api_confirm_operation(operation_id: int, request: Request, new_time: float = None):
+    """Технолог подтверждает или корректирует норму операции."""
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401)
+    if new_time is None:
+        body = await request.json()
+        new_time = float(body.get("new_time", 0))
+    ok = update_operation_evidence(operation_id, new_time, user.display_name, "Подтверждение в UI")
+    return {"status": "ok" if ok else "error", "operation_id": operation_id, "new_time": new_time}
 
 
 @app.post("/api/tech-cards/{tech_card_id}/regenerate")

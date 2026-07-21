@@ -8,78 +8,78 @@
 {% if profiles %}
 <div class="panel">
 <table class="tbl">
-  <thead>
-    <tr><th>Код</th><th>Название</th><th>Продукт</th><th>Версия</th><th>Активен</th><th>Описание</th></tr>
-  </thead>
-  <tbody>
-    {% for p in profiles %}
-    <tr>
-      <td><b>{{ p.code }}</b></td>
-      <td>{{ p.name }}</td>
-      <td><span class="badge">{{ p.product_type or '—' }}</span></td>
-      <td>v{{ p.version }}</td>
-      <td>{% if p.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
-      <td>{{ p.description or '—' }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+ <thead>
+ <tr><th>Код</th><th>Название</th><th>Продукт</th><th>Версия</th><th>Активен</th><th>Описание</th></tr>
+ </thead>
+ <tbody>
+ {% for p in profiles %}
+ <tr>
+ <td><b>{{ p.code }}</b></td>
+ <td>{{ p.name }}</td>
+ <td><span class="badge">{{ p.product_type or '—' }}</span></td>
+ <td>v{{ p.version }}</td>
+ <td>{% if p.is_active %}<span class="badge ok">Да</span>{% else %}<span class="badge">Нет</span>{% endif %}</td>
+ <td>{{ p.description or '—' }}</td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 </div>
 {% endif %}
 
 <h2>Профиль по умолчанию (для Техинкома)</h2>
 <div class="panel">
-  <div class="panel-body">
-    <div class="grid3">
-      <div>
-        <b>Разрез этапов</b><br>
-        <code>{{ default_profile.stage_resolution }}</code><br>
-        <span class="muted" style="font-size:12px;">Группировка по цехам/участкам/РМ/маршруту/одним этапом</span>
-      </div>
-      <div>
-        <b>Детализация</b><br>
-        <code>{{ default_profile.op_granularity }}</code><br>
-        <span class="muted" style="font-size:12px;">Полная / укрупнённая / только этапы</span>
-      </div>
-      <div>
-        <b>Нормы</b><br>
-        <code>{{ default_profile.norms }}</code><br>
-        <span class="muted" style="font-size:12px;">Тшт+Тпз / только Тшт / суммой / не выгружать</span>
-      </div>
-      <div>
-        <b>Материалы</b><br>
-        <code>{{ default_profile.materials }}</code><br>
-        <span class="muted" style="font-size:12px;">По операциям / сводно на этап / сводно на РС</span>
-      </div>
-      <div>
-        <b>Трудовые ресурсы</b><br>
-        <code>{{ default_profile.labor }}</code><br>
-        <span class="muted" style="font-size:12px;">Профессия+разряд / сводно / нет</span>
-      </div>
-      <div>
-        <b>Вложенность</b><br>
-        <code>{{ default_profile.nesting }}</code><br>
-        <span class="muted" style="font-size:12px;">Многоуровневая / плоская</span>
-      </div>
-      <div>
-        <b>Кооперация</b><br>
-        <code>{{ default_profile.cooperation }}</code><br>
-        <span class="muted" style="font-size:12px;">Этап-кооперация / покупной полуфабрикат</span>
-      </div>
-      <div>
-        <b>Формат выгрузки</b><br>
-        <code>{{ default_profile.export_format }}</code><br>
-        <span class="muted" style="font-size:12px;">XML 1С / JSON 1С / CSV</span>
-      </div>
-    </div>
-  </div>
+ <div class="panel-body">
+ <div class="grid3">
+ <div>
+ <b>Разрез этапов</b><br>
+ <code>{{ default_profile.stage_resolution }}</code><br>
+ <span class="muted" style="font-size:12px;">Группировка по цехам/участкам/РМ/маршруту/одним этапом</span>
+ </div>
+ <div>
+ <b>Детализация</b><br>
+ <code>{{ default_profile.op_granularity }}</code><br>
+ <span class="muted" style="font-size:12px;">Полная / укрупнённая / только этапы</span>
+ </div>
+ <div>
+ <b>Нормы</b><br>
+ <code>{{ default_profile.norms }}</code><br>
+ <span class="muted" style="font-size:12px;">Тшт+Тпз / только Тшт / суммой / не выгружать</span>
+ </div>
+ <div>
+ <b>Материалы</b><br>
+ <code>{{ default_profile.materials }}</code><br>
+ <span class="muted" style="font-size:12px;">По операциям / сводно на этап / сводно на РС</span>
+ </div>
+ <div>
+ <b>Трудовые ресурсы</b><br>
+ <code>{{ default_profile.labor }}</code><br>
+ <span class="muted" style="font-size:12px;">Профессия+разряд / сводно / нет</span>
+ </div>
+ <div>
+ <b>Вложенность</b><br>
+ <code>{{ default_profile.nesting }}</code><br>
+ <span class="muted" style="font-size:12px;">Многоуровневая / плоская</span>
+ </div>
+ <div>
+ <b>Кооперация</b><br>
+ <code>{{ default_profile.cooperation }}</code><br>
+ <span class="muted" style="font-size:12px;">Этап-кооперация / покупной полуфабрикат</span>
+ </div>
+ <div>
+ <b>Формат выгрузки</b><br>
+ <code>{{ default_profile.export_format }}</code><br>
+ <span class="muted" style="font-size:12px;">XML 1С / JSON 1С / CSV</span>
+ </div>
+ </div>
+ </div>
 </div>
 
 <div class="panel">
-  <div class="panel-body">
-    <b>💡 Принцип:</b> РС-фабрика — <b>детерминированный алгоритм</b>, не LLM.
-    По утверждённой ТК + профилю → реальный расчёт РС.
-    Каждая строка РС имеет аудит-цепочку: «строка X ← правило Y ← операция Z (ТП)».
-  </div>
+ <div class="panel-body">
+ <b> Принцип:</b> РС-фабрика — <b>детерминированный алгоритм</b>, не LLM.
+ По утверждённой ТК + профилю → реальный расчёт РС.
+ Каждая строка РС имеет аудит-цепочку: «строка X ← правило Y ← операция Z (ТП)».
+ </div>
 </div>
 {% endblock %}

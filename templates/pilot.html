@@ -1,121 +1,121 @@
 {% extends "base.html" %}
 {% block title %}Пилот — БИТ.Технолог{% endblock %}
 {% block content %}
-<div class="breadcrumb"><a href="/">← Главная</a> | <a href="/learning">🎓 Обучение</a></div>
-<h1>📊 Пилот: дашборд KPI</h1>
+<div class="breadcrumb"><a href="/">← Главная</a> | <a href="/learning"> Обучение</a></div>
+<h1> Пилот: дашборд KPI</h1>
 <p class="lead">Метрики для измерения ценности БИТ.Технолог в реальной работе Техинкома</p>
 
 <div class="alert alert-demo" style="background:#eff6ff; border-left-color:#3b82f6; color:#1e3a8a;">
-    <strong>🎯 Целевые KPI пилота (2-4 недели, 10+ деталей, 3-5 технологов):</strong>
-    <ul style="margin: 6px 0;">
-        <li>⏱ Время на техкарту: <strong>&lt; 60 мин</strong> (текущее 4-8ч, ускорение 4-8x)</li>
-        <li>✅ % принятых AI-операций: <strong>&gt; 30%</strong> (industry benchmark GitHub Copilot / NIO)</li>
-        <li>✏️ Правок на проект ТК: <strong>&lt; 8</strong> (иначе быстрее с нуля)</li>
-        <li>📈 Confidence растёт неделя к неделе (обучение работает)</li>
-    </ul>
-    <p style="margin: 4px 0 0; font-size: 12px;">⚠️ KPI пока предварительные — финальные в <a href="/docs/09-open-questions.md" target="_blank">документе вопросов</a>.</p>
+ <strong> Целевые KPI пилота (2-4 недели, 10+ деталей, 3-5 технологов):</strong>
+ <ul style="margin: 6px 0;">
+ <li>⏱ Время на техкарту: <strong>&lt; 60 мин</strong> (текущее 4-8ч, ускорение 4-8x)</li>
+ <li> % принятых AI-операций: <strong>&gt; 30%</strong> (industry benchmark GitHub Copilot / NIO)</li>
+ <li> ️ Правок на проект ТК: <strong>&lt; 8</strong> (иначе быстрее с нуля)</li>
+ <li> Confidence растёт неделя к неделе (обучение работает)</li>
+ </ul>
+ <p style="margin: 4px 0 0; font-size: 12px;"> ️ KPI пока предварительные — финальные в <a href="/docs/09-open-questions.md" target="_blank">документе вопросов</a>.</p>
 </div>
 
-<h2>📈 Текущие метрики</h2>
+<h2> Текущие метрики</h2>
 <div class="stats">
-    <a href="/?status=" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Все детали">
-        <div class="stat-value">{{ metrics.total_details_processed }}</div>
-        <div class="stat-label">деталей прошло 🔍</div>
-    </a>
-    <a href="/?status=approved" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Утверждённые ТК">
-        <div class="stat-value {% if metrics.edits_per_card > metrics.kpi.edits_target %}cost-exceeded{% endif %}">
-            {{ metrics.edits_per_card }}
-        </div>
-        <div class="stat-label">корректировок / проект ТК<br><small>(цель &lt; {{ metrics.kpi.edits_target }})</small></div>
-    </a>
-    <a href="/?status=approved" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Список утверждённых">
-        <div class="stat-value {% if metrics.accepted_pct < metrics.kpi.accepted_target %}cost-exceeded{% endif %}">
-            {{ metrics.accepted_pct }}%
-        </div>
-        <div class="stat-label">% принятых 🔍<br><small>(цель &gt; {{ metrics.kpi.accepted_target }}%)</small></div>
-    </a>
-    <a href="/?status=draft" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Проекты ТК в работе">
-        <div class="stat-value {% if metrics.avg_time_to_card_min > metrics.kpi.time_target %}cost-warn{% endif %}">
-            {{ metrics.avg_time_to_card_min }}
-        </div>
-        <div class="stat-label">мин / техкарта 🔍<br><small>(цель &lt; {{ metrics.kpi.time_target }})</small></div>
-    </a>
-    <div class="stat">
-        <div class="stat-value">{{ metrics.total_llm_cost_rub }}₽</div>
-        <div class="stat-label">потрачено на LLM</div>
-    </div>
-    {# V4-9: дневная стоимость LLM с прогрессом #}
-    <a href="/admin/llm-calls" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Дневная стоимость LLM">
-        <div class="stat-value {% if cost_today and cost_today.pct and cost_today.pct > 80 %}cost-warn{% endif %}">
-            {% if cost_today %}{{ "%.0f"|format(cost_today.total_rub or 0) }}{% else %}0{% endif %}₽
-        </div>
-        <div class="stat-label">LLM сегодня 🔍<br><small>из {{ cost_today.limit_rub or 200 }}₽ ({{ cost_today.pct or 0 }}%)</small></div>
-    </a>
-    <div class="stat">
-        <div class="stat-value">{{ metrics.total_successful_gens }}</div>
-        <div class="stat-label">успешных генераций</div>
-    </div>
+ <a href="/?status=" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Все детали">
+ <div class="stat-value">{{ metrics.total_details_processed }}</div>
+ <div class="stat-label">деталей прошло </div>
+ </a>
+ <a href="/?status=approved" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Утверждённые ТК">
+ <div class="stat-value {% if metrics.edits_per_card> metrics.kpi.edits_target %}cost-exceeded{% endif %}">
+ {{ metrics.edits_per_card }}
+ </div>
+ <div class="stat-label">корректировок / проект ТК<br><small>(цель &lt; {{ metrics.kpi.edits_target }})</small></div>
+ </a>
+ <a href="/?status=approved" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Список утверждённых">
+ <div class="stat-value {% if metrics.accepted_pct < metrics.kpi.accepted_target %}cost-exceeded{% endif %}">
+ {{ metrics.accepted_pct }}%
+ </div>
+ <div class="stat-label">% принятых <br><small>(цель &gt; {{ metrics.kpi.accepted_target }}%)</small></div>
+ </a>
+ <a href="/?status=draft" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Проекты ТК в работе">
+ <div class="stat-value {% if metrics.avg_time_to_card_min> metrics.kpi.time_target %}cost-warn{% endif %}">
+ {{ metrics.avg_time_to_card_min }}
+ </div>
+ <div class="stat-label">мин / техкарта <br><small>(цель &lt; {{ metrics.kpi.time_target }})</small></div>
+ </a>
+ <div class="stat">
+ <div class="stat-value">{{ metrics.total_llm_cost_rub }}₽</div>
+ <div class="stat-label">потрачено на LLM</div>
+ </div>
+ {# V4-9: дневная стоимость LLM с прогрессом #}
+ <a href="/admin/llm-calls" class="stat" style="text-decoration:none; color:inherit; cursor:pointer;" title="Дневная стоимость LLM">
+ <div class="stat-value {% if cost_today and cost_today.pct and cost_today.pct> 80 %}cost-warn{% endif %}">
+ {% if cost_today %}{{ "%.0f"|format(cost_today.total_rub or 0) }}{% else %}0{% endif %}₽
+ </div>
+ <div class="stat-label">LLM сегодня <br><small>из {{ cost_today.limit_rub or 200 }}₽ ({{ cost_today.pct or 0 }}%)</small></div>
+ </a>
+ <div class="stat">
+ <div class="stat-value">{{ metrics.total_successful_gens }}</div>
+ <div class="stat-label">успешных генераций</div>
+ </div>
 </div>
 
-<h2>🧠 RAG-готовность (AI обучается)</h2>
+<h2> RAG-готовность (AI обучается)</h2>
 <div class="stats">
-    <div class="stat">
-        <div class="stat-value">{{ rag_count }}</div>
-        <div class="stat-label">ТК в RAG-индексе<br><small>(используются как аналоги)</small></div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">{{ approved_count }} / {{ rag_target }}</div>
-        <div class="stat-label">утверждено ТК<br><small>(цель для качества: 30+)</small></div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">{{ rag_readiness }}</div>
-        <div class="stat-label">готовность RAG</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">{{ total_details }}</div>
-        <div class="stat-label">всего деталей</div>
-    </div>
+ <div class="stat">
+ <div class="stat-value">{{ rag_count }}</div>
+ <div class="stat-label">ТК в RAG-индексе<br><small>(используются как аналоги)</small></div>
+ </div>
+ <div class="stat">
+ <div class="stat-value">{{ approved_count }} / {{ rag_target }}</div>
+ <div class="stat-label">утверждено ТК<br><small>(цель для качества: 30+)</small></div>
+ </div>
+ <div class="stat">
+ <div class="stat-value">{{ rag_readiness }}</div>
+ <div class="stat-label">готовность RAG</div>
+ </div>
+ <div class="stat">
+ <div class="stat-value">{{ total_details }}</div>
+ <div class="stat-label">всего деталей</div>
+ </div>
 </div>
 <p style="font-size:13px; color:#6b7280; margin-top:8px;">
-    💡 <strong>Как это работает:</strong> после утверждения ТК автоматически попадает в RAG-индекс. Новые генерации используют похожие ТК из RAG как аналоги. Чем больше утверждённых ТК — тем точнее AI. Целевой порог: <strong>30+ утверждённых ТК</strong> для качественной работы.
+ <strong>Как это работает:</strong> после утверждения ТК автоматически попадает в RAG-индекс. Новые генерации используют похожие ТК из RAG как аналоги. Чем больше утверждённых ТК — тем точнее AI. Целевой порог: <strong>30+ утверждённых ТК</strong> для качественной работы.
 </p>
 
 <h2>⏱ Ввести время вручную (технолог)</h2>
 <p>После утверждения техкарты — запиши сколько минут реально ушло:</p>
 <form method="post" action="/api/pilot/time" class="form">
-    <div class="form-row">
-        <label>Деталь ID<br><input name="detail_id" required placeholder="detail-001"></label>
-        <label>Минут ушло<br><input name="minutes" type="number" step="1" required value="60"></label>
-        <label>Технолог<br><input name="author" placeholder="Баранова"></label>
-    </div>
-    <button type="submit" class="btn btn-primary">💾 Записать</button>
+ <div class="form-row">
+ <label>Деталь ID<br><input name="detail_id" required placeholder="detail-001"></label>
+ <label>Минут ушло<br><input name="minutes" type="number" step="1" required value="60"></label>
+ <label>Технолог<br><input name="author" placeholder="Баранова"></label>
+ </div>
+ <button type="submit" class="btn btn-primary"> Записать</button>
 </form>
 
-<h2>✅ Ввести % принятых операций</h2>
+<h2> Ввести % принятых операций</h2>
 <p>Сколько операций из проект ТКа ты оставил без изменений:</p>
 <form method="post" action="/api/pilot/accepted" class="form">
-    <div class="form-row">
-        <label>Деталь ID<br><input name="detail_id" required placeholder="detail-001"></label>
-        <label>Всего операций<br><input name="total_ops" type="number" required></label>
-        <label>Из них без корректировок<br><input name="accepted_ops" type="number" required></label>
-    </div>
-    <button type="submit" class="btn btn-primary">💾 Записать</button>
+ <div class="form-row">
+ <label>Деталь ID<br><input name="detail_id" required placeholder="detail-001"></label>
+ <label>Всего операций<br><input name="total_ops" type="number" required></label>
+ <label>Из них без корректировок<br><input name="accepted_ops" type="number" required></label>
+ </div>
+ <button type="submit" class="btn btn-primary"> Записать</button>
 </form>
 
-<h2>📋 Последние одобренные детали</h2>
+<h2> Последние одобренные детали</h2>
 {% if approved_list %}
 <table class="data-table">
-    <thead><tr><th>Деталь</th><th>Правок</th><th>Время (мин)</th><th>Когда</th></tr></thead>
-    <tbody>
-        {% for d in approved_list %}
-        <tr>
-            <td><a href="/detail/{{ d.detail_id }}">{{ d.detail_id }}</a></td>
-            <td>{{ d.edits }}</td>
-            <td>{{ d.time_min or "—" }}</td>
-            <td><small>{{ d.last[:16] }}</small></td>
-        </tr>
-        {% endfor %}
-    </tbody>
+ <thead><tr><th>Деталь</th><th>Правок</th><th>Время (мин)</th><th>Когда</th></tr></thead>
+ <tbody>
+ {% for d in approved_list %}
+ <tr>
+ <td><a href="/detail/{{ d.detail_id }}">{{ d.detail_id }}</a></td>
+ <td>{{ d.edits }}</td>
+ <td>{{ d.time_min or "—" }}</td>
+ <td><small>{{ d.last[:16] }}</small></td>
+ </tr>
+ {% endfor %}
+ </tbody>
 </table>
 {% else %}
 <p>Пока нет одобренных проект ТКов. Сгенерируй и утверди первый — увидеть метрики.</p>

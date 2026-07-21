@@ -2,23 +2,23 @@
 {% block title %}404 — Не найдено — БИТ.Технолог{% endblock %}
 {% block content %}
 <div style="max-width:600px; margin:60px auto; text-align:center; padding:24px;">
-    <h1 style="font-size:5rem; color:#e5e7eb; margin:0;">404</h1>
-    <h2>Страница не найдена</h2>
-    <p style="color:#6b7280; margin:16px 0;">
-        Возможно, деталь была удалена, или URL устарел.
-        Если вы пришли по ссылке — проверьте правильность адреса.
-    </p>
-    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
-        <a href="/" class="btn btn-primary">🏠 К списку деталей</a>
-        <a href="/pilot" class="btn">📊 Дашборд пилота</a>
-        <a href="/demo" class="btn">🎯 Demo-сценарий</a>
-        {% if current_role_from_request(request) == 'admin' %}
-        <a href="/admin" class="btn">🛡 Админ</a>
-        {% endif %}
-    </div>
-    <p style="margin-top:32px; color:#9ca3af; font-size:0.85rem;">
-        Если ошибка повторяется — сообщите администратору.<br>
-        В логах сервера (в production): <code>/var/log/bit-technolog.err.log</code>
-    </p>
+ <h1 style="font-size:5rem; color:#e5e7eb; margin:0;">404</h1>
+ <h2>Страница не найдена</h2>
+ <p style="color:#6b7280; margin:16px 0;">
+ Возможно, деталь была удалена, или URL устарел.
+ Если вы пришли по ссылке — проверьте правильность адреса.
+ </p>
+ <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
+ <a href="/" class="btn btn-primary"> К списку деталей</a>
+ <a href="/pilot" class="btn"> Дашборд пилота</a>
+ <a href="/demo" class="btn"> Demo-сценарий</a>
+ {% if current_role_from_request(request) == 'admin' %}
+ <a href="/admin" class="btn"> Админ</a>
+ {% endif %}
+ </div>
+ <p style="margin-top:32px; color:#9ca3af; font-size:0.85rem;">
+ Если ошибка повторяется — сообщите администратору.<br>
+ В логах сервера (в production): <code>/var/log/bit-technolog.err.log</code>
+ </p>
 </div>
 {% endblock %}

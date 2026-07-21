@@ -1,160 +1,159 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}БИТ.Технолог{% endblock %}</title>
-  <style>
-    :root {
-      --v8-brand: #dc2626; --v8-brand-2: #b91c1c; --v8-brand-soft: #fef2f2;
-      --v8-bg: #f9fafb; --v8-panel: #ffffff; --v8-panel-2: #f3f4f6;
-      --v8-line: #e5e7eb; --v8-line-2: #d1d5db;
-      --v8-header: #1c2733; --v8-header-2: #2c3e50;
-      --v8-header-text: #f1f5f9; --v8-header-muted: #94a3b8;
-      --v8-text: #0f172a; --v8-text-2: #334155; --v8-muted: #64748b; --v8-faint: #94a3b8;
-      --v8-ok: #16a34a; --v8-ok-bg: #dcfce7;
-      --v8-warn: #d97706; --v8-warn-bg: #fef3c7;
-      --v8-bad: #dc2626; --v8-bad-bg: #fee2e2;
-      --v8-blue: #2563eb; --v8-blue-bg: #dbeafe;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; font: 14px/1.55 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--v8-text); background: var(--v8-bg); }
-    a { color: var(--v8-blue); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .app { display: flex; flex-direction: column; min-height: 100vh; }
-    .header {
-      background: var(--v8-header); color: var(--v8-header-text);
-      height: 52px; padding: 0 20px; display: flex; align-items: center; gap: 16px;
-      position: sticky; top: 0; z-index: 10;
-    }
-    .header .brand { font-size: 15px; font-weight: 700; }
-    .header .brand .flame { color: var(--v8-brand); }
-    .header .env-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--v8-header-2); color: var(--v8-header-muted); }
-    .header .env-badge.mock { background: #dc2626; color: #fff; }
-    .header .spacer { flex: 1; }
-    .header .cost { font-size: 12px; padding: 4px 10px; border-radius: 6px; background: var(--v8-ok-bg); color: var(--v8-ok); font-variant-numeric: tabular-nums; }
-    .header .cost.warn { background: var(--v8-warn-bg); color: var(--v8-warn); }
-    .header .cost.bad { background: var(--v8-bad-bg); color: var(--v8-bad); }
-    .header .user { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-    .header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--v8-brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
-    .body { display: flex; flex: 1; }
-    .nav { width: 220px; background: var(--v8-panel); border-right: 1px solid var(--v8-line); padding: 12px 0; flex-shrink: 0; }
-    .nav-section { font-size: 11px; text-transform: uppercase; color: var(--v8-muted); padding: 10px 18px 4px; font-weight: 600; letter-spacing: 0.5px; }
-    .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px 8px 15px; color: var(--v8-text-2); font-size: 13.5px; border-left: 3px solid transparent; }
-    .nav-item:hover { background: var(--v8-panel-2); }
-    .nav-item.active { background: var(--v8-brand-soft); color: var(--v8-brand); font-weight: 600; border-left-color: var(--v8-brand); }
-    .nav-item .badge { margin-left: auto; font-size: 10px; }
-    .nav-icon { font-size: 14px; opacity: 0.7; }
-    .nav-item.active .nav-icon { opacity: 1; }
-    .main { flex: 1; padding: 24px 32px; max-width: 1280px; }
-    h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
-    h2 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
-    h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
-    .lead { color: var(--v8-muted); font-size: 13px; margin: 0 0 16px; }
-    .counters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
-    .counter { flex: 1; min-width: 150px; background: var(--v8-panel); border: 1px solid var(--v8-line); border-radius: 10px; padding: 14px 18px; }
-    .counter.alert { border-color: #fca5a5; background: #fef2f2; }
-    .counter .num { font-size: 24px; font-weight: 700; line-height: 1.2; }
-    .counter .lbl { font-size: 12px; color: var(--v8-muted); margin-top: 2px; }
-    .panel { background: var(--v8-panel); border: 1px solid var(--v8-line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
-    .panel-head { padding: 12px 18px; border-bottom: 1px solid var(--v8-line); display: flex; align-items: center; justify-content: space-between; }
-    .panel-head .ttl { font-size: 14px; font-weight: 600; }
-    .panel-head .sub { font-size: 12px; color: var(--v8-muted); }
-    .panel-body { padding: 12px 18px; }
-    .panel.alert { border-left: 4px solid var(--v8-bad); background: #fef2f2; }
-    .panel.alert .panel-head { border-bottom-color: #fecaca; }
-    .panel.success { border-left: 4px solid var(--v8-ok); background: #f0fdf4; }
-    table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-    table.tbl th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--v8-muted); font-weight: 600; letter-spacing: 0.4px; padding: 8px 10px; background: var(--v8-panel-2); border-bottom: 1px solid var(--v8-line); }
-    table.tbl td { padding: 9px 10px; border-bottom: 1px solid var(--v8-line); vertical-align: top; }
-    table.tbl tr:last-child td { border-bottom: none; }
-    table.tbl tr:hover td { background: var(--v8-panel-2); }
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; }
-    .btn-primary { background: var(--v8-brand); color: #fff; }
-    .btn-primary:hover { background: var(--v8-brand-2); }
-    .btn-secondary { background: var(--v8-panel); color: var(--v8-text); border-color: var(--v8-line); }
-    .btn-secondary:hover { background: var(--v8-panel-2); }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .btn-ghost { background: transparent; color: var(--v8-blue); padding: 4px 8px; font-size: 12px; }
-    .btn-ghost:hover { background: var(--v8-blue-bg); }
-    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 500; background: var(--v8-panel-2); color: var(--v8-text-2); white-space: nowrap; }
-    .badge.ok { background: var(--v8-ok-bg); color: var(--v8-ok); }
-    .badge.warn { background: var(--v8-warn-bg); color: var(--v8-warn); }
-    .badge.bad { background: var(--v8-bad-bg); color: var(--v8-bad); }
-    .badge.blue { background: var(--v8-blue-bg); color: var(--v8-blue); }
-    .badge.brand { background: var(--v8-brand-soft); color: var(--v8-brand); }
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
-    .dot.g { background: var(--v8-ok); }
-    .dot.y { background: var(--v8-warn); }
-    .dot.r { background: var(--v8-bad); }
-    .evidence { border-left: 3px solid var(--v8-ok); background: var(--v8-ok-bg); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 12.5px; margin-bottom: 8px; }
-    .evidence.warn { border-left-color: var(--v8-warn); background: var(--v8-warn-bg); }
-    .evidence.bad { border-left-color: var(--v8-bad); background: var(--v8-bad-bg); }
-    .evidence .src { color: var(--v8-muted); font-size: 11.5px; margin-top: 2px; }
-    .tabs { display: flex; border-bottom: 1px solid var(--v8-line); margin-bottom: 16px; }
-    .tab { padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--v8-muted); cursor: pointer; border-bottom: 2px solid transparent; }
-    .tab:hover { color: var(--v8-text); }
-    .tab.active { color: var(--v8-brand); border-bottom-color: var(--v8-brand); }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-    .draw-area { background: var(--v8-panel-2); border: 1px dashed var(--v8-line-2); border-radius: 8px; height: 360px; display: flex; align-items: center; justify-content: center; color: var(--v8-muted); font-size: 13px; }
-    .empty { padding: 48px 24px; text-align: center; color: var(--v8-muted); }
-    .empty .ico { font-size: 32px; opacity: 0.4; margin-bottom: 8px; }
-    .breadcrumbs { color: var(--v8-muted); font-size: 13px; margin-bottom: 4px; }
-    .breadcrumbs a { color: var(--v8-muted); }
-    .breadcrumbs a:hover { color: var(--v8-text); }
-    .row-actions { display: flex; gap: 6px; }
-  </style>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>{% block title %}БИТ.Технолог{% endblock %}</title>
+ <style>
+ :root {
+ --v8-brand: #dc2626; --v8-brand-2: #b91c1c; --v8-brand-soft: #fef2f2;
+ --v8-bg: #f9fafb; --v8-panel: #ffffff; --v8-panel-2: #f3f4f6;
+ --v8-line: #e5e7eb; --v8-line-2: #d1d5db;
+ --v8-header: #1c2733; --v8-header-2: #2c3e50;
+ --v8-header-text: #f1f5f9; --v8-header-muted: #94a3b8;
+ --v8-text: #0f172a; --v8-text-2: #334155; --v8-muted: #64748b; --v8-faint: #94a3b8;
+ --v8-ok: #16a34a; --v8-ok-bg: #dcfce7;
+ --v8-warn: #d97706; --v8-warn-bg: #fef3c7;
+ --v8-bad: #dc2626; --v8-bad-bg: #fee2e2;
+ --v8-blue: #2563eb; --v8-blue-bg: #dbeafe;
+ }
+ * { box-sizing: border-box; }
+ body { margin: 0; font: 14px/1.55 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--v8-text); background: var(--v8-bg); }
+ a { color: var(--v8-blue); text-decoration: none; }
+ a:hover { text-decoration: underline; }
+ .app { display: flex; flex-direction: column; min-height: 100vh; }
+ .header {
+ background: var(--v8-header); color: var(--v8-header-text);
+ height: 52px; padding: 0 20px; display: flex; align-items: center; gap: 16px;
+ position: sticky; top: 0; z-index: 10;
+ }
+ .header .brand { font-size: 15px; font-weight: 700; color: var(--v8-header-text); }
+ .header .env-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--v8-header-2); color: var(--v8-header-muted); }
+ .header .env-badge.mock { background: #dc2626; color: #fff; }
+ .header .spacer { flex: 1; }
+ .header .cost { font-size: 12px; padding: 4px 10px; border-radius: 6px; background: var(--v8-ok-bg); color: var(--v8-ok); font-variant-numeric: tabular-nums; }
+ .header .cost.warn { background: var(--v8-warn-bg); color: var(--v8-warn); }
+ .header .cost.bad { background: var(--v8-bad-bg); color: var(--v8-bad); }
+ .header .user { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+ .header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--v8-brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+ .body { display: flex; flex: 1; }
+ .nav { width: 220px; background: var(--v8-panel); border-right: 1px solid var(--v8-line); padding: 12px 0; flex-shrink: 0; }
+ .nav-section { font-size: 11px; text-transform: uppercase; color: var(--v8-muted); padding: 10px 18px 4px; font-weight: 600; letter-spacing: 0.5px; }
+ .nav-item { font-size: 14px; padding: 9px 18px 9px 18px; }
+ .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px 9px 18px; color: var(--v8-text-2); font-size: 14px; border-left: 3px solid transparent; }
+ .nav-item:hover { background: var(--v8-panel-2); }
+ .nav-item.active { background: var(--v8-brand-soft); color: var(--v8-brand); font-weight: 600; border-left-color: var(--v8-brand); }
+ .nav-item .badge { margin-left: auto; font-size: 10px; }
+ .nav-icon { display: none; }
+ .main { flex: 1; padding: 24px 32px; max-width: 1280px; }
+ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+ h2 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
+ h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
+ .lead { color: var(--v8-muted); font-size: 13px; margin: 0 0 16px; }
+ .counters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+ .counter { flex: 1; min-width: 150px; background: var(--v8-panel); border: 1px solid var(--v8-line); border-radius: 10px; padding: 14px 18px; }
+ .counter.alert { border-color: #fca5a5; background: #fef2f2; }
+ .counter .num { font-size: 24px; font-weight: 700; line-height: 1.2; }
+ .counter .lbl { font-size: 12px; color: var(--v8-muted); margin-top: 2px; }
+ .panel { background: var(--v8-panel); border: 1px solid var(--v8-line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+ .panel-head { padding: 12px 18px; border-bottom: 1px solid var(--v8-line); display: flex; align-items: center; justify-content: space-between; }
+ .panel-head .ttl { font-size: 14px; font-weight: 600; }
+ .panel-head .sub { font-size: 12px; color: var(--v8-muted); }
+ .panel-body { padding: 12px 18px; }
+ .panel.alert { border-left: 4px solid var(--v8-bad); background: #fef2f2; }
+ .panel.alert .panel-head { border-bottom-color: #fecaca; }
+ .panel.success { border-left: 4px solid var(--v8-ok); background: #f0fdf4; }
+ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+ table.tbl th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--v8-muted); font-weight: 600; letter-spacing: 0.4px; padding: 8px 10px; background: var(--v8-panel-2); border-bottom: 1px solid var(--v8-line); }
+ table.tbl td { padding: 9px 10px; border-bottom: 1px solid var(--v8-line); vertical-align: top; }
+ table.tbl tr:last-child td { border-bottom: none; }
+ table.tbl tr:hover td { background: var(--v8-panel-2); }
+ .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; }
+ .btn-primary { background: var(--v8-brand); color: #fff; }
+ .btn-primary:hover { background: var(--v8-brand-2); }
+ .btn-secondary { background: var(--v8-panel); color: var(--v8-text); border-color: var(--v8-line); }
+ .btn-secondary:hover { background: var(--v8-panel-2); }
+ .btn-sm { padding: 4px 10px; font-size: 12px; }
+ .btn-ghost { background: transparent; color: var(--v8-blue); padding: 4px 8px; font-size: 12px; }
+ .btn-ghost:hover { background: var(--v8-blue-bg); }
+ .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 500; background: var(--v8-panel-2); color: var(--v8-text-2); white-space: nowrap; }
+ .badge.ok { background: var(--v8-ok-bg); color: var(--v8-ok); }
+ .badge.warn { background: var(--v8-warn-bg); color: var(--v8-warn); }
+ .badge.bad { background: var(--v8-bad-bg); color: var(--v8-bad); }
+ .badge.blue { background: var(--v8-blue-bg); color: var(--v8-blue); }
+ .badge.brand { background: var(--v8-brand-soft); color: var(--v8-brand); }
+ .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+ .dot.g { background: var(--v8-ok); }
+ .dot.y { background: var(--v8-warn); }
+ .dot.r { background: var(--v8-bad); }
+ .evidence { border-left: 3px solid var(--v8-ok); background: var(--v8-ok-bg); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 12.5px; margin-bottom: 8px; }
+ .evidence.warn { border-left-color: var(--v8-warn); background: var(--v8-warn-bg); }
+ .evidence.bad { border-left-color: var(--v8-bad); background: var(--v8-bad-bg); }
+ .evidence .src { color: var(--v8-muted); font-size: 11.5px; margin-top: 2px; }
+ .tabs { display: flex; border-bottom: 1px solid var(--v8-line); margin-bottom: 16px; }
+ .tab { padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--v8-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+ .tab:hover { color: var(--v8-text); }
+ .tab.active { color: var(--v8-brand); border-bottom-color: var(--v8-brand); }
+ .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+ .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+ .draw-area { background: var(--v8-panel-2); border: 1px dashed var(--v8-line-2); border-radius: 8px; height: 360px; display: flex; align-items: center; justify-content: center; color: var(--v8-muted); font-size: 13px; }
+ .empty { padding: 48px 24px; text-align: center; color: var(--v8-muted); }
+ .empty .ico { font-size: 32px; opacity: 0.4; margin-bottom: 8px; }
+ .breadcrumbs { color: var(--v8-muted); font-size: 13px; margin-bottom: 4px; }
+ .breadcrumbs a { color: var(--v8-muted); }
+ .breadcrumbs a:hover { color: var(--v8-text); }
+ .row-actions { display: flex; gap: 6px; }
+ </style>
 </head>
 <body>
 <div class="app">
-  <header class="header">
-    <a href="/" style="color: inherit; text-decoration: none;">
-      <span class="brand"><span class="flame">🔥</span> БИТ.Технолог</span>
-    </a>
-    <span class="env-badge">{{ app_env }} · v{{ app_version }}</span>
-    {% if is_mock_mode %}
-    <span class="env-badge mock">MOCK LLM</span>
-    {% else %}
-    <span class="env-badge" style="background: #16a34a; color: #fff;">REAL LLM</span>
-    {% endif %}
-    <span class="spacer"></span>
-    {% if daily_cost > cost_budget %}
-    <span class="cost bad">💰 {{ daily_cost|round|int }}₽ / {{ cost_budget|round|int }}₽</span>
-    {% elif daily_cost > cost_budget * 0.8 %}
-    <span class="cost warn">💰 {{ daily_cost|round|int }}₽ / {{ cost_budget|round|int }}₽</span>
-    {% else %}
-    <span class="cost">💰 {{ daily_cost|round|int }}₽ / {{ cost_budget|round|int }}₽</span>
-    {% endif %}
-    {% if current_user %}
-    <span class="user">
-      <span class="avatar">{{ current_user.username[0]|upper }}{{ current_user.username[1]|upper }}</span>
-      <span>{{ current_user.display_name }} <span class="muted">({{ current_user.role_display }})</span></span>
-    </span>
-    {% else %}
-    <span class="user">
-      <a href="?login=1" style="color: var(--v8-header-text);">Войти</a>
-    </span>
-    {% endif %}
-  </header>
-  <div class="body">
-    {% set active_page = active_page|default('dashboard') %}
-    <nav class="nav">
-      <div class="nav-section">Основное</div>
-      <a href="/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}"><span class="nav-icon">🗂</span> Мои задачи</a>
-      <a href="/products" class="nav-item {% if active_page == 'products' %}active{% endif %}"><span class="nav-icon">🚒</span> Изделия</a>
-      <a href="/knowledge" class="nav-item {% if active_page == 'knowledge' %}active{% endif %}"><span class="nav-icon">📄</span> База знаний</a>
-      <a href="/notices" class="nav-item {% if active_page == 'notices' %}active{% endif %}"><span class="nav-icon">📬</span> Извещения {% if counters is defined and counters.notices %}<span class="badge bad">{{ counters.notices }}</span>{% endif %}</a>
-      <div class="nav-section">Конфигурация</div>
-      <a href="/profiles" class="nav-item {% if active_page == 'profiles' %}active{% endif %}"><span class="nav-icon">⚙️</span> Профили РС</a>
-      <a href="/llm-admin" class="nav-item {% if active_page == 'llm-admin' %}active{% endif %}"><span class="nav-icon">🤖</span> Модели LLM</a>
-      <div class="nav-section">Система</div>
-      <a href="/help" class="nav-item {% if active_page == 'help' %}active{% endif %}"><span class="nav-icon">❓</span> Помощь</a>
-    </nav>
-    <main class="main">
-      {% block content %}{% endblock %}
-    </main>
-  </div>
+ <header class="header">
+ <a href="/" style="color: inherit; text-decoration: none;">
+ <span class="brand">БИТ.Технолог</span>
+ </a>
+ <span class="env-badge">{{ app_env }} · v{{ app_version }}</span>
+ {% if is_mock_mode %}
+ <span class="env-badge mock">Тестовый режим</span>
+ {% else %}
+ <span class="env-badge" style="background: #16a34a; color: #fff;">LLM подключён</span>
+ {% endif %}
+ <span class="spacer"></span>
+ {% if daily_cost> cost_budget %}
+ <span class="cost bad">LLM: {{ daily_cost|round|int }} / {{ cost_budget|round|int }} ₽</span>
+ {% elif daily_cost> cost_budget * 0.8 %}
+ <span class="cost warn">LLM: {{ daily_cost|round|int }} / {{ cost_budget|round|int }} ₽</span>
+ {% else %}
+ <span class="cost">LLM: {{ daily_cost|round|int }} / {{ cost_budget|round|int }} ₽</span>
+ {% endif %}
+ {% if current_user %}
+ <span class="user">
+ <span class="avatar">{{ current_user.username[0]|upper }}{{ current_user.username[1]|upper }}</span>
+ <span>{{ current_user.display_name }} <span class="muted">({{ current_user.role_display }})</span></span>
+ </span>
+ {% else %}
+ <span class="user">
+ <a href="?login=1" style="color: var(--v8-header-text);">Войти</a>
+ </span>
+ {% endif %}
+ </header>
+ <div class="body">
+ {% set active_page = active_page|default('dashboard') %}
+ <nav class="nav">
+ <div class="nav-section">Основное</div>
+ <a href="/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">Мои задачи</a>
+ <a href="/products" class="nav-item {% if active_page == 'products' %}active{% endif %}">Изделия</a>
+ <a href="/knowledge" class="nav-item {% if active_page == 'knowledge' %}active{% endif %}">База знаний</a>
+ <a href="/notices" class="nav-item {% if active_page == 'notices' %}active{% endif %}">Извещения {% if counters is defined and counters.notices %}<span class="badge bad">{{ counters.notices }}</span>{% endif %}</a>
+ <div class="nav-section">Конфигурация</div>
+ <a href="/profiles" class="nav-item {% if active_page == 'profiles' %}active{% endif %}">Профили выхода РС</a>
+ <a href="/llm-admin" class="nav-item {% if active_page == 'llm-admin' %}active{% endif %}">Модели LLM</a>
+ <div class="nav-section">Система</div>
+ <a href="/help" class="nav-item {% if active_page == 'help' %}active{% endif %}">Помощь</a>
+ </nav>
+ <main class="main">
+ {% block content %}{% endblock %}
+ </main>
+ </div>
 </div>
 </body>
 </html>
