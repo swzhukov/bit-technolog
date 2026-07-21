@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>БИТ.Технолог v0.6 — прототип интерфейса</title>
+<style>
+:root{
+  --bg:#f4f6f9; --panel:#fff; --line:#dde3ea; --text:#1c2733; --muted:#66788c;
+  --brand:#c8102e; --brand2:#8f0c21; --blue:#1f6feb; --ok:#1a7f37; --okbg:#e6f4ea;
+  --warn:#9a6700; --warnbg:#fff8e1; --bad:#c62828; --badbg:#fdecea;
+  --chip:#eef2f7; --shadow:0 1px 3px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.5 "Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button{font:inherit;cursor:pointer}
+a{color:var(--blue);text-decoration:none}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.badge.ok{background:var(--okbg);color:var(--ok)} .badge.warn{background:var(--warnbg);color:var(--warn)}
+.badge.bad{background:var(--badbg);color:var(--bad)} .badge.blue{background:#e7f0ff;color:var(--blue)}
+.badge.coop{background:#f3e8ff;color:#7c3aed}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.dot.g{background:var(--ok)} .dot.y{background:#e6a700} .dot.r{background:var(--bad)}
+/* HEADER */
+header{background:#22303f;color:#fff;display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;position:sticky;top:0;z-index:50}
+header .logo{font-weight:700;font-size:16px}
+header .logo span{color:#ff5a6e}
+header .env{background:#394a5e;font-size:11px;padding:2px 8px;border-radius:4px;color:#c3d0de}
+header .spacer{flex:1}
+header select{background:#394a5e;color:#fff;border:1px solid #4d6076;border-radius:6px;padding:5px 10px}
+header .user{font-size:13px;color:#c3d0de}
+/* LAYOUT */
+.layout{display:flex;min-height:calc(100vh - 52px)}
+nav{width:220px;background:#fff;border-right:1px solid var(--line);padding:14px 0;flex-shrink:0}
+nav .item{display:flex;align-items:center;gap:8px;padding:9px 18px;color:var(--text);cursor:pointer;border-left:3px solid transparent;font-size:13.5px}
+nav .item:hover{background:#f0f4f8}
+nav .item.active{border-left-color:var(--brand);background:#fbeef0;font-weight:600}
+nav .item .cnt{margin-left:auto;background:var(--brand);color:#fff;border-radius:9px;font-size:11px;padding:0 7px}
+nav .sect{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:14px 18px 4px}
+main{flex:1;padding:20px 26px;max-width:1250px}
+.screen{display:none} .screen.visible{display:block}
+h1{font-size:20px;margin-bottom:4px} h2{font-size:16px;margin:18px 0 8px}
+.sub{color:var(--muted);margin-bottom:16px;font-size:13px}
+.rolebar{background:#e7f0ff;border:1px solid #bcd4f6;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:13px}
+.rolebar b{color:var(--blue)}
+/* CARDS */
+.cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;box-shadow:var(--shadow);min-width:150px;flex:1}
+.card .num{font-size:26px;font-weight:700} .card .lbl{color:var(--muted);font-size:12.5px}
+.card.alert .num{color:var(--bad)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;padding:8px 10px;border-bottom:2px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#f8fafc}
+.btn{background:var(--brand);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-weight:600}
+.btn:hover{background:var(--brand2)}
+.btn.sec{background:#fff;color:var(--text);border:1px solid var(--line)}
+.btn.sec:hover{background:#f0f4f8}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar input,.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#fff}
+/* TREE */
+.tree{font-size:13.5px}
+.tree .node{padding:6px 8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tree .node:hover{background:#f0f4f8}
+.tree .lvl1{margin-left:0;font-weight:700}.tree .lvl2{margin-left:22px}.tree .lvl3{margin-left:44px}.tree .lvl4{margin-left:66px}
+.tree .tw{color:var(--muted);width:14px;display:inline-block}
+/* TABS */
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--line);margin-bottom:16px}
+.tabs button{background:none;border:none;padding:9px 16px;color:var(--muted);font-weight:600;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.tabpane{display:none}.tabpane.on{display:block}
+/* SPLIT */
+.split{display:flex;gap:16px;align-items:flex-start}
+.split .left{width:38%;flex-shrink:0}
+.split .right{flex:1}
+.drawing{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.drawing svg{width:100%;height:auto;border:1px solid #eef2f7;border-radius:6px;background:#fdfdfd}
+.drawing .cap{font-size:12px;color:var(--muted);margin-top:6px}
+/* OPS */
+.op{border:1px solid var(--line);border-radius:9px;background:#fff;margin-bottom:10px;padding:12px 14px}
+.op .hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.op .hd b{font-size:14px}
+.op .meta{color:var(--muted);font-size:12.5px;margin-top:4px}
+.op .norm{margin-left:auto;text-align:right;font-size:13px;white-space:nowrap}
+.op .norm .val{font-weight:700;font-size:15px}
+.op .mats{margin-top:8px;font-size:12.5px;color:#3a4a5c;background:#f8fafc;border-radius:6px;padding:7px 10px}
+.evidence{margin-top:8px;font-size:12.5px;border-left:3px solid var(--ok);background:var(--okbg);border-radius:0 6px 6px 0;padding:7px 10px;display:none}
+.evidence.warn{border-left-color:#e6a700;background:var(--warnbg)}
+.evidence.bad{border-left-color:var(--bad);background:var(--badbg)}
+.evidence.show{display:block}
+.linkish{color:var(--blue);cursor:pointer;font-size:12.5px}
+/* WORKFLOW */
+.flow{display:flex;gap:0;align-items:center;margin:10px 0 16px;flex-wrap:wrap}
+.flow .step{padding:6px 14px;border:1px solid var(--line);background:#fff;font-size:12.5px;color:var(--muted)}
+.flow .step:first-child{border-radius:8px 0 0 8px}.flow .step:last-child{border-radius:0 8px 8px 0}
+.flow .step.done{background:var(--okbg);color:var(--ok);border-color:#bfe0c8;font-weight:600}
+.flow .step.cur{background:#e7f0ff;color:var(--blue);border-color:#bcd4f6;font-weight:600}
+/* DIFF */
+.diff td.was{background:#fdecea;text-decoration:line-through;color:#8a3b34}
+.diff td.now{background:#e6f4ea;color:#1a5c2c;font-weight:600}
+/* PROFILE axes */
+.axes{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+.axis{padding:9px 0;border-bottom:1px dashed var(--line)}
+.axis .k{font-size:12px;color:var(--muted)} .axis .v{font-weight:600}
+.profcard{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff;margin-bottom:12px}
+.profcard .hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+/* transform report */
+.trace{font-size:12.5px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px}
+.trace .arrow{color:var(--muted)}
+/* modal-ish notice */
+.note{background:var(--warnbg);border:1px solid #f0dca0;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.note.ok{background:var(--okbg);border-color:#bfe0c8}
+/* help */
+.role-desc{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.role-desc .rd{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.role-desc .rd h3{font-size:14px;margin-bottom:6px}
+.role-desc .rd .who{color:var(--muted);font-size:12.5px;margin-bottom:8px}
+ol.steps{margin:8px 0 8px 20px} ol.steps li{margin-bottom:6px}
+.kbd{background:#eef2f7;border-radius:4px;padding:0 6px;font-size:12px;border:1px solid var(--line)}
+footer{color:var(--muted);font-size:12px;padding:20px 26px;border-top:1px solid var(--line);margin-top:30px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">БИТ.<span>Технолог</span></div>
+  <span class="env">ПРОТОТИП · мок-данные · v0.6</span>
+  <div class="spacer"></div>
+  <span class="user">Роль:</span>
+  <select id="roleSel" onchange="setRole(this.value)">
+    <option value="tech">Технолог — Тарлецкий А.В.</option>
+    <option value="chief">Гл. технолог — Баранов М.А.</option>
+    <option value="prod">Нач. производства — Голубев П.В.</option>
+    <option value="techadmin">Технолог-администратор — Воробьёв Г.И.</option>
+    <option value="llmadmin">Администратор LLM — ИТ-служба</option>
+  </select>
+</header>
+
+<div class="layout">
+<nav id="nav">
+  <div class="item" data-scr="help" onclick="go('help')">📖 Как это работает</div>
+  <div class="sect">Работа</div>
+  <div class="item active" data-scr="dash" data-roles="tech,chief,prod" onclick="go('dash')">🗂 Мои задачи <span class="cnt" id="cntTasks">5</span></div>
+  <div class="item" data-scr="products" onclick="go('products')">🚒 Изделия и состав</div>
+  <div class="item" data-scr="detail" onclick="go('detail')">📄 Карточка: Упор продольный</div>
+  <div class="item" data-scr="notices" data-roles="tech,chief" onclick="go('notices')">📬 Извещения <span class="cnt">1</span></div>
+  <div class="sect">Настройка</div>
+  <div class="item" data-scr="profiles" data-roles="techadmin,chief" onclick="go('profiles')">⚙️ Профили выхода РС</div>
+  <div class="item" data-scr="knowledge" data-roles="tech,chief,techadmin" onclick="go('knowledge')">🧠 База знаний</div>
+  <div class="item" data-scr="llm" data-roles="llmadmin" onclick="go('llm')">🤖 Модели LLM</div>
+</nav>
+
+<main>
+
+<!-- ================= HELP ================= -->
+<section class="screen" id="scr-help">
+  <h1>Как устроена работа в БИТ.Технолог</h1>
+  <p class="sub">Прототип показывает полный контур: от детали до техкарты по ГОСТ 3.1105-2011 и Ресурсной спецификации в 1С:ERP. Переключайте роль в шапке — интерфейс меняется.</p>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Три слоя системы</h2>
+    <ol class="steps">
+      <li><b>AI-слой</b> — генерирует <i>черновик</i> техкарты, задаёт уточняющие вопросы, предлагает нормы по аналогам с завода. Всегда проверяется человеком. Каждая цифра помечена светофором доверия: <span class="dot g"></span>факт завода · <span class="dot y"></span>оценка по аналогам · <span class="dot r"></span>гипотеза AI, проверить.</li>
+      <li><b>РС-фабрика</b> — детерминированный алгоритм (без AI): утверждённая ТК + «Профиль выхода РС» → Ресурсная спецификация ровно в том виде, как требует 1С:ERP клиента. С отчётом трансформации «строка РС ← правило ← операции ТК».</li>
+      <li><b>1С:ERP — мастер-система.</b> НСИ и РС живут там. Мы читаем справочники и выгружаем РС файлом (потом — по HTTP). У нас хранятся только черновики, история и доп. параметры для приёмки.</li>
+    </ol>
+  </div>
+
+  <h2>Кто и что делает</h2>
+  <div class="role-desc">
+    <div class="rd"><h3>👨‍🔧 Технолог (Тарлецкий)</h3><div class="who">Основной пользователь. 5–10 деталей в работе параллельно.</div>
+      <ol class="steps">
+        <li>Экран <b>«Мои задачи»</b>: видит черновики, вопросы AI, извещения.</li>
+        <li>Открывает деталь → чертёж слева, операции справа → <span class="kbd">Сгенерировать ТК</span>.</li>
+        <li>AI задаёт 1–2 вопроса, выдаёт черновик. Технолог правит inline, смотрит «доказательства» норм (аналоги из ведомости и нарядов).</li>
+        <li>Отправляет на утверждение гл. технологу.</li>
+      </ol></div>
+    <div class="rd"><h3>👨‍💼 Гл. технолог (Баранов)</h3><div class="who">Утверждает ТК, контролирует извещения, эталоны.</div>
+      <ol class="steps">
+        <li>Видит очередь «На моё утверждение», сравнивает версии, смотрит светофор норм.</li>
+        <li>Утверждает или возвращает с комментарием. Утверждённая ТК автоматически становится <b>эталоном</b> — AI учится на ней.</li>
+        <li>По извещению об изменениях — принимает предложенные AI правки (diff «было/стало»).</li>
+      </ol></div>
+    <div class="rd"><h3>🏭 Нач. производства (Голубев)</h3><div class="who">Финальная виза, контроль маршрутов по участкам.</div>
+      <ol class="steps"><li>Утверждает ТК после гл. технолога.</li><li>Смотрит, на какие участки ложится маршрут и кооперация.</li></ol></div>
+    <div class="rd"><h3>⚙️ Технолог-администратор (Воробьёв)</h3><div class="who">Настраивает «Профили выхода РС» под требования 1С клиента.</div>
+      <ol class="steps">
+        <li>Создаёт профиль: этапы по участкам или цехозаходам? операции полностью или укрупнённо? материалы сводно или по операциям?</li>
+        <li>Привязывает профиль к виду продукции: АЦ → один, УМК → другой.</li>
+        <li>Тестовый прогон на любой утверждённой ТК → предпросмотр РС.</li>
+      </ol></div>
+    <div class="rd"><h3>🤖 Администратор LLM (ИТ)</h3><div class="who">Отдельное право llm_admin. Управляет моделями.</div>
+      <ol class="steps"><li>Назначает модель на тип задачи: генерация ТК — сильная, уточняющие вопросы — дешёвая.</li><li>Лимиты расходов, журнал смен модели.</li></ol></div>
+    <div class="rd"><h3>🔁 Сквозной сценарий (5 минут)</h3><div class="who">Проследите в прототипе:</div>
+      <ol class="steps">
+        <li>«Мои задачи» → Упор продольный (черновик AI готов).</li>
+        <li>Карточка → вкладка «Операции»: светофор, «Почему такая норма?».</li>
+        <li>Вкладка «Ресурсная спецификация»: профиль «Мелкосерийное пр-во», предпросмотр, отчёт трансформации, выгрузка в 1С.</li>
+        <li>«Извещения» → И-2026-014: смена материала → diff → перегенерация РС.</li>
+      </ol></div>
+  </div>
+</section>
+
+<!-- ================= DASHBOARD ================= -->
+<section class="screen visible" id="scr-dash">
+  <h1>Мои задачи</h1>
+  <p class="sub">Рабочий стол: всё, что требует вашего действия. Понедельник, 21 июля 2026.</p>
+  <div class="rolebar" id="dashRolebar"></div>
+
+  <div class="cards">
+    <div class="card"><div class="num">4</div><div class="lbl">Черновики в работе</div></div>
+    <div class="card"><div class="num">2</div><div class="lbl">Ждут моего утверждения</div></div>
+    <div class="card alert"><div class="num">1</div><div class="lbl">Извещения к обработке</div></div>
+    <div class="card"><div class="num">3</div><div class="lbl">Вопросы AI без ответа</div></div>
+    <div class="card alert"><div class="num">1</div><div class="lbl">РС: конфликт с 1С</div></div>
+  </div>
+
+  <div class="panel">
+  <table>
+    <tr><th></th><th>Объект</th><th>Изделие / исполнение</th><th>Что требуется</th><th>Статус</th><th>Срок</th><th></th></tr>
+    <tr><td>📄</td><td><b>Упор продольный</b><br><span class="badge">ЛМША.301314.010</span></td><td>УМК (для АО КАМАЗ)</td><td>Черновик AI готов — проверить нормы и отправить на утверждение</td><td><span class="badge blue">Черновик v2</span></td><td>сегодня</td><td><button class="btn sm" onclick="go('detail')">Открыть</button></td></tr>
+    <tr><td>📬</td><td><b>Извещение И-2026-014</b><br><span class="badge">смена материала</span></td><td>АЦ-8,0-40 · зав. №147</td><td>Материал днища: 09Г2С → 10ХСНД. Затронуты 3 сборки, 2 ТК, 2 РС</td><td><span class="badge bad">Требует решения</span></td><td>22.07</td><td><button class="btn sm" onclick="go('notices')">Разобрать</button></td></tr>
+    <tr><td>❓</td><td><b>Растяжка пружинная</b><br><span class="badge">ЛМША.301712.000</span></td><td>УМК</td><td>AI спрашивает: «Пружина тарельчатая (72 шт) — запрессовка на участке растяжек или в кооперации?»</td><td><span class="badge warn">Вопрос AI</span></td><td>23.07</td><td><button class="btn sm sec">Ответить</button></td></tr>
+    <tr><td>🔄</td><td><b>Цистерна</b><br><span class="badge">53-ТВ.05.00.00</span></td><td>АЦ-6,0-40 · зав. №151</td><td>РС изменена вручную в 1С (этап «Сварка» +2 н/ч). Принять из 1С или перезаписать?</td><td><span class="badge bad">Конфликт РС</span></td><td>сегодня</td><td><button class="btn sm sec">Сравнить</button></td></tr>
+    <tr><td>✅</td><td><b>Каркас КБР</b><br><span class="badge">53-ТВ.15.00.00</span></td><td>АЦ-6,0-40</td><td>Утверждена гл. технологом → сформировать РС и выгрузить в 1С</td><td><span class="badge ok">ТК утверждена</span></td><td>24.07</td><td><button class="btn sm sec">К РС</button></td></tr>
+  </table>
+  </div>
+
+  <div class="note">💡 <b>Петля обучения:</b> за последние 4 недели утверждено 17 ТК → они стали эталонами. Доля норм «зелёного» уровня выросла с 42% до 61%. AI систематически занижал время зачистки после сварки на ~25% — добавлено правило технолога, расхождение устранено.</div>
+</section>
+
+<!-- ================= PRODUCTS ================= -->
+<section class="screen" id="scr-products">
+  <h1>Изделия и состав</h1>
+  <p class="sub">Дерево: модель → исполнение (заводской №) → сборки → детали. Одна деталь может входить в несколько сборок. Состав может отличаться по исполнениям.</p>
+
+  <div class="toolbar">
+    <input placeholder="🔍 Поиск по обозначению/наименованию" style="width:280px">
+    <select><option>Все виды продукции</option><option>АЦ — автоцистерны</option><option>ПСС — подъёмники</option><option>УМК — упоры/растяжки</option></select>
+    <select><option>Все исполнения</option><option>зав. №144–153 (контракт МЧС-2026/31)</option><option>зав. №147 (спец. исполнение)</option></select>
+    <select><option>Любой статус ТК</option><option>Нет ТК</option><option>Черновик</option><option>Утверждена</option></select>
+  </div>
+
+  <div class="panel tree">
+    <div class="node lvl1"><span class="tw">▾</span>🚒 АЦ-8,0-40 <span class="badge">модель</span> <span class="badge blue">шасси: КАМАЗ 43118 (из модели)</span> <span class="badge">вид: Кузовная техника</span> <span class="badge">профиль РС: КТ-этапы-по-участкам</span></div>
+    <div class="node lvl2"><span class="tw">▾</span>📦 Исполнение зав. №144 <span class="badge">базовое · контракт МЧС-2026/31</span> <span class="badge ok">ТК: 84% готово</span></div>
+    <div class="node lvl2"><span class="tw">▸</span>📦 Исполнение зав. №147 <span class="badge warn">отличия: лебёдка + доп. отсек ПТВ</span> <span class="badge bad">затронуто извещением И-2026-014</span></div>
+    <div class="node lvl3"><span class="tw">▾</span>🔩 Цистерна 53-ТВ.05.00.00 <span class="badge">сборка</span> <span class="badge ok">ТК утверждена</span> <span class="badge ok">РС в 1С · v3</span></div>
+    <div class="node lvl4"><span class="tw">·</span>Днище заднее 53-ТВ.05.02.001 <span class="badge">деталь</span> <span class="badge bad">материал меняется (И-2026-014)</span></div>
+    <div class="node lvl4"><span class="tw">·</span>Обечайка 53-ТВ.05.01.000 <span class="badge">узел</span></div>
+    <div class="node lvl3"><span class="tw">▸</span>🔩 Каркас КБР 53-ТВ.15.00.00 <span class="badge">сборка</span> <span class="badge ok">ТК утверждена</span> <span class="badge warn">РС не сформирована</span></div>
+    <div class="node lvl3"><span class="tw">·</span>⚙️ Гидрооборудование 53-ТВ.03.00.00 <span class="badge coop">кооперация: давальческая · ООО «ГидроТверь»</span></div>
+
+    <div class="node lvl1" style="margin-top:10px"><span class="tw">▾</span>🔗 УМК — упоры и растяжки для АО КАМАЗ <span class="badge">массовая продукция · 9442 шт/год</span> <span class="badge">профиль РС: УМК-одноэтапная</span></div>
+    <div class="node lvl2" onclick="go('detail')" style="background:#fbeef0"><span class="tw">·</span>📄 <b>Упор продольный ЛМША.301314.010</b> <span class="badge blue">входит в 3 сборки ↗</span> <span class="badge blue">ТК: черновик v2</span> — <span class="linkish">открыть карточку</span></div>
+    <div class="node lvl2"><span class="tw">·</span>📄 Растяжка пружинная ЛМША.301712.000 <span class="badge warn">вопрос AI</span></div>
+    <div class="node lvl3"><span class="tw">·</span>Пластина ЛМША.301714.006 <span class="badge blue">входит в 4 сборки ↗</span> — пример many-to-many: одна деталь → упор, растяжка, каркас КБР, отсек</div>
+  </div>
+  <div class="note ok">🧭 <b>Как читать:</b> шасси указано один раз — в модели (не дублируется в деталях). Исполнение №147 наследует состав модели, храним только отличия. Значок «входит в N сборок» — извещение по такой детали автоматически найдёт все затронутые ТК и РС.</div>
+</section>
+
+<!-- ================= DETAIL CARD ================= -->
+<section class="screen" id="scr-detail">
+  <h1>Упор продольный ЛМША.301314.010</h1>
+  <p class="sub">УМК для АО КАМАЗ · Мелкосерийное производство, участок упоров · Материал: Сталь 09Г2С (НСИ 1С <span class="badge">ref_1c: 4c85…941a</span>)</p>
+
+  <div class="flow">
+    <div class="step done">Черновик AI</div><div class="step cur">Проверка технолога</div><div class="step">Гл. технолог</div><div class="step">Нач. производства</div><div class="step">РС → 1С:ERP</div>
+  </div>
+
+  <div class="tabs">
+    <button class="on" onclick="tab(this,'t-ops')">Чертёж + Операции</button>
+    <button onclick="tab(this,'t-rs')">Ресурсная спецификация</button>
+    <button onclick="tab(this,'t-just')">Обоснование норм</button>
+    <button onclick="tab(this,'t-ext')">Доп. параметры (приёмка)</button>
+    <button onclick="tab(this,'t-hist')">История</button>
+  </div>
+
+  <!-- TAB: OPS -->
+  <div class="tabpane on" id="t-ops">
+    <div class="split">
+      <div class="left">
+        <div class="drawing">
+          <svg viewBox="0 0 300 220">
+            <rect x="20" y="60" width="260" height="30" fill="#eef2f7" stroke="#8ba0b5"/>
+            <rect x="40" y="30" width="30" height="30" fill="#dde7f0" stroke="#8ba0b5"/>
+            <rect x="230" y="30" width="30" height="30" fill="#dde7f0" stroke="#8ba0b5"/>
+            <line x1="20" y1="110" x2="280" y2="110" stroke="#c8102e" stroke-dasharray="4 3"/>
+            <text x="150" y="130" font-size="10" fill="#66788c" text-anchor="middle">560 ±1</text>
+            <rect x="90" y="90" width="120" height="14" fill="#dde7f0" stroke="#8ba0b5"/>
+            <text x="150" y="165" font-size="11" fill="#1c2733" text-anchor="middle">Упор продольный — сварная конструкция</text>
+            <text x="150" y="182" font-size="9" fill="#66788c" text-anchor="middle">ножи 2 шт · рёбра 4 шт · настил · планки</text>
+            <text x="150" y="205" font-size="9" fill="#66788c" text-anchor="middle">[мок-эскиз вместо чертежа PDF]</text>
+          </svg>
+          <div class="cap">Чертёж v2 от 14.05.2026 · привязан к извещению И-2025-089 · <a>открыть PDF</a> · <a>распознать поля (OCR)</a></div>
+        </div>
+        <div class="panel" style="margin-top:12px">
+          <b>Свойства</b> <span class="badge ok">заполнено из OCR + НСИ</span>
+          <table style="margin-top:6px">
+            <tr><td style="color:var(--muted)">Масса</td><td>38,2 кг</td></tr>
+            <tr><td style="color:var(--muted)">Габариты</td><td>560×180×120 мм</td></tr>
+            <tr><td style="color:var(--muted)">Покрытие</td><td>Грунт ГФ-021</td></tr>
+            <tr><td style="color:var(--muted)">Входит в сборки</td><td><a>УМК-комплект</a>, <a>Оснастка Т-1</a>, <a>ЗИП-упаковка</a></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="toolbar">
+          <button class="btn" data-need="tech" onclick="alert('AI-слой: заданы 2 уточняющих вопроса, черновик обновится. (мок)')">⚡ Перегенерировать ТК</button>
+          <button class="btn sec" data-need="tech" onclick="alert('Отправлено на утверждение гл. технологу Баранову М.А. (мок)')">Отправить на утверждение →</button>
+          <button class="btn sec" data-need="chief" onclick="alert('ТК утверждена. Автоматически добавлена в эталоны для обучения AI. (мок)')">✅ Утвердить (гл. технолог)</button>
+          <span class="badge blue">черновик v2 · модель: GigaChat-Max · 2,8 ₽</span>
+        </div>
+
+        <div class="op">
+          <div class="hd"><span class="badge">005</span><b>Комплектование</b><span class="badge">Уч. упоров · РМ 04</span><span class="badge">Комплектовщик, 2 разр.</span>
+            <div class="norm"><span class="dot g"></span><span class="val">0,30 н/ч</span><br><span class="linkish" onclick="ev('e1')">Почему такая норма?</span></div></div>
+          <div class="evidence" id="e1">🟢 <b>Факт завода.</b> Ведомость трудоёмкости (575 ДСЕ): комплектование сварных узлов до 40 кг — 0,30 н/ч. Наряды за 12 мес: 0,28–0,33 н/ч (n=214). Взято среднее по ведомости.</div>
+        </div>
+
+        <div class="op">
+          <div class="hd"><span class="badge">015</span><b>Сборка и прихватка ножей</b><span class="badge">Кедр-300</span><span class="badge">Сварщик 19905, 4 разр.</span>
+            <div class="norm"><span class="dot g"></span><span class="val">1,10 н/ч</span><br><span class="linkish" onclick="ev('e2')">Почему такая норма?</span></div></div>
+          <div class="meta">Установить ножи (2 шт) на основание по эскизу, прихватить. Проволока Св-08Г2С-О ⌀1,0; смесь М21.</div>
+          <div class="mats">📦 Материалы: Св-08Г2С-О ⌀1,0 — 0,12 кг · Смесь М21 — 0,09 м³ · Спрей антипригарный — 0,02 л &nbsp;&nbsp; <a>✏️ править</a></div>
+          <div class="evidence" id="e2">🟢 <b>Факт завода.</b> Эталонная ТК 4c85941a (Упор ЛМША.301314.020, утв. Баранов, 2022): операция 015 = 1,10 н/ч. Деталь-аналог на 97% совпадает по составу.</div>
+        </div>
+
+        <div class="op">
+          <div class="hd"><span class="badge">020</span><b>Приварка ножей к основанию</b><span class="badge">Кедр-300</span><span class="badge">Сварщик 19905, 4 разр.</span>
+            <div class="norm"><span class="dot g"></span><span class="val">1,45 н/ч</span><br><span class="linkish" onclick="ev('e3')">Почему такая норма?</span></div></div>
+          <div class="mats">📦 Св-08Г2С-О — 0,31 кг · М21 — 0,22 м³</div>
+          <div class="evidence" id="e3">🟢 <b>Факт завода.</b> Эталон 4c85941a: 1,45 н/ч. Наряды (уч. упоров, 2025–26): среднее 1,41, разброс 1,3–1,6 (n=380).</div>
+        </div>
+
+        <div class="op">
+          <div class="hd"><span class="badge">025</span><b>Установка рёбер, приварка пластин ЛМША.301714.006</b><span class="badge">Кедр-300</span><span class="badge">Сварщик, 4 разр.</span>
+            <div class="norm"><span class="dot y"></span><span class="val">1,80 н/ч</span><br><span class="linkish" onclick="ev('e4')">Почему такая норма?</span></div></div>
+          <div class="evidence warn" id="e4">🟡 <b>Оценка по аналогам.</b> Точного эталона нет (в .010 рёбер больше, чем в .020). Аналоги: упор .020 — 1,55 · кронштейн замка — 1,7 · основа растяжки — 2,1. AI интерполировал по массе наплавленного металла. <b>Проверьте.</b></div>
+        </div>
+
+        <div class="op">
+          <div class="hd"><span class="badge">030</span><b>Зачистка сварных швов</b><span class="badge">УШМ · верстак</span><span class="badge">Слесарь, 3 разр.</span>
+            <div class="norm"><span class="dot g"></span><span class="val">0,65 н/ч</span><br><span class="linkish" onclick="ev('e5')">Почему такая норма?</span></div></div>
+          <div class="evidence" id="e5">🟢 <b>Факт завода + правило.</b> Ранее AI ставил 0,50 (−25% к факту). После правила технолога «зачистка после мех. сварки = 12 мин/пог.м шва» — совпадает с нарядами (0,62–0,70).</div>
+        </div>
+
+        <div class="op" style="border-color:#e9b8bf">
+          <div class="hd"><span class="badge">035</span><b>Контроль ОТК + клеймение для ВП</b><span class="badge">Стол ОТК</span><span class="badge">Контролёр</span>
+            <div class="norm"><span class="dot r"></span><span class="val">0,40 н/ч</span><br><span class="linkish" onclick="ev('e6')">Почему такая норма?</span></div></div>
+          <div class="evidence bad" id="e6">🔴 <b>Гипотеза AI — подтвердите.</b> В ведомости и нарядах контроль не выделен отдельной строкой. AI взял типовые 15% от сварочного времени. Укажите факт или примите — и следующая ТК получит уже «зелёное» значение (петля обучения).</div>
+        </div>
+
+        <div class="toolbar" style="margin-top:8px">
+          <button class="btn sec sm">+ Добавить операцию</button>
+          <button class="btn sec sm">Печать: комплект по ГОСТ 3.1105-2011 (МК, ОК, КК)</button>
+          <span class="badge">Σ 5,70 н/ч · эталон завода для аналога: 5,55 н/ч ✓</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: RS -->
+  <div class="tabpane" id="t-rs">
+    <div class="note">🔒 <b>РС-фабрика — без AI.</b> РС собирается алгоритмом из утверждённой ТК по выбранному профилю. Один и тот же вход всегда даёт один и тот же выход. Доступна после утверждения ТК (в прототипе — открыта для демонстрации).</div>
+
+    <div class="toolbar">
+      <span>Профиль выхода:</span>
+      <select id="profSel" onchange="alert('Предпросмотр пересчитан по выбранному профилю (мок)')">
+        <option>УМК-одноэтапная (по виду продукции — по умолчанию)</option>
+        <option>КТ-этапы-по-участкам</option>
+        <option>ВТ-по-цехозаходам (ВРЦ)</option>
+      </select>
+      <button class="btn sec sm">Тестовый прогон</button>
+      <button class="btn" data-need="tech,chief" onclick="alert('Сформирован файл RS_LMSHA301314-010_v1.xml по схеме «Техинком-ERP-2.5». Передан через OneCGateway (FileGateway). (мок)')">⬇ Выгрузить в 1С:ERP</button>
+      <span class="badge">схема выгрузки: Техинком-ERP-2.5 (XML)</span>
+    </div>
+
+    <div class="panel">
+      <b>Предпросмотр РС</b> — как её увидит 1С:ERP <span class="badge">версия ТК: v2 · версия профиля: 4</span>
+      <table style="margin-top:8px">
+        <tr><th>№</th><th>Этап РС</th><th>Подразделение</th><th>Трудозатраты</th><th>Материалы (сводно на этап)</th></tr>
+        <tr><td>1</td><td><b>Изготовление</b> <span class="badge">единственный этап — профиль «одноэтапная»</span></td><td>Мелкосерийное пр-во, уч. упоров</td><td>Сварщик 19905/4 — 4,35 н/ч<br>Слесарь 3 разр. — 0,65 н/ч<br>Комплектовщик — 0,30 н/ч<br>Контролёр — 0,40 н/ч</td><td>Св-08Г2С-О ⌀1,0 — <b>0,43 кг</b><br>Смесь М21 — <b>0,31 м³</b><br>Спрей антипригар. — 0,02 л</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <b>Отчёт трансформации</b> — из чего получилась каждая строка (читается технологом, не программистом)
+      <div class="trace">Строка «Сварщик 19905/4 — 4,35 н/ч» <span class="arrow">←</span> правило профиля <b>«операции: укрупнённо, суммирование по профессии»</b> <span class="arrow">←</span> операции ТК 015 (1,10) + 020 (1,45) + 025 (1,80)</div>
+      <div class="trace">Строка «Св-08Г2С-О — 0,43 кг» <span class="arrow">←</span> правило <b>«материалы: сводно на этап, округление до 0,01 кг»</b> <span class="arrow">←</span> 0,12 + 0,31 из операций 015, 020</div>
+      <div class="trace">Этап «Изготовление» — один <span class="arrow">←</span> правило <b>«разрез этапов: вся РС одним этапом»</b> (вид продукции УМК: массовая мелочёвка, 1С требует без детализации)</div>
+      <div class="trace" style="background:#f3e8ff">Для сравнения: профиль «КТ-этапы-по-участкам» дал бы 3 этапа (комплектование / сварка / контроль) — переключите профиль выше.</div>
+    </div>
+  </div>
+
+  <!-- TAB: JUST -->
+  <div class="tabpane" id="t-just">
+    <div class="panel">
+      <b>Сводка доверия по ТК</b>
+      <table style="margin-top:8px">
+        <tr><th>Уровень</th><th>Операций</th><th>Доля времени</th><th>Что делать</th></tr>
+        <tr><td><span class="dot g"></span>Факт завода</td><td>4</td><td>72%</td><td>Ничего — источники: эталонная ТК 2022 г., ведомость 575 ДСЕ, наряды</td></tr>
+        <tr><td><span class="dot y"></span>Оценка по аналогам</td><td>1</td><td>21%</td><td>Проверить операцию 025 (интерполяция между 3 аналогами)</td></tr>
+        <tr><td><span class="dot r"></span>Гипотеза AI</td><td>1</td><td>7%</td><td>Подтвердить операцию 035 — факта по контролю в базе нет</td></tr>
+      </table>
+    </div>
+    <div class="panel"><b>Аналоги, использованные AI</b>
+      <table style="margin-top:8px">
+        <tr><th>Деталь-аналог</th><th>Сходство</th><th>Источник</th><th>Σ н/ч</th></tr>
+        <tr><td>Упор продольный ЛМША.301314.020</td><td>97%</td><td>Эталонная ТК (утв. Баранов, 2022)</td><td>5,55</td></tr>
+        <tr><td>Кронштейн замка 53Б-ТВ.01.21.00</td><td>71%</td><td>Ведомость трудоёмкости</td><td>4,50</td></tr>
+        <tr><td>Основа растяжки ЛМША.302400.001</td><td>64%</td><td>Наряды 2025–26</td><td>6,2 (факт, n=118)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB: EXT -->
+  <div class="tabpane" id="t-ext">
+    <div class="note ok">Эти параметры <b>не выгружаются в 1С</b> — они нужны для расчётов и комплекта документов приёмки (ОТК / ВП 3237 МО РФ). Справочник атрибутов настраивается администратором.</div>
+    <div class="panel">
+      <table>
+        <tr><th>Атрибут</th><th>Значение</th><th>Используется в</th></tr>
+        <tr><td>Режим сварки (ток/напряжение)</td><td>180–220 А / 24–26 В</td><td><span class="badge">расчёт</span> <span class="badge">приёмка</span></td></tr>
+        <tr><td>Катет шва</td><td>5 мм, ГОСТ 14771-76-Т1</td><td><span class="badge">приёмка</span></td></tr>
+        <tr><td>ИОТ (охрана труда)</td><td>№1, №3, №11, №26, №49</td><td><span class="badge">приёмка</span></td></tr>
+        <tr><td>Контрольные точки ВП</td><td>Контроль швов ВИК 100% · клеймение</td><td><span class="badge">приёмка</span></td></tr>
+        <tr><td>Согласующая цепочка</td><td>Шпаковский → Третьяков (СТКиК) → Голубев → Кафтуров (ВП)</td><td><span class="badge">приёмка</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB: HIST -->
+  <div class="tabpane" id="t-hist">
+    <div class="panel">
+      <table>
+        <tr><th>Когда</th><th>Кто</th><th>Событие</th></tr>
+        <tr><td>21.07 10:42</td><td>AI (GigaChat-Max)</td><td>Черновик v2: учтены ответы на вопросы (тип сварки — механизированная, М21)</td></tr>
+        <tr><td>21.07 10:38</td><td>Тарлецкий А.В.</td><td>Ответ на вопросы AI; правка операции 030 (0,50 → 0,65, причина: правило зачистки)</td></tr>
+        <tr><td>21.07 10:31</td><td>AI (YandexGPT-Lite)</td><td>2 уточняющих вопроса (задача «вопросы» работает на дешёвой модели)</td></tr>
+        <tr><td>21.07 10:30</td><td>Тарлецкий А.В.</td><td>Запуск генерации. Контекст: эталон 4c85941a, 3 аналога, правила сварки, структура предприятия</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= NOTICES ================= -->
+<section class="screen" id="scr-notices">
+  <h1>Извещения об изменениях (ГОСТ 2.503)</h1>
+  <p class="sub">Извещение → система находит ВСЕ затронутые сборки, ТК и РС (через связи состава) → AI предлагает правки → человек решает → РС перегенерируется тем же профилем.</p>
+
+  <div class="panel">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <b style="font-size:15px">И-2026-014 · Замена материала днища заднего</b>
+      <span class="badge bad">в работе</span>
+      <span class="badge">от 18.07.2026 · КБ, Юрьев А.М.</span>
+      <span class="badge">основание: И-2026-014.pdf</span>
+    </div>
+    <p style="margin:8px 0">Днище заднее 53-ТВ.05.02.001: материал <b>Сталь 09Г2С → Сталь 10ХСНД</b> (требование заказчика по коррозионной стойкости, исполнение зав. №147).</p>
+
+    <h2>Область влияния (найдено автоматически по составу)</h2>
+    <table>
+      <tr><th>Объект</th><th>Связь</th><th>Что затронуто</th></tr>
+      <tr><td>Цистерна 53-ТВ.05.00.00</td><td>деталь входит в сборку</td><td>ТК (утв.) + РС v3 в 1С</td></tr>
+      <tr><td>Обечайка с днищами 53-ТВ.05.01.000</td><td>подсборка</td><td>ТК (утв.)</td></tr>
+      <tr><td>АЦ-8,0-40 · зав. №147</td><td>исполнение</td><td>состав исполнения (отличие от базового)</td></tr>
+    </table>
+
+    <h2>Предложение AI по ТК «Цистерна» <span class="badge blue">модель: GigaChat-Max</span></h2>
+    <table class="diff">
+      <tr><th>Операция</th><th>Было</th><th>Станет</th><th>Почему</th></tr>
+      <tr><td>040 Сварка днища</td><td class="was">Св-08Г2С-О · 1,9 кг · 3,2 н/ч</td><td class="now">Св-10ХСНД(?) → предложено Св-08ХГСМА · 2,0 кг · 3,8 н/ч</td><td>10ХСНД требует другой проволоки и подогрева кромок; +18% времени — по аналогам сварки низколегированных</td></tr>
+      <tr><td>042 Подогрев кромок</td><td class="was">— (не было)</td><td class="now">+ новая операция · 0,4 н/ч</td><td>требование для 10ХСНД при δ&gt;8 мм · 🔴 подтвердить у сварочного технолога</td></tr>
+      <tr><td>070 Контроль швов</td><td>ВИК 100%</td><td>ВИК 100% (без изменений)</td><td>—</td></tr>
+    </table>
+
+    <div class="toolbar" style="margin-top:12px">
+      <button class="btn" data-need="chief" onclick="alert('Правки приняты → ТК Цистерна v4 (черновик) → после утверждения РС-фабрика перегенерирует РС v4 профилем «КТ-этапы-по-участкам» и подготовит выгрузку в 1С с причиной «И-2026-014». (мок)')">Принять правки → новая версия ТК</button>
+      <button class="btn sec" data-need="chief">Править вручную</button>
+      <button class="btn sec" data-need="chief">Отклонить</button>
+      <span class="badge">после утверждения: РС v3 → v4, причина изменения в 1С = «И-2026-014»</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PROFILES ================= -->
+<section class="screen" id="scr-profiles">
+  <h1>Профили выхода РС</h1>
+  <p class="sub">Правила, по которым РС-фабрика (алгоритм, без AI) собирает РС из утверждённой ТК. Требования 1С различаются даже внутри одного клиента — поэтому профили привязываются к виду продукции и настраиваются по осям.</p>
+
+  <div class="profcard">
+    <div class="hd"><b>УМК-одноэтапная</b> <span class="badge ok">активен</span> <span class="badge">вид продукции: УМК (по умолчанию)</span> <span class="badge">версия 4</span>
+      <span style="margin-left:auto"><button class="btn sec sm">Тестовый прогон</button> <button class="btn sec sm" data-need="techadmin">✏️ Изменить</button> <button class="btn sec sm" data-need="techadmin">Копировать</button></span></div>
+    <div class="axes">
+      <div class="axis"><div class="k">Разрез этапов</div><div class="v">Вся РС одним этапом</div></div>
+      <div class="axis"><div class="k">Детализация операций</div><div class="v">Укрупнённо: суммирование по профессии, без ПЗ-времени</div></div>
+      <div class="axis"><div class="k">Нормы времени</div><div class="v">Только Тшт, суммой на этап</div></div>
+      <div class="axis"><div class="k">Материалы</div><div class="v">Сводно на этап · округление 0,01 кг · раскрой: коэф. 1,05</div></div>
+      <div class="axis"><div class="k">Трудовые ресурсы</div><div class="v">Профессия + разряд, сводно</div></div>
+      <div class="axis"><div class="k">Вложенность</div><div class="v">Плоская (без отдельных РС полуфабрикатов)</div></div>
+      <div class="axis"><div class="k">Кооперация</div><div class="v">— не применяется</div></div>
+      <div class="axis"><div class="k">Схема выгрузки</div><div class="v">Техинком-ERP-2.5 (XML) · маппинг: 14 полей</div></div>
+    </div>
+  </div>
+
+  <div class="profcard">
+    <div class="hd"><b>КТ-этапы-по-участкам</b> <span class="badge ok">активен</span> <span class="badge">вид продукции: АЦ — кузовная техника</span> <span class="badge">версия 7</span>
+      <span style="margin-left:auto"><button class="btn sec sm">Тестовый прогон</button> <button class="btn sec sm" data-need="techadmin">✏️ Изменить</button></span></div>
+    <div class="axes">
+      <div class="axis"><div class="k">Разрез этапов</div><div class="v">По участкам (сварочно-сборочный КТ / сборочный КТ / заготовительный)</div></div>
+      <div class="axis"><div class="k">Детализация операций</div><div class="v">Полная, включая подготовительно-заключительные</div></div>
+      <div class="axis"><div class="k">Нормы времени</div><div class="v">Тшт + Тпз раздельно, по операциям</div></div>
+      <div class="axis"><div class="k">Материалы</div><div class="v">По операциям · ед. изм. из НСИ 1С</div></div>
+      <div class="axis"><div class="k">Трудовые ресурсы</div><div class="v">По операциям (профессия, разряд)</div></div>
+      <div class="axis"><div class="k">Вложенность</div><div class="v">Многоуровневая: полуфабрикаты — отдельными РС</div></div>
+      <div class="axis"><div class="k">Кооперация</div><div class="v">Давальческая → этап вида «Переработка на стороне» (контрагент из НСИ)</div></div>
+      <div class="axis"><div class="k">Схема выгрузки</div><div class="v">Техинком-ERP-2.5 (XML) · маппинг: 22 поля</div></div>
+    </div>
+  </div>
+
+  <div class="profcard">
+    <div class="hd"><b>ВТ-по-цехозаходам (ВРЦ)</b> <span class="badge warn">черновик</span> <span class="badge">вид продукции: ПСС — высотная техника</span>
+      <span style="margin-left:auto"><button class="btn sec sm" data-need="techadmin">✏️ Изменить</button></span></div>
+    <div class="axes">
+      <div class="axis"><div class="k">Разрез этапов</div><div class="v">По цехозаходам: один заход в подразделение = один этап · привязка к ВРЦ</div></div>
+      <div class="axis"><div class="k">Детализация операций</div><div class="v">Только этапы, без операций</div></div>
+    </div>
+  </div>
+
+  <div class="note">⚙️ Переопределение: для <b>исполнения зав. №147</b> (АЦ-8,0-40 спец.) действует профиль «КТ-этапы-по-участкам» с изменённой схемой выгрузки — у заказчика доработанная конфигурация (2 доп. поля). Настроено без программиста — через маппинг полей.</div>
+</section>
+
+<!-- ================= KNOWLEDGE ================= -->
+<section class="screen" id="scr-knowledge">
+  <h1>База знаний предприятия</h1>
+  <p class="sub">То, на чём AI «обучается на завод»: эталоны, факт трудоёмкости, правила. Пополняется автоматически с каждой утверждённой ТК.</p>
+  <div class="cards">
+    <div class="card"><div class="num">19</div><div class="lbl">Эталонных ТК<br>(2 архивные + 17 утверждённых)</div></div>
+    <div class="card"><div class="num">575</div><div class="lbl">ДСЕ в ведомости трудоёмкости</div></div>
+    <div class="card"><div class="num">4 812</div><div class="lbl">Строк нарядов (12 мес)</div></div>
+    <div class="card"><div class="num">14</div><div class="lbl">Правил технолога</div></div>
+    <div class="card"><div class="num">61%</div><div class="lbl">Норм уровня «зелёный»<br>(4 нед. назад — 42%)</div></div>
+  </div>
+
+  <div class="panel">
+    <b>Загрузка архива</b> — OCR + AI-разбор, человек проверяет перед добавлением в эталоны
+    <div class="toolbar" style="margin-top:8px">
+      <button class="btn sec">⬆ Загрузить архивную ТК (PDF/скан)</button>
+      <button class="btn sec">⬆ Ведомость трудоёмкости (Excel)</button>
+      <button class="btn sec">⬆ Наряды (Excel)</button>
+    </div>
+    <table style="margin-top:10px">
+      <tr><th>Документ</th><th>Разобрано AI</th><th>Статус</th></tr>
+      <tr><td>ТК «Растяжка пружинная» (скан 2022, 31 стр.)</td><td>операции 005–030, состав 18 позиций</td><td><span class="badge warn">ждёт проверки Воробьёва</span></td></tr>
+      <tr><td>Наряды июнь-2026.xlsx</td><td>402 строки, 396 сопоставлено с НСИ</td><td><span class="badge ok">в базе</span> · 6 строк — <a>разобрать вручную</a></td></tr>
+    </table>
+  </div>
+
+  <div class="panel">
+    <b>Правила технолога</b> (подставляются в контекст AI по типу операции)
+    <table style="margin-top:8px">
+      <tr><th>Правило</th><th>Область</th><th>Источник</th></tr>
+      <tr><td>Зачистка после механизированной сварки — 12 мин/пог.м шва</td><td>сварка</td><td>из систематических правок (петля обучения)</td></tr>
+      <tr><td>Перед покраской — обезжиривание уайт-спиритом, 2 прохода</td><td>покраска</td><td>Баранов М.А.</td></tr>
+      <tr><td>10ХСНД при δ&gt;8 мм — подогрев кромок 120–150 °C</td><td>сварка</td><td>из извещения И-2026-014</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= LLM ADMIN ================= -->
+<section class="screen" id="scr-llm">
+  <h1>Модели LLM</h1>
+  <p class="sub">Доступно только роли с правом <b>llm_admin</b>. Разные задачи — разные модели: дорогая там, где важно качество; дешёвая — на рутине. РС-фабрика в списке отсутствует — она не использует LLM.</p>
+
+  <div class="panel">
+    <b>Назначение моделей на задачи</b>
+    <table style="margin-top:8px">
+      <tr><th>Тип задачи</th><th>Модель</th><th>Ср. стоимость</th><th>Кач-во (acceptance)</th><th></th></tr>
+      <tr><td>Генерация ТК</td><td><select><option>GigaChat-Max</option><option>YandexGPT-Pro</option><option>DeepSeek-V4 (контур ПБ)</option></select></td><td>2,8 ₽</td><td>78% ▲</td><td><button class="btn sec sm">A/B-тест</button></td></tr>
+      <tr><td>Уточняющие вопросы</td><td><select><option>YandexGPT-Lite</option><option>GigaChat-Lite</option></select></td><td>0,4 ₽</td><td>—</td><td></td></tr>
+      <tr><td>Разбор архивных документов (OCR-постобработка)</td><td><select><option>GigaChat-Max</option></select></td><td>1,9 ₽</td><td>92% полей</td><td></td></tr>
+      <tr><td>Предложения по извещениям</td><td><select><option>GigaChat-Max</option></select></td><td>3,1 ₽</td><td>71%</td><td></td></tr>
+    </table>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="num">143 ₽</div><div class="lbl">Расход сегодня (лимит 500 ₽)</div></div>
+    <div class="card"><div class="num">2 214 ₽</div><div class="lbl">Расход за месяц</div></div>
+    <div class="card"><div class="num">1,9 ₽</div><div class="lbl">Средняя цена черновика ТК</div></div>
+  </div>
+
+  <div class="panel">
+    <b>Журнал изменений</b>
+    <table style="margin-top:8px">
+      <tr><th>Когда</th><th>Кто</th><th>Что</th><th>Эффект</th></tr>
+      <tr><td>14.07</td><td>ИТ-служба (llm_admin)</td><td>Генерация ТК: YandexGPT-Lite → GigaChat-Max</td><td>acceptance 54% → 78%, цена черновика +1,6 ₽</td></tr>
+      <tr><td>02.07</td><td>ИТ-служба</td><td>Дневной лимит 200 → 500 ₽</td><td>—</td></tr>
+    </table>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>БИТ.Технолог — прототип интерфейса v0.6 для обсуждения с Техинкомом и командой разработки. Все данные — мок (люди, детали и цифры взяты из реальных документов проекта для правдоподобия). Три слоя: AI-черновик → человек → РС-фабрика (алгоритм) → 1С:ERP (мастер).</footer>
+
+<script>
+const ROLE_DESCR = {
+  tech:      "Вы — <b>технолог Тарлецкий</b>. Ваш день: разобрать задачи ниже, проверить черновик AI по упору, ответить на вопрос AI по растяжке. Кнопки утверждения вам недоступны.",
+  chief:     "Вы — <b>гл. технолог Баранов</b>. Вам доступны утверждение ТК, решения по извещениям и ревизия профилей РС. Утверждённые вами ТК становятся эталонами для обучения AI.",
+  prod:      "Вы — <b>нач. производства Голубев</b>. Финальная виза после гл. технолога; контроль маршрутов по участкам и кооперации.",
+  techadmin: "Вы — <b>технолог-администратор Воробьёв</b>. Настраиваете профили выхода РС и проверяете разобранные AI архивные документы.",
+  llmadmin:  "Вы — <b>администратор LLM</b> (отдельное право llm_admin). Управляете моделями, лимитами и смотрите журнал."
+};
+let role = "tech";
+function setRole(r){
+  role = r;
+  document.querySelectorAll("[data-roles]").forEach(el=>{
+    el.classList.toggle("hidden", !el.dataset.roles.split(",").includes(r));
+  });
+  document.querySelectorAll("[data-need]").forEach(el=>{
+    el.disabled = !el.dataset.need.split(",").includes(r);
+  });
+  const bar = document.getElementById("dashRolebar");
+  if(bar) bar.innerHTML = "👤 " + ROLE_DESCR[r];
+  // если текущий экран скрыт для роли — уйти на справку
+  const cur = document.querySelector("nav .item.active");
+  if(cur && cur.classList.contains("hidden")) go("help");
+}
+function go(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("visible"));
+  document.getElementById("scr-"+id).classList.add("visible");
+  document.querySelectorAll("nav .item").forEach(i=>i.classList.toggle("active", i.dataset.scr===id));
+  window.scrollTo(0,0);
+}
+function tab(btn,id){
+  btn.parentElement.querySelectorAll("button").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+  const card = btn.closest("section");
+  card.querySelectorAll(".tabpane").forEach(p=>p.classList.remove("on"));
+  card.querySelector("#"+id).classList.add("on");
+}
+function ev(id){ document.getElementById(id).classList.toggle("show"); }
+setRole("tech");
+</script>
+</body>
+</html>
