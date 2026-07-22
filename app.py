@@ -310,12 +310,6 @@ async def dashboard(request: Request):
         ORDER BY tc.updated_at DESC
         LIMIT 5
     """, (user.username,))
-        FROM tech_cards tc
-        JOIN items i ON i.id = tc.item_id
-        LEFT JOIN product_models p ON p.id = i.product_model_id
-        ORDER BY tc.updated_at DESC
-        LIMIT 5
-    """)
     tasks = [db.row_to_dict(t) for t in tasks]
 
     # Извещения
