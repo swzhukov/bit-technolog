@@ -275,7 +275,7 @@ def get_template_context(request: Request, user: Optional[User] = None) -> Dict[
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    user = get_user_from_request(request)
+    user = require_user(request)  # M35u-fix: падало после рестарта из-за _sessions in-memory
     ctx = get_template_context(request, user)
 
     # Метрики (b — время генерации, c — % зелёных)
