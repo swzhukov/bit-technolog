@@ -1001,9 +1001,9 @@ async def api_update_operation(operation_id: int, request: Request):
                    (sql_value, operation_id))
         # Если меняется name — логируем в edits
         if field == "name":
-            db.execute("""INSERT INTO edits (draft_id, op_id, field, old_value, new_value, user, ts)
+            db.execute("""INSERT INTO edits (tech_card_id, operation_id, field, old_value, new_value, user, ts)
                           VALUES (?, ?, ?, ?, ?, ?, datetime('now'))""",
-                       (op["tech_card_id"], operation_id, field, old_value, sql_value, user.username))
+                       (op["tech_card_id"], operation_id, field, old_value, sql_value, user.username)) # same
         return {"status": "ok", "operation_id": operation_id, "field": field, "value": sql_value}
     except Exception as e:
         raise HTTPException(500, f"db error: {e}")
