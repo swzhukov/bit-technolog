@@ -91,23 +91,14 @@ def _rate_limit_check(key: str, max_calls: int, window_sec: int) -> tuple[bool, 
 app = FastAPI(title="БИТ.Технолог", version="1.0.0")
 
 # ============================================================
-# GRACEFUL SHUTDOWN STATE (M37-#5)
+# GRACEFUL SHUTDOWN (M37-#5) — no signal handler, just check before requests
 # ============================================================
-import signal as _signal
+# uvicorn handles SIGTERM itself (drains in-flight, then exits).
+# We just keep a flag (default False). It can be set externally
+# (e.g. from /admin/shutdown endpoint or test). For prod we use
+# uvicorn'''s built-in timeout_graceful_shutdown=30.
 _shutting_down: bool = False
-
-
-def _set_shutting_down():
-    global _shutting_down
-    _shutting_down = True
-
-
-try:
-    _signal.signal(_signal.SIGTERM, lambda s, f: _set_shutting_down())
-    _signal.signal(_signal.SIGINT, lambda s, f: _set_shutting_down())
-except ValueError:
-    pass
-
+_shutting_down_reason: str = ""
 
 
 # ============================================================
