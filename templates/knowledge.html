@@ -16,7 +16,7 @@
  {% for e in etalons %}
  {% set is_synthetic = e.source_doc and 'синтетический' in e.source_doc %}
  <tr>
- <td><b>{{ e.designation }}</b> {% if is_synthetic %}<span class="badge warn" title="Сгенерирован для прототипа, не реальный ТП">Синтетический</span>{% endif %}</td>
+ <td><b>{{ e.designation }}</b> {% if is_synthetic %}<span class="badge warn" title="Сгенерирован автоматически, не на основе реального техпроцесса">Синтетический</span>{% endif %}</td>
  <td>{{ e.name }}</td>
  <td><span class="badge">{{ e.product_type or '—' }}</span></td>
  <td><span class="muted" style="font-size: 11.5px;">{{ e.source_doc[:60] }}{% if e.source_doc and e.source_doc|length > 60 %}…{% endif %}</span></td>
