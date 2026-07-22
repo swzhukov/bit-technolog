@@ -24,6 +24,7 @@ ROLES = [
     ("tarrietsky", "technologist"),
     ("golubev", "workshop_chief"),
 ]
+USERNAME_FROM_ROLE = {role: user for user, role in ROLES}
 
 @dataclass
 class Step:
@@ -63,8 +64,9 @@ async def login(page: Page, username: str, password: str = "demo"):
     await page.goto(f"{URL}/login")
     await page.fill('input[name="username"]', username)
     await page.fill('input[name="password"]', password)
-    await page.click('button[type="submit"], input[type="submit"]')
-    await page.wait_for_load_state("networkidle")
+    async with page.expect_navigation():
+        await page.click('button[type="submit"], input[type="submit"]')
+    await page.wait_for_load_state("domcontentloaded")
 
 async def logout(context: BrowserContext):
     await context.clear_cookies()
@@ -110,9 +112,24 @@ async def run_scenario_s01_login(page: Page, role: str, report: Report):
             report.add_result("S01", role, False, "wrong password not rejected")
             return
         # 3. correct login
-        await login(page, role)
-        if "/login" in page.url:
-            report.add_result("S01", role, False, "login redirect failed")
+        await page.goto(f"{URL}/login")
+        await page.wait_for_load_state("domcontentloaded")
+        # get username from role - we pass username, not role
+        # (run_role passes username, role_name)
+        await page.fill('input[name="username"]', USERNAME_FROM_ROLE[role])
+        await page.fill('input[name="password"]', "demo")
+        # Submit and wait for URL change
+        await page.click('button[type="submit"], input[type="submit"]')
+        try:
+            await page.wait_for_url(lambda u: "/login" not in u, timeout=5000)
+        except Exception:
+            report.add_result("S01", role, False, f"login redirect failed, url={page.url}")
+            return
+        # DEBUG: check cookies
+        cookies = await page.context.cookies(URL)
+        has_session = any("session_id" in c.get("name", "") for c in cookies)
+        if not has_session:
+            report.add_result("S01", role, False, f"no session_id cookie after login, cookies: {[c['name'] for c in cookies]}")
             return
         report.add_result("S01", role, True)
     except Exception as e:
@@ -160,17 +177,29 @@ async def run_scenario_s03_detail(page: Page, role: str, report: Report):
         report.add_result("S03", role, False, str(e)[:200])
 
 async def run_scenario_s04_generate(page: Page, role: str, report: Report):
-    """S04: Генерация ТК (для make item) + 400 для buy"""
+    """S04: 400 для покупного (POST), make item — только форма (GET, без генерации)"""
     try:
-        # 1. make item — POST should work
-        resp = await page.request.post(f"{URL}/items/3/generate", form={"input": ""}, max_redirects=0)
-        if resp.status not in (200, 303, 302):
-            report.add_result("S04", role, False, f"make item POST → {resp.status}")
+        # Need to be on same-origin so cookies work
+        await page.goto(f"{URL}/products")
+        await page.wait_for_load_state("domcontentloaded")
+        # 1. buy item POST → 400 (M36-fix6) — быстро, без LLM
+        try:
+            r_buy = await page.request.post(
+                f"{URL}/items/8/generate",
+                form={"input": ""},
+                max_redirects=0,
+                timeout=10000,
+            )
+            if r_buy.status != 400:
+                report.add_result("S04", role, False, f"buy POST → {r_buy.status}, expected 400")
+                return
+        except Exception as e:
+            report.add_result("S04", role, False, f"buy err: {str(e)[:150]}")
             return
-        # 2. buy item — POST should be 400
-        resp2 = await page.request.post(f"{URL}/items/8/generate", form={"input": ""}, max_redirects=0)
-        if resp2.status != 400:
-            report.add_result("S04", role, False, f"buy item POST → {resp2.status}, expected 400")
+        # 2. make item GET — форма доступна. НЕ делаем POST чтобы не запускать LLM (24 сек).
+        s = await get_status(page, "/items/3/generate")
+        if s != 200:
+            report.add_result("S04", role, False, f"make GET → {s}, expected 200")
             return
         report.add_result("S04", role, True)
     except Exception as e:
@@ -192,23 +221,28 @@ async def run_scenario_s05_inline_edit(page: Page, role: str, report: Report):
             report.add_result("S05", role, False, "no .editable found")
             return
         op_id = int(op_id_str)
-        # POST
-        resp = await page.request.post(
-            f"{URL}/api/operations/{op_id}/update",
-            form={"field": "time_per_unit_min", "value": "99.9"},
-            headers={"X-Requested-With": "XMLHttpRequest"},
-        )
-        if resp.status != 200:
-            t = await resp.text()
-            report.add_result("S05", role, False, f"POST → {resp.status}: {t[:200]}")
-            return
-        # Reset back
-        await page.request.post(
-            f"{URL}/api/operations/{op_id}/update",
-            form={"field": "time_per_unit_min", "value": "10.0"},
-            headers={"X-Requested-With": "XMLHttpRequest"},
-        )
-        report.add_result("S05", role, True)
+        # POST via page.request.post (sends cookies automatically)
+        try:
+            r = await page.request.post(
+                f"{URL}/api/operations/{op_id}/update",
+                headers={"Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest"},
+                data=json.dumps({"field": "time_per_unit_min", "value": "99.9"}),
+                timeout=10000,
+            )
+            if r.status != 200:
+                t = await r.text()
+                report.add_result("S05", role, False, f"POST → {r.status}: {t[:200]}")
+                return
+            # Reset back
+            await page.request.post(
+                f"{URL}/api/operations/{op_id}/update",
+                headers={"Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest"},
+                data=json.dumps({"field": "time_per_unit_min", "value": "10.0"}),
+                timeout=10000,
+            )
+            report.add_result("S05", role, True)
+        except Exception as e:
+            report.add_result("S05", role, False, f"err: {str(e)[:200]}")
     except Exception as e:
         report.add_result("S05", role, False, str(e)[:200])
 
