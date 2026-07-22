@@ -54,12 +54,4 @@
 {% endif %}
 </div>
 
-<div class="panel">
- <div class="panel-body">
- <b> Концепция универсальной <code>items</code>:</b>
- вместо трёх таблиц (<code>details</code>, <code>assemblies</code>, <code>purchased</code>) — одна.
- Иерархия через <code>parent_item_id</code> (recursive). Состав many-to-many через <code>bom_links</code>.
- Кооперация — поле <code>sourcing</code> (<code>make</code>/<code>buy</code>/<code>coop_da</code>/<code>coop_full</code>).
- </div>
-</div>
 {% endblock %}

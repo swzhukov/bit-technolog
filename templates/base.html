@@ -145,7 +145,7 @@
  <a href="/knowledge" class="nav-item {% if active_page == 'knowledge' %}active{% endif %}">База знаний</a>
  <a href="/notices" class="nav-item {% if active_page == 'notices' %}active{% endif %}">Извещения {% if counters is defined and counters.notices %}<span class="badge bad">{{ counters.notices }}</span>{% endif %}</a>
  <div class="nav-section">Конфигурация</div>
- <a href="/profiles" class="nav-item {% if active_page == 'profiles' %}active{% endif %}">Профили выхода РС</a>
+ <a href="/profiles" class="nav-item {% if active_page == 'profiles' %}active{% endif %}">Шаблоны маршрутов</a>
  <a href="/metrics" class="nav-item {% if active_page == 'metrics' %}active{% endif %}">Метрики</a>
  <a href="/llm-admin" class="nav-item {% if active_page == 'llm-admin' %}active{% endif %}">Модели LLM</a>
  {% if current_user and current_user.is_admin %}

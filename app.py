@@ -527,6 +527,10 @@ async def item_generate_post(request: Request, item_id: int):
     if not item:
         raise HTTPException(404, "Item not found")
 
+    # M36-fix #6: покупное изделие — нечего описывать техпроцессом
+    if item.get("sourcing") == "buy":
+        raise HTTPException(400, "Для покупного изделия техкарта не нужна — оно приобретается, а не изготавливается.")
+
     # Метрика b: старт замера
     from services.metrics import start_tc_generation
     run_id = start_tc_generation(item_id, user.username)
