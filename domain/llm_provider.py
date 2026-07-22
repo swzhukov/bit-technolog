@@ -360,6 +360,90 @@ class GigaChatProvider(LLMProvider):
 
 
 # ============================================================
+# OPENAI-COMPATIBLE (1bitai.ru, OpenRouter, proxy и т.п.)
+# ============================================================
+
+class OpenAIProvider(LLMProvider):
+    """Универсальный OpenAI-compatible провайдер (1bitai.ru, OpenRouter, локальные прокси).
+
+    M35o: добавлен для пилота 27.07 — поддержка 1bitai.ru (deepseek-v4-flash-thinking)
+    и любых других OpenAI-совместимых API. Параметры api_url + api_key + model_name
+    задаются через llm_providers (name='openai') + llm_model_assignments.
+    """
+
+    name = "openai"
+    display_name = "OpenAI-compatible (1bitai.ru, OpenRouter, ...)"
+
+    def __init__(self, api_key: str, endpoint: str = "", model: str = "gpt-4o-mini"):
+        self.api_key = api_key
+        # endpoint = полный base_url, например "https://api.1bitai.ru/v1"
+        self.endpoint = endpoint.rstrip("/") if endpoint else "https://api.openai.com/v1"
+        self.model = model
+
+    def get_cost_per_1k(self, model: Optional[str] = None) -> tuple:
+        # 1bitai.ru ~ 0.20₽ за 1K (input) + 0.60₽ (output). Провайдер-задаваемо
+        return (0.20, 0.60)
+
+    def generate(
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float = 0.2,
+        max_tokens: int = 4000,
+        model: Optional[str] = None,
+        response_format: str = "text",
+    ) -> LLMResult:
+        from openai import OpenAI
+
+        start = time.time()
+        model = model or self.model
+        client = OpenAI(api_key=self.api_key, base_url=self.endpoint, timeout=60.0)
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if response_format == "json":
+            kwargs["response_format"] = {"type": "json_object"}
+
+        try:
+            resp = client.chat.completions.create(**kwargs)
+        except Exception as e:
+            err = str(e)
+            if "401" in err or "Unauthorized" in err or "auth" in err.lower():
+                raise LLMAuthError(f"OpenAI auth error: {err[:200]}")
+            if "429" in err or "rate" in err.lower():
+                raise LLMRateLimit(f"Rate limit: {err[:200]}")
+            if "timeout" in err.lower() or "timed out" in err.lower():
+                raise LLMTimeout(f"Timeout: {err[:200]}")
+            raise LLMError(f"OpenAI error: {err[:300]}")
+
+        text = resp.choices[0].message.content or ""
+        usage = getattr(resp, "usage", None)
+        input_t = int(getattr(usage, "prompt_tokens", 0)) if usage else 0
+        output_t = int(getattr(usage, "completion_tokens", 0)) if usage else 0
+        cost = (input_t * self.get_cost_per_1k()[0] + output_t * self.get_cost_per_1k()[1]) / 1000
+        duration_ms = int((time.time() - start) * 1000)
+
+        return LLMResult(
+            content=text,
+            model=model,
+            input_tokens=input_t,
+            output_tokens=output_t,
+            cost_rub=cost,
+            duration_ms=duration_ms,
+            raw=resp.model_dump() if hasattr(resp, "model_dump") else {},
+        )
+
+
+# ============================================================
 # REGISTRY
 # ============================================================
 
@@ -407,6 +491,17 @@ class LLMProviderRegistry:
             return YandexGPTProvider(api_key=api_key, folder_id=folder_id, endpoint=endpoint)
         if provider_name == "gigachat":
             return GigaChatProvider()
+        if provider_name == "openai":
+            api_key = ""
+            if row["api_key_enc"]:
+                try:
+                    api_key = decrypt_api_key(row["api_key_enc"])
+                except Exception as e:
+                    logger.error(f"Failed to decrypt API key: {e}")
+                    return MockLLMProvider()
+            endpoint = row["endpoint"] or ""
+            # model_name из assignment (model_name) перебивает дефолт провайдера
+            return OpenAIProvider(api_key=api_key, endpoint=endpoint, model=row.get("model_name") or "gpt-4o-mini")
 
         return MockLLMProvider()
 
