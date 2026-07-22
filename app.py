@@ -573,7 +573,7 @@ async def item_generate_post(request: Request, item_id: int):
                 prompt=prompt,
                 system=REFINE_PROMPT,
                 temperature=0.2,
-                max_tokens=3000,
+                max_tokens=1500,  # M35r-fix: 3000→1500 (1bitai.ru 3000 токенов = 170 сек)
                 response_format="json",
                 user=user.username,
             )
