@@ -12,3 +12,8 @@ data/*.db-shm
 data/*.db-wal
 .env
 .master_key
+
+# Python venv (M37-#6-fix: не коммитим, 117MB Playwright driver)
+venv/
+venv-*/
+.envrc
