@@ -886,3 +886,77 @@ if operations:
 for op in operations:
     insert_operation(...)
 ```
+
+## M35s (2026-07-22, 14:00) — Q-003: удалить мёртвый код (КОМПАС-Watcher → future idea)
+
+**Ситуация:** Сергей: "Удаляй как код, оставляй как идею на развитие."
+
+**Что удалено:**
+- `utils/drawing_recognize.py` (258 строк) — M28 (PDF/DXF/КОМПАС upload). Использовалось только в `_old/app.py:1676`.
+- `attachments/ocr_drawings.py` (70 строк) — то же самое, не подключено.
+
+**Что оставлено:** `docs/open-questions.md` F-001 (КОМПАС-3D Watcher — Phase 3 future idea) — без кода, только архитектурный план.
+
+**Итого:** -330 строк мёртвого кода, +1 future idea.
+
+**Lesson:** Удалять мёртвый код **до** пилота. Сейчас это 328 строк, через 6 месяцев будет 3000+. "Ненаписанный код не содержит багов".
+
+---
+
+## M35t (2026-07-22, 14:15) — Q-004: inline-edit для полей операции (Linear/Airtable pattern)
+
+**Ситуация:** Сергей: "Изучай как реализовано у конкурентов и обосновано принимай решение."
+
+**Конкурентный анализ (web_search 2026):**
+- **Linear/Notion 2026:** click → input → Enter/Escape для частых полей. "Auto-grow input" (input = fit-content, не full width). Оптимистичный UI.
+- **Airtable record detail:** есть переключатель "Off / Inline / Form". **Inline = все поля editable на странице**. Подходит для quick edits.
+- **DataTables/UX stackexchange:** single click → input, save on Enter/blur, keyboard nav (Tab/Enter/Arrow). Spreadsheet-style для dense data.
+- **PLM (SAP/Teamcenter/Onshape):** обычно **modal** для редактирования (формы на отдельной странице), inline — редко. SAP GUI — старая школа.
+
+**Решение:** Linear/Airtable паттерн (inline) — потому что БИТ.Технолог = B2B SaaS для технолога, как Linear/Notion, не как SAP GUI. Технолог должен править время/название прямо в строке, без модалки.
+
+**Реализация (M35t):**
+- **POST /api/operations/{id}/update** — generic field update
+  - Whitelist: `name`, `time_per_unit_min`, `time_setup_min`, `workshop_id`, `equipment_id`, `profession_id` (защита от SQL-injection)
+  - Защита: TC утверждена → 403 (открыть новую версию)
+  - name → INSERT в `edits` (для петли обратной связи Q-001)
+- **HTML:** `<span class="editable" data-op="32" data-field="time_per_unit_min" data-type="number">10.0</span>` — 5 операций × 3 поля = 15 editable
+- **CSS:** `.editable:hover` показывает blue background + dashed border (affordance)
+- **JS:** click → input → Enter=POST → optimistic update, Escape=cancel, blur=save
+- **Bug fix (M35t-fix):** таблица `edits` имеет колонки `tech_card_id, operation_id`, не `draft_id, op_id`. Поправил.
+
+**Что НЕ inline (требуют select с API + списком):**
+- workshop_id, equipment_id, profession_id (FK)
+- Это **средний скоуп** — оставлено до следующего цикла (после пилота 27.07)
+
+**Метрики реального использования:**
+- API вызов: 0.02 сек (быстро, без LLM)
+- 15 editable элементов в /detail/{id} с 5 операциями
+- Optimistic UI: мгновенный отклик (не ждём сервер)
+
+**Lesson (3 главных):**
+1. **Inline-edit vs modal — это не "что лучше", а "что для какого поля".** Inline для частых single-field (название, время). Modal для bulk/multi-field. Page edit для больших форм. У нас inline для 3 полей, modal/page не нужны.
+2. **"B2B SaaS = inline"** — Linear, Notion, Airtable. **"Legacy enterprise = modal/page"** — SAP, Teamcenter. БИТ.Технолог = B2B SaaS для технолога, поэтому inline.
+3. **Whitelist полей в API = защита от SQL-injection.** `f"UPDATE operations SET {field} = ?"` — если `field` приходит от пользователя, то это **SQL-injection в чистом виде**. Whitelist (`if field in ["name", "time_per_unit_min", ...]`) — обязательно.
+
+**Reusable паттерн "inline-edit endpoint":**
+```python
+# Whitelist полей
+ALLOWED_FIELDS = {
+    "text": ["name"],
+    "numeric": ["time_per_unit_min", "time_setup_min"],
+    "fk": ["workshop_id", "equipment_id", "profession_id"],
+}
+# Защита от SQL-injection
+if field in ALLOWED_FIELDS["text"]:
+    sql_value = str(value)[:200]
+elif field in ALLOWED_FIELDS["numeric"]:
+    sql_value = float(value)
+elif field in ALLOWED_FIELDS["fk"]:
+    sql_value = int(value) if value else None
+else:
+    raise HTTPException(400, "field not editable")
+# Whitelist + параметризованный SQL = safe
+db.execute(f"UPDATE operations SET {field} = ? WHERE id = ?", (sql_value, op_id))
+```
+
