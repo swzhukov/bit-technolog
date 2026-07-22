@@ -578,3 +578,52 @@ to create or update workflow `.github/workflows/ci.yml` without `workflow` scope
 **Когда workflows понадобятся по-настоящему** (Sprint 11+):
 - Запросить у Сергея новый PAT с `workflow` scope, ИЛИ
 - Использовать GitHub App вместо PAT
+
+## M35h (2026-07-21, 18:25–18:35) — `git checkout -- data/` сломал продовую БД
+
+**Ситуация:** В новой сессии делал `git pull --rebase origin main` на prod (Beget). Перед pull'ом был `git status` с `M data/bit_technolog_v0_8.db-shm` и `M data/bit_technolog_v0_8.db-wal`. Сделал `git checkout -- data/`, чтобы убрать unstaged, потом `git pull`. В итоге:
+- 9 экранов prod: 500 Internal Server Error
+- `/health` отвечал 200 OK (он не трогал сломанную таблицу)
+- В логе: `sqlite3.DatabaseError: database disk image is malformed`
+- `PRAGMA integrity_check` показал: `Tree 45 page 171: btreeInitPage() returns error code 11` + десятки других btree ошибок
+
+**Корневая причина:**
+- В `data/` SQLite хранит main DB (`*.db`) + WAL-журнал (`*.db-wal`) + shared memory (`*.db-shm`) для режима WAL
+- В `.gitignore` было только `data/*.db` — а `db-shm` и `db-wal` были **tracked в git** (зачем-то закоммичены в прошлом, видимо чтобы БД была восстановима из репо)
+- Когда я сделал `git checkout -- data/`, git **откатил SHM и WAL к старой версии из индекса**, а main DB остался текущий → WAL потерял консистентность с main → corrupted
+
+**Что я делал неправильно (4 ошибки в цепочке):**
+1. **Сделал `git checkout -- data/` вообще** — это слишком грубо. Достаточно было `git restore --staged data/`
+2. **Не проверил что в .gitignore** перед checkout'ом — там `data/*.db-shm` и `data/*.db-wal` НЕ были исключены
+3. **Не проверил prod по 9 экранам после deploy** — только `/health`. /health имел свой fallback и замаскировал поломку
+4. **Не сделал `cp data/bit_technolog_v0_8.db /tmp/safe.db` ПЕРЕД любыми действиями** — копия была сделана уже после поломки (хотя до этого на диске была corrupted БД)
+
+**Fix:**
+1. `systemctl stop bit-technolog`
+2. БД откатил на `v0.8.0-backup/data/bit_technolog_v0_8.db` (13:37, 33 таблицы, 51 items, 14 etalons, integrity OK)
+   - **Важно:** cron-бэкапы `db-2026-07-{19,20,21}_*.db` оказались **старой схемы (v0.4-v0.6, 20 таблиц, 25-27 details)** — НЕ подошли для v0.8. Помог отдельный `v0.8.0-backup/`, который был сделан 13:37. Без него — катастрофа.
+3. `systemctl start bit-technolog` → 9 экранов 200 OK
+4. Commit M35g: `.gitignore` — `data/*.db-shm` + `data/*.db-wal`, untrack существующих
+5. Push bfceaf2
+
+**Потеряли:** ~2 часа prod-данных (13:37 → 15:32). 51 items / 14 etalons не изменились, но если были правки черновиков/извещений в окне — пропали. Для пилота 27.07 некритично.
+
+**Lesson (прямые):**
+1. **WAL-файлы SQLite НИКОГДА не должны быть в git.** Только main `*.db`. Режим WAL предполагает, что `*.db-wal` + `*.db-shm` создаются/обновляются при каждом коннекте. Закоммитить их = гарантированно сломать БД на следующем pull.
+2. **Перед любым `git checkout` на prod — смотри в `.gitignore`.** Если `.gitignore` неполный, checkout может откатить файлы, которые приложение считает своими runtime-данными.
+3. **`git checkout -- <dir>` — слишком грубо.** Лучше `git restore --staged <file>` или точечно `git checkout HEAD -- <specific_file>`. Папка целиком = может зацепить runtime-файлы, которые ты не хочешь трогать.
+4. **Перед checkout/restart — `cp data/*.db /tmp/safe.db` ВСЕГДА.** Даже если "я ничего не меняю". Бесплатно, страхует от всего.
+5. **Smoke test после deploy ≠ только `/health`.** Прогоняй 5-7 РАЗНЫХ экранов, не один. /health имел fallback и замаскировал поломку — другие экраны упали.
+6. **Cron-бэкап ≠ достаточно.** У нас cron делал `cp data/*.db backups/`, но:
+   - Не делал snapshot (т.к. WAL активен, копия могла быть inconsistent — хотя в этот раз повезло)
+   - Не покрывал смену схемы (v0.4 бэкапы не подошли для v0.8)
+   - **Решение:** периодический `sqlite3 .backup` (offline snapshot), а не `cp`. Или хотя бы `PRAGMA wal_checkpoint(TRUNCATE)` перед копией.
+7. **Сергей правильно ругался на push ≠ репо.** То же самое: `git pull OK ≠ prod OK`. После деплоя проверять руками, а не доверять статусу операции.
+
+**Reusable ритуал "git pull на prod":**
+1. `cd /opt/beget/bit-technolog && cp data/bit_technolog_v0_8.db /tmp/safe-pre-pull.db` — сначала snapshot
+2. `git status -s` — что modified/untracked? Если WAL/SHM — это `git restore --staged`, а не `git checkout --`
+3. `git pull --rebase origin main` (или merge, не важно)
+4. `systemctl restart bit-technolog`
+5. **Smoke test 5+ экранов:** `for p in / /products /knowledge /login /metrics /notices /llm-admin /detail/1; do curl -s -o /dev/null -w "%{http_code} $p\n" http://localhost:8081$p; done` — все должны быть 200
+6. Только после этого рапортовать "готово"

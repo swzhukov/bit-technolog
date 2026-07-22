@@ -340,7 +340,7 @@ class TestAppRoutes:
         assert r.status_code == 200
         data = r.json()
         assert data["status"] == "ok"
-        assert data["version"] == "0.8.0"
+        assert data["version"] == "0.8.5"
         assert "items" in data
         assert "etalons" in data
 
