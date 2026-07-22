@@ -1144,8 +1144,11 @@ async def api_confirm_operation(operation_id: int, request: Request, new_time: f
     if not user:
         raise HTTPException(401)
     if new_time is None:
-        body = await request.json()
-        new_time = float(body.get("new_time", 0))
+        try:
+            body = await request.json()
+            new_time = float(body.get("new_time", 0))
+        except Exception:
+            raise HTTPException(400, "invalid JSON body or missing new_time")
     ok = update_operation_evidence(operation_id, new_time, user.display_name, "Подтверждение в UI")
     # Метрика c: после подтверждения записать % зелёных
     try:
@@ -1169,7 +1172,11 @@ async def api_update_operation(operation_id: int, request: Request):
     # M38-fix A21: RBAC — только редакторы (не workshop_chief)
     if user.role not in ("admin", "main_technologist", "technologist"):
         raise HTTPException(403, "Недостаточно прав для редактирования")
-    body = await request.json()
+    # M38-c4: defensive — некорректный JSON → 400 а не 500
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "invalid JSON body")
     field = body.get("field")
     value = body.get("value")
     if not field or value is None:
@@ -1329,7 +1336,10 @@ async def api_process_notice(notice_id: int, request: Request):
     user = get_user_from_request(request)
     if not user:
         raise HTTPException(401)
-    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    try:
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    except Exception:
+        raise HTTPException(400, "invalid JSON body")
     decision = body.get("decision", "manual_review")
     return resolve_notice_svc(notice_id, user.display_name, decision, "")
 
