@@ -41,8 +41,8 @@ class Source(str, Enum):
 
 SOURCE_LABELS = {
     Source.FACTORY_DATA.value: "Эталон",
-    Source.ANALOG_ESTIMATE.value: "Аналог",
-    Source.AI_GUESS.value: "Догадка AI",
+    Source.ANALOG_ESTIMATE.value: "По аналогу",
+    Source.AI_GUESS.value: "Предположение AI",
     Source.MANUAL.value: "Вручную",
 }
 

@@ -622,8 +622,11 @@ async def item_generate_form(request: Request, item_id: int):
     item = db.get_item_with_bom(item_id)
     if not item:
         raise HTTPException(404, "Item not found")
+    # M38: pass etalons_count for progress bar
+    etalons_count = db.query_one("SELECT COUNT(*) AS n FROM etalons")["n"]
     ctx = get_template_context(request, user)
     ctx["item"] = item
+    ctx["etalons_count"] = etalons_count
     return templates.TemplateResponse("item_generate.html", ctx)
 
 
