@@ -1262,3 +1262,57 @@ for username, role_name in ROLES:
 
 Не откладывай "некритичное" — это становится критичным в момент пилота.
 
+
+## M37-#5-fix (2026-07-22, 12:50) — баг graceful shutdown + что Сергей увидел пустую страницу
+
+**Ситуация:** Сергей открыл URL → "пустая страница, не отправил ничего в ответ".
+
+**Что произошло (3 проблемы, по цепочке):**
+
+### Проблема 1: Сергей ввёл http://, а prod на https://
+- Я переключил prod на TLS (M37-#6), но не сообщил явно
+- Браузер по умолчанию идёт на http://
+- uvicorn слушает только HTTPS → connection closed → пустая страница
+
+### Проблема 2: HTTP→HTTPS редирект не встал
+- Попробовал поставить systemd unit bit-technolog-redirect на 8080
+- **8080 уже занят `newton-api.py` (PID 1474600, чужой проект, не трогаю)**
+- docker-proxy занимает 80 и 443
+- Редирект поставить некуда, оставил только https://
+
+### Проблема 3: **баг graceful shutdown (M37-#5)**
+- Я добавил `signal.signal(SIGTERM, ...)` в app.py
+- Это **перехватывает сигнал**, uvicorn не получает свой нормальный handler
+- При `systemctl restart`: SIGTERM → мой handler ставит флаг → uvicorn не завершается
+- systemd зависает в "deactivating" бесконечно
+- При `systemctl reset-failed && start` — запускается новый процесс, но **флаг `_shutting_down = True` остался в модуле** (signal handler установил его в прошлый раз)
+- Все запросы → 503 "Server is shutting down"
+- **Только `kill -9` помогал**
+
+**Fix (M37-#5-fix):**
+```python
+# БЫЛО (сломано):
+signal.signal(_signal.SIGTERM, lambda s, f: _set_shutting_down())
+
+# СТАЛО (правильно):
+# uvicorn сам обрабатывает SIGTERM
+# Мы только даём ему timeout_graceful_shutdown=30 для drain
+_shutting_down: bool = False  # для admin endpoint в будущем
+```
+
+**Lesson (КРИТИЧНО):**
+1. **НИКОГДА не перехватывай SIGTERM в app.py, если запускаешь через uvicorn.**
+   Uvicorn сам обрабатывает SIGTERM (drain + exit). Твой handler ломает эту логику.
+2. **Если процесс завис в "deactivating"** — `kill -9` + `systemctl reset-failed` + `systemctl start`. Это лечит любой зависший restart.
+3. **После смены URL (http→https) ОБЯЗАТЕЛЬНО сообщи пользователю явно** — иначе он увидит "ничего в ответ" и решит что ты всё сломал.
+
+**Состояние prod сейчас (12:50):**
+- HEAD: `0af7011` (M37-#5-fix)
+- URL: **`https://217.114.7.5:8081`** (только HTTPS)
+- v1.0.0, env=PROD ✅
+- Health: ok ✅
+- E2E: 44/44 ✅
+- Login: 303 ✅
+- Dashboard: 200, 14KB, "PROD · v1.0.0" badge ✅
+- Restart работает корректно (graceful через uvicorn timeout_graceful_shutdown=30)
+
