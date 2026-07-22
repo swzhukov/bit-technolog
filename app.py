@@ -1,5 +1,5 @@
 """
-БИТ.Технолог v0.8 — FastAPI приложение (тонкое).
+БИТ.Технолог — FastAPI приложение (тонкое).
 
 Архитектура (ADR-0011):
 - presentation: этот файл (routes + templates)
@@ -8,7 +8,7 @@
 - domain: llm_provider, yandexgpt, mock_llm
 - gateways: one_c_gateway (FileGateway, HttpGateway)
 
-8 экранов (v0.8 дизайн):
+8 экранов:
 1. /dashboard       — Мои задачи
 2. /products        — Изделия
 3. /detail/{id}     — Карточка ТК (5 табов)
@@ -1200,7 +1200,7 @@ async def startup_event():
     n_etalons = db.query_one("SELECT COUNT(*) AS n FROM etalons")["n"]
     n_items = db.query_one("SELECT COUNT(*) AS n FROM items")["n"]
     n_users = db.query_one("SELECT COUNT(*) AS n FROM pilot_users")["n"]
-    logger.info(f"v0.8 startup: etalons={n_etalons}, items={n_items}, users={n_users}")
+    logger.info(f"startup: etalons={n_etalons}, items={n_items}, users={n_users}")
 
 
 if __name__ == "__main__":

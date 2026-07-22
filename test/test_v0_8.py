@@ -187,12 +187,12 @@ class TestRSFactory:
 
 class TestAuth:
     def test_5_roles_defined(self):
-        assert len(ROLES) == 5
+        # M35q: 5→4 роли через _ROLE_ALIASES (admin = tech_admin + llm_admin)
+        assert len(ROLES) == 4
         assert "technologist" in ROLES
         assert "main_technologist" in ROLES
         assert "workshop_chief" in ROLES
-        assert "tech_admin" in ROLES
-        assert "llm_admin" in ROLES
+        assert "admin" in ROLES
 
     def test_password_hash_and_verify(self):
         h = hash_password("demo")
