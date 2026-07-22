@@ -60,11 +60,11 @@
     <div style="display: flex; gap: 24px; align-items: center;">
       <div>
 <h2 id="ops" style="margin-top: 16px;">Операции</h2>
-        <span class="muted" style="font-size: 12px;">Светофор норм (доказательства)</span><br>
+        <span class="muted" style="font-size: 12px;">Статус норм (по качеству доказательств)</span><br>
         <span style="font-size: 14px;">
           <span class="dot g"></span> {{ evidence_summary.green }} подтверждено
           <span class="dot y" style="margin-left: 12px;"></span> {{ evidence_summary.yellow }} похоже на правду
-          <span class="dot r" style="margin-left: 12px;"></span> {{ evidence_summary.red }} догадка AI
+          <span class="dot r" style="margin-left: 12px;"></span> {{ evidence_summary.red }} предположение AI
         </span>
       </div>
     </div>
@@ -115,9 +115,9 @@
         <td>
           {% if ev and ev.analogs %}
 
-            <a class="btn btn-ghost" onclick="document.getElementById('ev-{{ ev.operation_id }}').style.display = (document.getElementById('ev-{{ ev.operation_id }}').style.display === 'none' ? 'block' : 'none')"title="Показать эталонные операции, похожие на эту">Аналоги</a>
+            <a class="btn btn-ghost" onclick="document.getElementById('ev-{{ ev.operation_id }}').style.display = (document.getElementById('ev-{{ ev.operation_id }}').style.display === 'none' ? 'block' : 'none')"title="Показать эталонные операции, похожие на эту"title="Показать эталонные операции, похожие на эту">Аналоги</a>
           {% endif %}
-          <button class="btn btn-ghost" id="confirm-btn-{{ op.id }}" onclick="showConfirmInput({{ op.id }}, {{ op.time_per_unit_min or 0 }})"title="Подтвердить норму (помечает операцию как проверенную технологом)">Подтвердить</button>
+          <button class="btn btn-ghost" id="confirm-btn-{{ op.id }}" onclick="showConfirmInput({{ op.id }}, {{ op.time_per_unit_min or 0 }})"title="Подтвердить норму (помечает операцию как проверенную технологом)"title="Подтвердить норму (помечает операцию как проверенную технологом)">Подтвердить</button>
           <span id="confirm-input-{{ op.id }}" style="display:none; margin-left:8px;">
             <input type="number" step="0.1" min="0" id="confirm-val-{{ op.id }}" value="{{ op.time_per_unit_min or 0 }}" style="width: 70px; padding: 4px 6px; border: 1px solid var(--v8-line); background: var(--v8-panel-2); color: var(--v8-fg); border-radius: 4px;">
             <button class="btn btn-primary btn-sm" onclick="submitConfirm({{ op.id }})">OK</button>
