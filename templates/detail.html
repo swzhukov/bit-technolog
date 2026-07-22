@@ -43,6 +43,7 @@
 </div>
 {% endif %}
 
+{% set user_can_edit = user and user.role in ('admin', 'main_technologist', 'technologist') %}
 <div class="tabs" style="position: sticky; top: 0; background: var(--v8-bg); z-index: 5;">
   <a class="tab active" href="#ops">Маршрут</a>
   <a class="tab" href="#rs">Ресурсы</a>
@@ -89,7 +90,7 @@
       <tr>
         <td>{{ op.op_number }}</td>
         <td>
-          <b><span class="editable" data-op="{{ op.id }}" data-field="name" title="Клик для редактирования">{{ op.name }}</span></b>
+          <b><span {% if user_can_edit %}class="editable"{% endif %} data-op="{{ op.id }}" data-field="name" title="Клик для редактирования">{{ op.name }}</span></b>
           {% if ev and ev.analogs %}<br><span class="muted" style="font-size: 11.5px;">{{ ev.note }}</span>{% endif %}
         </td>
         <td>
@@ -100,8 +101,8 @@
           <b>{{ profession_names.get(op.profession_code, op.profession_code) or '—' }}</b>
           {% if op.profession_code %}<br><span class="muted" style="font-size: 11px;">{{ op.profession_code }}</span>{% endif %}
         </td>
-        <td><b><span class="editable" data-op="{{ op.id }}" data-field="time_per_unit_min" data-type="number" title="Клик для редактирования">{{ op.time_per_unit_min or 0 }}</span></b></td>
-        <td><span class="editable" data-op="{{ op.id }}" data-field="time_setup_min" data-type="number" title="Клик для редактирования">{{ op.time_setup_min or 0 }}</span></td>
+        <td><b><span {% if user_can_edit %}class="editable"{% endif %} data-op="{{ op.id }}" data-field="time_per_unit_min" data-type="number" title="Клик для редактирования">{{ op.time_per_unit_min or 0 }}</span></b></td>
+        <td><span {% if user_can_edit %}class="editable"{% endif %} data-op="{{ op.id }}" data-field="time_setup_min" data-type="number" title="Клик для редактирования">{{ op.time_setup_min or 0 }}</span></td>
         <td>
           {% if ev %}
             {% if ev.source == 'factory_data' %}<span class="badge ok">{{ ev.source_label }}</span>

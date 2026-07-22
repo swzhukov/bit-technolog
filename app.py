@@ -392,6 +392,7 @@ async def dashboard(request: Request):
     # Задачи (последние 5) — Q-007: "Мои задачи" = ТК, которые я генерил
     # Используем LEFT JOIN: tc_id может быть NULL (если не было approve),
     # но если pilot_runs.user = ? — это "моя" ТК.
+    # M38-fix: только последняя ТК на item (раньше было 5 версий одного — мусор)
     tasks = db.query("""
         SELECT tc.id AS tech_card_id, i.id AS item_id, i.designation, i.name,
                tc.status, tc.version,
@@ -402,6 +403,10 @@ async def dashboard(request: Request):
         LEFT JOIN product_models p ON p.id = i.product_model_id
         LEFT JOIN pilot_runs pr ON pr.item_id = tc.item_id AND pr.user = ?
         WHERE pr.id IS NOT NULL
+          AND tc.id = (
+              SELECT MAX(tc2.id) FROM tech_cards tc2
+              WHERE tc2.item_id = tc.item_id
+          )
         ORDER BY tc.updated_at DESC
         LIMIT 5
     """, (user.username,))
@@ -1126,6 +1131,9 @@ async def api_update_operation(operation_id: int, request: Request):
     user = get_user_from_request(request)
     if not user:
         raise HTTPException(401)
+    # M38-fix A21: RBAC — только редакторы (не workshop_chief)
+    if user.role not in ("admin", "main_technologist", "technologist"):
+        raise HTTPException(403, "Недостаточно прав для редактирования")
     body = await request.json()
     field = body.get("field")
     value = body.get("value")
