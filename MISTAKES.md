@@ -1569,3 +1569,81 @@ for user, role in ROLES:
 
 С **чистого листа** найдено 3 реальных проблемы (все RBAC + 1 perf), все закрыты. 0 проблем после фиксов.
 
+
+## M38-c4 (2026-07-22, 17:25) — Цикл 4 аудита (глубокий, реальная эксплуатация)
+
+**Подход:** Не скриншоты, **реальная работа** как технолог. Curl-тесты без браузерных headers (CSRF bypass, JSON validation). Playwright E2E под всеми 4 ролями × 7 endpoint'ов = 28 RBAC комбинаций.
+
+### С чистого листа найдено 3 реальных проблемы
+
+**P1. POST /api/operations/.../update → 500 при invalid JSON (curl)**
+- Симптом: `curl -d "input=" ... /api/operations/32/update` → 500
+- Причина: `request.json()` кидает JSONDecodeError → 500
+- Должно быть: 400 Bad Request
+- **Серьёзность:** HIGH (security/scanner issue)
+
+**P2. Нет способа скачать РС XML!**
+- Симптом: РС генерируются в `data/one_c_exchange/out/*.xml`, но **НЕТ API для скачивания**
+- Это **критичный пропуск** для пилота: технолог/админ не может выгрузить РС в 1С:ERP
+- Обнаружено при **реальной работе**: попытался найти UI экспорта — нет
+- **Серьёзность:** HIGH (блокирует пилот)
+
+**P3. Дублирование endpoints при replace**
+- Симптом: `grep "app.get.*api/rs"` → 4 строки вместо 2
+- Причина: replace дважды заменил `@app.get("/health")` (и вставил перед существующим, и сразу после)
+- **Серьёзность:** MEDIUM (тесты прошли, но лишний код в памяти)
+
+### Фиксы
+
+**F1.** 3 endpoints с defensive JSON parsing:
+- `/api/operations/{id}/update` (line 1172)
+- `/api/operations/{id}/confirm` (line 1147)
+- `/api/change-notices/{id}/process` (line 1336)
+
+```python
+try:
+    body = await request.json()
+except Exception:
+    raise HTTPException(400, "invalid JSON body")
+```
+
+**F2.** `/api/rs/list` + `/api/rs/download/{filename}` + `/rs` page:
+- Список XML файлов с метаданными (filename, size, modified)
+- Download с защитой от path traversal
+- UI страница с пошаговой инструкцией "Что делать с XML"
+- Nav: "Выгрузка РС" для всех ролей
+
+**F3.** Убрал дубликаты endpoints в app.py.
+
+### Финальное состояние (HEAD `fd1fd42`)
+
+| Endpoint | techadmin | vorobyev | tarrietsky | golubev |
+|----------|-----------|----------|------------|---------|
+| / | 200 ✅ | 200 ✅ | 200 ✅ | 200 ✅ |
+| /products | 200 ✅ | 200 ✅ | 200 ✅ | 200 ✅ |
+| /notices | 200 ✅ | 200 ✅ | 200 ✅ | 200 ✅ |
+| /metrics | 200 ✅ | 200 ✅ | 403 ✅ | 403 ✅ |
+| /profiles | 200 ✅ | 200 ✅ | 403 ✅ | 403 ✅ |
+| /llm-admin | 200 ✅ | 403 ✅ | 403 ✅ | 403 ✅ |
+| /settings | 200 ✅ | 403 ✅ | 403 ✅ | 403 ✅ |
+
+**RBAC 28/28 правильно.**
+
+| Тест | Было | Стало |
+|------|------|-------|
+| curl invalid JSON /api/operations/.../update | 500 ❌ | 400 ✅ |
+| /rs page | n/a (404) ✅ | 200 ✅ |
+| /api/rs/list | n/a (404) ✅ | 200 (7 XML) ✅ |
+| /api/rs/download | n/a (404) ✅ | 200 (3039 байт) ✅ |
+
+### Lesson (для себя)
+
+1. **Тестировать CURL'ом без браузерных headers.** Playwright/Same-Origin Policy маскирует CSRF и JSON-валидацию. Только curl показывает реальный 500.
+2. **Проверять UI на наличие функций из "списка фич".** "Выгрузка РС" была в ТЗ, но не было UI. Проверил просто прокликав nav.
+3. **Replace + git diff.** Я уже 2 раза делал эту ошибку. В третий раз — дубль endpoints. Нужен pattern: `replace_1_at_a_time + grep_сразу`.
+4. **Глубокий аудит > поверхностный.** Циклы 1-3 находили RBAC nav, /notices perf. Цикл 4 нашёл 500 на invalid input и **отсутствующую выгрузку РС** — то, что блокирует пилот.
+5. **False positive — нормально.** /help "без шагов" (5 шагов есть, но без слова "Шаг"). "Коллега" не на /detail (приветствие только на /). "Предположение AI" не на /detail/3 (все операции подтверждены). Это **особенности** системы, не баги.
+
+### Цикл 4 итог
+
+С **чистого листа** найдено 3 реальных проблемы (1 perf + 1 missing feature + 1 duplicate), все закрыты. 0 проблем после фиксов.
