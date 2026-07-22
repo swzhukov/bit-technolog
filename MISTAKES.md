@@ -627,3 +627,55 @@ to create or update workflow `.github/workflows/ci.yml` without `workflow` scope
 4. `systemctl restart bit-technolog`
 5. **Smoke test 5+ экранов:** `for p in / /products /knowledge /login /metrics /notices /llm-admin /detail/1; do curl -s -o /dev/null -w "%{http_code} $p\n" http://localhost:8081$p; done` — все должны быть 200
 6. Только после этого рапортовать "готово"
+
+## M35i (2026-07-22, 11:25) — `/items/{id}/generate` падал с 500: `no such table: pilot_runs`
+
+**Ситуация:** В smoke-test чеклиста пилота 27.07 прогонял end-to-end на prod:
+- `POST /items/1/generate` (ЛМША.301314.010) → **HTTP 500**
+- `POST /api/operations/1/confirm` → ✅ 200 (светофор работает)
+- `POST /api/items/1/export-to-1c` → ✅ 200 (XML создан)
+- `POST /notices/new` → ✅ 303 (извещение создано)
+
+**Корневая причина:**
+- `app.py:477 item_generate_post` → `start_tc_generation()` (services/metrics.py:25)
+- `start_tc_generation` пишет в таблицу `pilot_runs`
+- **`pilot_runs` НЕ БЫЛА в `migrations/001_v0_8_init.sql`** (там только `pilot_metrics`)
+- Это значит **генерация ТК была сломана с момента M34** (commit 5481175, 2026-07-21) — никто не прогонял end-to-end `/items/{id}/generate` за 1 день до пилота
+
+**Симптомы в логе:**
+```
+File "/opt/beget/bit-technolog/app.py", line 477, in item_generate_post
+  run_id = start_tc_generation(item_id, user.username)
+File "/opt/beget/bit-technolog/services/metrics.py", line 25
+  return db.insert_and_get_id("pilot_runs", {...})
+sqlite3.OperationalError: no such table: pilot_runs
+```
+
+**Fix (3 шага):**
+1. Создал `migrations/002_add_pilot_runs.sql` — `CREATE TABLE pilot_runs` (id, kind, item_id, user, started_at, finished_at, duration_sec, tc_id, notes) + 3 индекса
+2. Применил на prod через `python3 -c "import sqlite3; conn.executescript(open('migrations/002_add_pilot_runs.sql').read())"`
+3. `systemctl restart bit-technolog` → `POST /items/1/generate` → HTTP 303 (success)
+4. Commit M35j → push → pull на prod
+
+**Lesson (3 критичных):**
+1. **Smoke test `POST /items/{id}/generate` ОБЯЗАТЕЛЕН перед пилотом.** End-to-end flow = единственный способ поймать missing tables. `/health` отвечал 200, /detail показывал 5 табов, /metrics показывал страницу — но **генерация не работала**. Проверять не только "страница открывается", но и "действие выполняется".
+2. **HANDOFF.md говорил "91/91 тестов passing"** — но тесты тоже не покрывали `pilot_runs` (нет test_tech_card_generation_full_cycle). **Обещание "всё зелёное" — не substitute для end-to-end smoke test на prod.** Зелёные тесты могут быть неполные.
+3. **Migrations не run автоматически** — приложение стартует с тем что есть в БД. Если таблица не создана в 001, и в коде на неё ссылаются — runtime crash. Решение:
+   - Тест-сьют должен включать `test_db_schema_matches_code` (greps все `db.query_one`/`insert` в коде → проверяет что таблица есть в `sqlite_master`)
+   - Или app startup должен делать `CREATE TABLE IF NOT EXISTS` для всех таблиц, на которые ссылается код (как `001_v0_8_init.sql` с `IF NOT EXISTS`)
+
+**Reusable ритуал "smoke test чеклиста пилота":**
+```
+1. Login (любой user из pilot_users)
+2. POST /items/{N}/generate для каждого item_id в БД (N=1, 2, 3, 5, 10)
+3. POST /api/operations/{N}/confirm
+4. POST /api/items/{N}/export-to-1c — проверить что XML создан в data/one_c_exchange/out/
+5. POST /notices/new + POST /notices/{N}/resolve
+6. GET /metrics — проверить что b и c появились
+7. GET /llm-admin (под llmadmin) — 200
+8. GET /health — 200 OK
+9. GET /detail/{N} — 5 табов #ops #rs #bom #params #history, все 200
+10. 9 базовых экранов: /, /products, /knowledge, /login, /metrics, /notices, /llm-admin, /detail/1, /help
+```
+
+Каждый пункт = assert. Не "выглядит ок", а **действие выполнено успешно**.
