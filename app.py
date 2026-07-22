@@ -91,6 +91,44 @@ def _rate_limit_check(key: str, max_calls: int, window_sec: int) -> tuple[bool, 
 app = FastAPI(title="БИТ.Технолог", version="1.0.0")
 
 # ============================================================
+# GRACEFUL SHUTDOWN STATE (M37-#5)
+# ============================================================
+import signal as _signal
+_shutting_down: bool = False
+
+
+def _set_shutting_down():
+    global _shutting_down
+    _shutting_down = True
+
+
+try:
+    _signal.signal(_signal.SIGTERM, lambda s, f: _set_shutting_down())
+    _signal.signal(_signal.SIGINT, lambda s, f: _set_shutting_down())
+except ValueError:
+    pass
+
+
+
+# ============================================================
+# SHUTDOWN MIDDLEWARE (M37-#5)
+# ============================================================
+# Возвращает 503 + Retry-After если идёт shutdown. Это даёт in-flight
+# запросам время завершиться, а новых — не пускает.
+
+@app.middleware("http")
+async def shutdown_middleware(request: Request, call_next):
+    if _shutting_down:
+        from starlette.responses import JSONResponse
+        return JSONResponse(
+            {"detail": "Server is shutting down, please retry"},
+            status_code=503,
+            headers={"Retry-After": "30"},
+        )
+    return await call_next(request)
+
+
+# ============================================================
 # CSRF PROTECTION (M37-#2)
 # ============================================================
 # Проверяем для всех POST/PUT/DELETE:
@@ -1277,4 +1315,7 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(
+        app, host="0.0.0.0", port=8000, log_level="info",
+        timeout_graceful_shutdown=30,  # M37-#5: 30s drain
+    )
