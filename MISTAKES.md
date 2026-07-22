@@ -1506,3 +1506,66 @@ for user, role in ROLES:
 
 **Cycle 2 audit result: 0 critical issues, 0 UX blockers.** Пилот 27.07 готов.
 
+
+## M38-c3 (2026-07-22, 14:25) — Цикл 3 аудита (с чистого листа, глубокий)
+
+**Контекст:** Сергей в третий раз: "цикл до полностью без замечаний, начинай с чистого взгляда, даже если надо всё переделать".
+
+**Подход:** Не смотрел на результаты циклов 1-2. Делал **реальную работу** как технолог (генерировал ТК, inline-edit, смотрел отчёты, кликал все кнопки) + проверял **все 4 роли × 3 endpoint** + CSRF.
+
+### С чистого взгляда найдено 5 проблем (3 реальных + 2 false positive)
+
+**Реальные (починены):**
+1. **Nav menu: workshop_chief видел "Модели LLM", "Метрики", "Шаблоны маршрутов"** (хотя endpoints были защищены через `has_permission`). RBAC nav был НЕ настроен.
+2. **`/notices/{id}` загружался 17 секунд** — `generate_ai_diff()` вызывался на КАЖДОМ GET (24-сек LLM вызов). Не было lazy.
+3. **Регресс RBAC после M38-c3-fix:** admin (techadmin, role='tech_admin' в БД) получал 403 на /metrics, /profiles. Алиас `_ROLE_ALIASES` работал только в `has_permission()`, но не в `user.role in ('admin', ...)` проверках.
+
+**False positive:**
+4. "main_technologist НЕ видит 'Утвердить'" — TC item=3 уже **утверждена** (`is_approved=True`), кнопка скрыта правильно.
+5. "CSRF POST без CSRF → 200" — в браузере `fetch()` автоматически добавляет `Origin`/`Referer` (Same-Origin Policy). Через curl — действительно 403.
+
+### Фиксы (M38-c3, c3-fix, c3-fix2, c3-fix3, c3-fix4, c3-fix5)
+
+**M38-c3:**
+- Добавлена RBAC на /profiles, /metrics endpoints (403 для non-admin/non-main_technologist)
+- nav: `{% if user and user.role in ('admin', 'main_technologist') %}` (но replace не сработал, дошло в fix3)
+
+**M38-c3-fix:** Убран дублирующий normalize в get_template_context, вынесен в `normalize_user_role(user)` helper, вызывается **в начале** endpoint (до RBAC check).
+
+**M38-c3-fix3:** Nav menu RBAC — `Шаблоны маршрутов`/`Метрики`/`Модели LLM` обёрнуты в `{% if %}` (replace наконец сработал).
+
+**M38-c3-fix5:** AI diff — `generate_ai_diff()` больше не вызывается на GET. Добавлен POST /notices/{id}/generate-diff (lazy). Кнопка "Сгенерировать diff" в UI с progress feedback.
+
+### Финальное состояние prod (HEAD `5eb5837`)
+
+| Endpoint | techadmin | vorobyev | tarrietsky | golubev |
+|----------|-----------|----------|------------|---------|
+| /metrics | 200 ✅ | 200 ✅ | 403 ✅ | 403 ✅ |
+| /profiles | 200 ✅ | 200 ✅ | 403 ✅ | 403 ✅ |
+| /llm-admin | 200 ✅ | 403 ✅ | 403 ✅ | 403 ✅ |
+| /settings | 200 ✅ | 403 ✅ | 403 ✅ | 403 ✅ |
+
+**12/12 правильно.**
+
+| Тест | Время | Было |
+|------|-------|------|
+| /notices/1 | 0.03 сек | 17 сек |
+
+**Ускорение в 500 раз.**
+
+### Lesson (для себя)
+
+1. **`has_permission` использует алиасы, `user.role in (...)` — НЕ использует.** Нужно либо нормализовать role **сразу** после get_user_from_request, либо всегда использовать `has_permission`.
+
+2. **CSSRBAC на NAV menu отдельно от RBAC на endpoint.** Если endpoint закрыт, но nav показывает ссылку — пользователь кликнет, получит 403, разозлится.
+
+3. **Lazy для тяжёлых операций.** Генерация AI diff (24 сек LLM) на каждом GET — это плохо. Lazy + кнопка = пользователь контролирует.
+
+4. **Браузер ≠ curl.** CSRF через curl = 403, через fetch в браузере = 200 (Same-Origin Policy добавляет headers). Тестировать через curl!
+
+5. **`git diff` после replace** — я 2 раза за этот цикл делал replace, который "не сработал" из-за whitespace. **Всегда** `git diff` после.
+
+### Цикл 3 итог
+
+С **чистого листа** найдено 3 реальных проблемы (все RBAC + 1 perf), все закрыты. 0 проблем после фиксов.
+
