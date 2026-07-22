@@ -930,8 +930,8 @@ async def notice_detail(request: Request, notice_id: int):
     notice = get_notice(notice_id)
     if not notice:
         raise HTTPException(404, "Notice not found")
-    # AI diff
-    ai_diff = generate_ai_diff(notice_id)
+    # M38-c3: AI diff генерируется LAZY через /notices/{id}/generate-diff
+    # (не на каждый GET — иначе 24 сек на LLM вызов)
     # Кол-во созданных РС
     rs_count_row = db.query_one(
         "SELECT COUNT(*) AS n FROM resource_specs WHERE change_reason LIKE ?",
@@ -940,10 +940,24 @@ async def notice_detail(request: Request, notice_id: int):
     rs_count = rs_count_row["n"] if rs_count_row else 0
     ctx.update({
         "notice": notice,
-        "ai_diff": ai_diff,
+        "ai_diff": None,  # генерится по кнопке "Сгенерировать diff"
         "rs_count": rs_count,
     })
     return templates.TemplateResponse("notice_detail.html", ctx)
+
+
+@app.post("/notices/{notice_id}/generate-diff")
+async def notice_generate_diff(request: Request, notice_id: int):
+    """M38-c3: lazy AI diff (не вызывается автоматически на GET)."""
+    user = get_user_from_request(request)
+    normalize_user_role(user)
+    if not user or user.role not in ("admin", "main_technologist", "technologist"):
+        raise HTTPException(403, "Недостаточно прав")
+    try:
+        ai_diff = generate_ai_diff(notice_id)
+        return {"status": "ok", "ai_diff": ai_diff}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 
 @app.post("/notices/{notice_id}/resolve")

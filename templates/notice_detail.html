@@ -1,6 +1,37 @@
 {% extends "base.html" %}
 {% set active_page = 'notices' %}
-{% block title %}{{ notice.number }} — Извещение — БИТ.Технолог{% endblock %}
+{% block title %}{{ notice.number }} — Извещение — БИТ.Технолог<script>
+document.getElementById('btn-gen-diff')?.addEventListener('click', async function() {
+  const btn = this;
+  const noticeId = btn.dataset.noticeId;
+  const status = document.getElementById('diff-status');
+  btn.disabled = true;
+  btn.textContent = 'Генерирую...';
+  status.textContent = 'AI анализирует извещение...';
+  try {
+    const r = await fetch(`/notices/${noticeId}/generate-diff`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+      credentials: 'same-origin'
+    });
+    const data = await r.json();
+    if (data.status === 'ok') {
+      status.textContent = 'Готово! Перезагрузите страницу.';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      status.textContent = 'Ошибка: ' + (data.detail || JSON.stringify(data));
+      btn.disabled = false;
+      btn.textContent = 'Сгенерировать diff';
+    }
+  } catch (e) {
+    status.textContent = 'Сетевая ошибка: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Сгенерировать diff';
+  }
+});
+</script>
+
+{% endblock %}
 {% block content %}
 <div class="breadcrumbs"><a href="/notices">Извещения</a> →</div>
 <h1>Извещение {{ notice.number }} <span class="muted" style="font-size:14px; font-weight:400;">от {{ notice.date }}</span></h1>
@@ -53,6 +84,11 @@
 <h2>AI diff</h2>
 <div class="panel">
   <div class="panel-body">
+    <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+      <button class="btn btn-primary" id="btn-gen-diff" data-notice-id="{{ notice.id }}">Сгенерировать diff</button>
+      <span class="muted" style="font-size:12px;">Обычно занимает 20-30 сек (вызов LLM)</span>
+      <span id="diff-status" class="muted" style="font-size:12px;"></span>
+    </div>
     {% if ai_diff and ai_diff.changes %}
       <table class="tbl">
         <thead>
@@ -121,4 +157,35 @@
   </div>
 </div>
 {% endif %}
+<script>
+document.getElementById('btn-gen-diff')?.addEventListener('click', async function() {
+  const btn = this;
+  const noticeId = btn.dataset.noticeId;
+  const status = document.getElementById('diff-status');
+  btn.disabled = true;
+  btn.textContent = 'Генерирую...';
+  status.textContent = 'AI анализирует извещение...';
+  try {
+    const r = await fetch(`/notices/${noticeId}/generate-diff`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+      credentials: 'same-origin'
+    });
+    const data = await r.json();
+    if (data.status === 'ok') {
+      status.textContent = 'Готово! Перезагрузите страницу.';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      status.textContent = 'Ошибка: ' + (data.detail || JSON.stringify(data));
+      btn.disabled = false;
+      btn.textContent = 'Сгенерировать diff';
+    }
+  } catch (e) {
+    status.textContent = 'Сетевая ошибка: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Сгенерировать diff';
+  }
+});
+</script>
+
 {% endblock %}
