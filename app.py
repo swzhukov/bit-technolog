@@ -299,7 +299,7 @@ async def dashboard(request: Request):
 
     # Задачи (последние 5)
     tasks = db.query("""
-        SELECT tc.id AS tech_card_id, i.designation, i.name,
+        SELECT tc.id AS tech_card_id, i.id AS item_id, i.designation, i.name,
                tc.status, tc.version,
                p.designation AS product_model
         FROM tech_cards tc
