@@ -346,6 +346,10 @@ def get_template_context(request: Request, user: Optional[User] = None) -> Dict[
     registry = get_registry()
     # Счётчик открытых извещений (нужен в nav)
     n_open_notices = db.query_one("SELECT COUNT(*) AS n FROM change_notices WHERE status IN ('open','in_progress')")["n"]
+    # M38-c3: нормализуем роль через _ROLE_ALIASES (tech_admin → admin)
+    from services.auth import _ROLE_ALIASES
+    if user:
+        user.role = _ROLE_ALIASES.get(user.role, user.role)
     return {
         "request": request,
         "current_user": user,
