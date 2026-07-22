@@ -163,12 +163,12 @@ async def run_scenario_s04_generate(page: Page, role: str, report: Report):
     """S04: Генерация ТК (для make item) + 400 для buy"""
     try:
         # 1. make item — POST should work
-        resp = await page.request.post(f"{URL}/items/3/generate", form_data={"input": ""}, max_redirects=0)
+        resp = await page.request.post(f"{URL}/items/3/generate", form={"input": ""}, max_redirects=0)
         if resp.status not in (200, 303, 302):
             report.add_result("S04", role, False, f"make item POST → {resp.status}")
             return
         # 2. buy item — POST should be 400
-        resp2 = await page.request.post(f"{URL}/items/8/generate", form_data={"input": ""}, max_redirects=0)
+        resp2 = await page.request.post(f"{URL}/items/8/generate", form={"input": ""}, max_redirects=0)
         if resp2.status != 400:
             report.add_result("S04", role, False, f"buy item POST → {resp2.status}, expected 400")
             return
@@ -195,7 +195,7 @@ async def run_scenario_s05_inline_edit(page: Page, role: str, report: Report):
         # POST
         resp = await page.request.post(
             f"{URL}/api/operations/{op_id}/update",
-            form_data={"field": "time_per_unit_min", "value": "99.9"},
+            form={"field": "time_per_unit_min", "value": "99.9"},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
         if resp.status != 200:
@@ -205,7 +205,7 @@ async def run_scenario_s05_inline_edit(page: Page, role: str, report: Report):
         # Reset back
         await page.request.post(
             f"{URL}/api/operations/{op_id}/update",
-            form_data={"field": "time_per_unit_min", "value": "10.0"},
+            form={"field": "time_per_unit_min", "value": "10.0"},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
         report.add_result("S05", role, True)

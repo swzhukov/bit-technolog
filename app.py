@@ -275,7 +275,9 @@ def get_template_context(request: Request, user: Optional[User] = None) -> Dict[
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    user = require_user(request)  # M35u-fix: падало после рестарта из-за _sessions in-memory
+    user = get_user_from_request(request)
+    if not user:  # M36-E2E-fix: redirect to login instead of 401
+        return RedirectResponse(url="/login?next=/", status_code=303)
     ctx = get_template_context(request, user)
 
     # Метрики (b — время генерации, c — % зелёных)
