@@ -540,6 +540,54 @@ async def item_generate_post(request: Request, item_id: int):
         "created_at": None,
     })
 
+    # Q-002: M35r — RAG + LLM refine. Берём черновик от RAG, шлём в LLM
+    # для коррекции (время, оборудование, материал) под контекст детали.
+    # Если LLM упал — fallback на RAG-only (operations уже заполнены).
+    if operations and similar_etalon:
+        try:
+            from domain.llm_provider import call_llm
+            from domain.prompts import REFINE_PROMPT
+            # Готовим контекст для LLM
+            etalon_ctx = {
+                "designation": similar_etalon["designation"],
+                "name": similar_etalon["name"],
+                "operations": operations,
+            }
+            item_ctx = {
+                "designation": item.get("designation", ""),
+                "name": item.get("name", ""),
+                "material": item.get("material_code", ""),
+                "mass_kg": item.get("mass_kg", 0),
+                "chassis": item.get("chassis_code", ""),
+            }
+            prompt = (
+                f"Деталь: {item_ctx}\n"
+                f"Эталон (RAG-черновик): {etalon_ctx}\n\n"
+                "Скорректируй операции под эту деталь. "
+                "Верни JSON-массив operations с теми же полями, что и в эталоне, "
+                "но скорректированный time_per_unit_min (под материал/mass_kg), "
+                "equipment (если у детали другое шасси), profession."
+            )
+            llm_result = call_llm(
+                "tech_card_refinement",
+                prompt=prompt,
+                system=REFINE_PROMPT,
+                temperature=0.2,
+                max_tokens=3000,
+                response_format="json",
+                user=user.username,
+            )
+            llm_ops = llm_result.parse_json() if hasattr(llm_result, 'parse_json') else None
+            if isinstance(llm_ops, list) and llm_ops and isinstance(llm_ops[0], dict):
+                # LLM вернул нормальный список — заменяем operations
+                operations = llm_ops
+                logger.info(f"item_generate_post: LLM refined {len(operations)} ops for item {item_id}")
+            else:
+                logger.warning(f"item_generate_post: LLM returned bad JSON for item {item_id}, using RAG")
+        except Exception as e:
+            # Fallback на RAG (operations не меняем) — уже работает
+            logger.warning(f"item_generate_post: LLM refine failed for item {item_id}: {e}, using RAG")
+
     # Сохраняем операции (используем реальные FK)
     # workshops / equipment / professions по коду
     for i, op in enumerate(operations):
