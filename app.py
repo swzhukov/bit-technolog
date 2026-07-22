@@ -643,6 +643,7 @@ async def details_new_form(request: Request):
         ("coop_da", "Кооперация (доработка)"),
         ("coop_full", "Кооперация (целиком)"),
     ]
+    ctx.setdefault("form_data", {})
     return templates.TemplateResponse("detail_new.html", ctx)
 
 
