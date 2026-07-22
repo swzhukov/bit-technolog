@@ -64,7 +64,44 @@ from gateways.one_c_gateway import get_gateway, OneCResourceSpec  # noqa
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="БИТ.Технолог", version="0.8.5")
+app = FastAPI(title="БИТ.Технолог", version="1.0.0")
+
+# ============================================================
+# CSRF PROTECTION (M37-#2)
+# ============================================================
+# Проверяем для всех POST/PUT/DELETE:
+# - X-Requested-With: XMLHttpRequest (для fetch/AJAX)
+#   (Same-Origin Policy не даёт чужому сайту ставить custom header)
+# - ИЛИ Origin/Referer == наш base URL (для form submit)
+# Исключение: /login (первичный логин, куки ещё нет)
+#
+# Без CSRF атакующий сайт может сделать <form action=...> с method=POST
+# и заставить браузер жертвы отправить запрос с её cookies.
+
+CSRF_EXEMPT_PATHS = {"/login"}
+
+@app.middleware("http")
+async def csrf_middleware(request: Request, call_next):
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        path = request.url.path
+        if path not in CSRF_EXEMPT_PATHS:
+            xrw = request.headers.get("x-requested-with", "")
+            origin = request.headers.get("origin", "")
+            referer = request.headers.get("referer", "")
+            base = str(request.base_url).rstrip("/")
+            # OK если: AJAX (XHR) ИЛИ same-origin (Origin/Referer)
+            if xrw == "XMLHttpRequest":
+                pass  # AJAX, browser Same-Origin Policy enforced
+            elif origin == base or referer.startswith(base):
+                pass  # form submit from our own site
+            else:
+                # No valid CSRF token
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    {"detail": "CSRF check failed: missing X-Requested-With or same-origin Referer"},
+                    status_code=403,
+                )
+    return await call_next(request)
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 
 # Jinja2 filters

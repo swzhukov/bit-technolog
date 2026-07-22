@@ -592,6 +592,7 @@ class TestNotices:
     def test_create_notice_via_form(self):
         from app import app
         client = TestClient(app)
+        # M37-#2 CSRF: need Origin or X-Requested-With
         r = client.post("/notices/new", data={
             "number": "И-2026-TEST-FORM",
             "date": "2026-07-21",
@@ -600,7 +601,7 @@ class TestNotices:
             "description": "Test",
             "author": "TestUser",
             "affected_item_designation": "ЛМША.301314.010",
-        }, follow_redirects=False)
+        }, headers={"Origin": "http://testserver"}, follow_redirects=False)
         assert r.status_code == 303
         # Очистим
         n = db.query_one("SELECT id FROM change_notices WHERE number = 'И-2026-TEST-FORM'")
@@ -742,7 +743,9 @@ class TestSprint8:
         r2 = client.post("/settings/llm",
                          data={"name": "test-sprint8", "display_name": "Test Sprint8",
                                "endpoint": "gpt://test", "api_key": "secret", "cost": "0.50/1.50"},
-                         cookies=r.cookies, follow_redirects=False)
+                         cookies=r.cookies,
+                         headers={"Origin": "http://testserver", "X-Requested-With": "XMLHttpRequest"},
+                         follow_redirects=False)
         assert r2.status_code == 303
         # Проверим в БД
         row = db.query_one("SELECT * FROM llm_providers WHERE name = ?", ("test-sprint8",))
