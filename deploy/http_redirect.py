@@ -13,7 +13,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
         if ":" in host:
             host = host.split(":")[0]
         # Build https URL
-        new_url = f"https://{host}:8081{self.path}"
+        new_url = f"https://{host}:8443{self.path}"
         self.send_response(301)
         self.send_header("Location", new_url)
         self.send_header("Content-Length", "0")
@@ -24,7 +24,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
         host = self.headers.get("Host", "217.114.7.5:8081")
         if ":" in host:
             host = host.split(":")[0]
-        new_url = f"https://{host}:8081{self.path}"
+        new_url = f"https://{host}:8443{self.path}"
         self.send_response(308)  # Permanent, preserves method
         self.send_header("Location", new_url)
         self.send_header("Content-Length", "0")
@@ -34,4 +34,4 @@ class RedirectHandler(BaseHTTPRequestHandler):
         pass  # suppress access log
 
 if __name__ == "__main__":
-    HTTPServer(("0.0.0.0", 8082), RedirectHandler).serve_forever()
+    HTTPServer(("0.0.0.0", 8081), RedirectHandler).serve_forever()
