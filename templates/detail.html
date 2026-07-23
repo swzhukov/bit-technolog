@@ -8,6 +8,8 @@
 .editable:hover { background: var(--v8-blue-bg); border-color: var(--v8-blue); }
 .editable-input { padding: 4px 8px; border: 1px solid var(--v8-blue); border-radius: 4px; background: var(--v8-panel); color: var(--v8-text); font: inherit; }
 .editable-saving { opacity: 0.5; pointer-events: none; }
+.editable-select { padding: 4px 8px; border: 1px dashed var(--v8-blue); border-radius: 4px; background: var(--v8-blue-bg); color: var(--v8-text); font: inherit; cursor: pointer; max-width: 240px; }
+.editable-select:hover { border-style: solid; }
 </style>
 {% endblock %}
 {% block content %}
@@ -95,11 +97,29 @@
           {% if ev and ev.analogs and ev.evidence_level == "red" %}<br><span class="muted" style="font-size: 11.5px;">Проверьте вручную</span>{% endif %}
         </td>
         <td>
+          {% if user_can_edit %}
+          <select class="editable-select" data-op="{{ op.id }}" data-field="workshop_id" title="Клик для выбора цеха">
+            <option value="">—</option>
+            {% for w in workshops_list %}
+              <option value="{{ w.id }}" {% if w.id == op.workshop_id %}selected{% endif %}>{{ w.code }} {{ w.name }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
           <b>{{ workshop_names.get(op.workshop_code, op.workshop_code) or '—' }}</b>
+          {% endif %}
           {% if op.workshop_code and workshop_names.get(op.workshop_code) %}<br><span class="muted" style="font-size: 11px;">{{ op.workshop_code }}/{{ op.site_code or '—' }}</span>{% endif %}
         </td>
         <td>
+          {% if user_can_edit %}
+          <select class="editable-select" data-op="{{ op.id }}" data-field="profession_id" title="Клик для выбора профессии">
+            <option value="">—</option>
+            {% for p in professions_list %}
+              <option value="{{ p.id }}" {% if p.id == op.profession_id %}selected{% endif %}>{{ p.code }} {{ p.name }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
           <b>{{ profession_names.get(op.profession_code, op.profession_code) or '—' }}</b>
+          {% endif %}
           {% if op.profession_code %}<br><span class="muted" style="font-size: 11px;">{{ op.profession_code }}</span>{% endif %}
         </td>
         <td><b><span {% if user_can_edit %}class="editable"{% endif %} data-op="{{ op.id }}" data-field="time_per_unit_min" data-type="number" title="Клик для редактирования">{{ op.time_per_unit_min or 0 }}</span></b></td>
@@ -385,6 +405,39 @@ async function submitConfirm(opId) {
         else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
       });
       input.addEventListener('blur', save);
+    });
+  });
+})();
+
+// === C1 (Sprint 6): inline-edit для FK полей (workshop_id, profession_id) ===
+// select → change → POST /api/operations/{id}/update
+(function() {
+  document.querySelectorAll('select.editable-select[data-op][data-field]').forEach(function(sel) {
+    sel.addEventListener('change', async function() {
+      const opId = sel.dataset.op;
+      const field = sel.dataset.field;
+      const newVal = sel.value;
+      sel.classList.add('editable-saving');
+      try {
+        const r = await fetch('/api/operations/' + opId + '/update', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+          credentials: 'same-origin',
+          body: JSON.stringify({field: field, value: newVal})
+        });
+        sel.classList.remove('editable-saving');
+        if (r.status === 401) { window.location.href = '/login'; return; }
+        const j = await r.json();
+        if (r.ok && j.status === 'ok') {
+          // Успех — ничего не делаем, location.reload для пересчёта evidence
+          location.reload();
+        } else {
+          alert('Ошибка: ' + (j.detail || JSON.stringify(j)));
+        }
+      } catch (e) {
+        sel.classList.remove('editable-saving');
+        alert('Сетевая ошибка: ' + e.message);
+      }
     });
   });
 })();

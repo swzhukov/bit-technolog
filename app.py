@@ -558,9 +558,12 @@ async def detail(request: Request, item_id: int, flash_kind: str = "", flash_mes
     # Эталоны (для обоснования)
     etalons = db.get_etalons_for_rag(product_type=item.get("product_type") or "", limit=5)
 
-    # Справочники — названия цехов и профессий (для отображения)
+    # Справочники — для отображения и inline-edit (C1 Sprint 6)
     workshop_names = {w["code"]: w["name"] for w in db.query("SELECT code, name FROM workshops")}
     profession_names = {p["code"]: p["name"] for p in db.query("SELECT code, name FROM professions")}
+    ctx_workshops = db.rows_to_dicts(db.query("SELECT id, code, name FROM workshops ORDER BY code"))
+    ctx_equipment = db.rows_to_dicts(db.query("SELECT id, code, name, workshop_id FROM equipment ORDER BY code"))
+    ctx_professions = db.rows_to_dicts(db.query("SELECT id, code, name, category FROM professions ORDER BY code"))
 
     # РС preview (из resource_specs)
     rs_preview = None
@@ -612,6 +615,9 @@ async def detail(request: Request, item_id: int, flash_kind: str = "", flash_mes
         "etalons": etalons,
         "workshop_names": workshop_names,
         "profession_names": profession_names,
+        "workshops_list": ctx_workshops,  # C1 (Sprint 6): для inline-edit
+        "equipment_list": ctx_equipment,
+        "professions_list": ctx_professions,
         "rs_preview": rs_preview,
         "bom_children": bom_children,
         "history": history,
