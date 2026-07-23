@@ -28,7 +28,7 @@ def curl(method, path, user=None, form_data=None, json_data=None, hdr=None, time
     if hdr:
         for k, v in hdr.items():
             cmd += ['-H', f'{k}: {v}']
-    cmd.append(f'https://localhost:8081{path}')
+    cmd.append(f'https://seefeesnahurid.beget.app/bit-technolog{path}')
     cmd_str = ' '.join("'" + c + "'" if ' ' in c or '{' in c or '}' in c else c for c in cmd)
     stdin, stdout, stderr = client.exec_command(cmd_str, timeout=timeout+5)
     out = stdout.read().decode().strip()
@@ -40,7 +40,7 @@ def curl(method, path, user=None, form_data=None, json_data=None, hdr=None, time
 
 def login(user):
     """Fresh login for user (remove old cookies)."""
-    ssh_exec(f"rm -f /tmp/c-{user}.jar; curl -sk -c /tmp/c-{user}.jar -X POST -d 'username={user}&password=demo' https://localhost:8081/login -o /dev/null")
+    ssh_exec(f"rm -f /tmp/c-{user}.jar; curl -sk -c /tmp/c-{user}.jar -X POST -H 'X-Requested-With: XMLHttpRequest' -H 'Origin: https://seefeesnahurid.beget.app' -d 'username={user}&password=demo' https://seefeesnahurid.beget.app/bit-technolog/login -o /dev/null")
 
 
 USERS = ['techadmin', 'vorobyev', 'tarrietsky', 'golubev']

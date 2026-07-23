@@ -2,7 +2,7 @@
 import os, re
 from playwright.sync_api import sync_playwright
 
-BASE = 'https://217.114.7.5:8081'
+BASE = 'https://seefeesnahurid.beget.app/bit-technolog'
 
 USERS = ['techadmin', 'vorobyev', 'tarrietsky', 'golubev']
 
