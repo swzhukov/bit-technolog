@@ -38,6 +38,20 @@ def curl(method, path, user=None, form_data=None, json_data=None, hdr=None, time
         return -1
 
 
+def fetch_rs_filename():
+    """Получить первый XML файл из /api/rs/list (test data driven)."""
+    raw = ssh_exec("curl -sk -m 5 -b /tmp/c-techadmin.jar https://seefeesnahurid.beget.app/bit-technolog/api/rs/list")
+    try:
+        import json
+        data = json.loads(raw)
+        files = data.get("files", [])
+        if files:
+            return files[0]["filename"]
+    except Exception:
+        pass
+    return None
+
+
 def login(user):
     """Fresh login for user (remove old cookies)."""
     ssh_exec(f"rm -f /tmp/c-{user}.jar; curl -sk -c /tmp/c-{user}.jar -X POST -H 'X-Requested-With: XMLHttpRequest' -H 'Origin: https://seefeesnahurid.beget.app' -d 'username={user}&password=demo' https://seefeesnahurid.beget.app/bit-technolog/login -o /dev/null")
@@ -47,6 +61,9 @@ USERS = ['techadmin', 'vorobyev', 'tarrietsky', 'golubev']
 for u in USERS:
     login(u)
 
+# Динамический filename для A11
+RS_FILENAME = fetch_rs_filename() or 'RS_ЛМША.304142.010_0049.xml'
+print(f'[TR.py] A11: {RS_FILENAME}')
 # Тесты
 TESTS = [
     ('A01', 'Создание детали', 'POST', '/details/new', 303, 'tarrietsky', None,
@@ -63,7 +80,7 @@ TESTS = [
      {'new_time': 12.0}, None, {'X-Requested-With': 'XMLHttpRequest'}),
     ('A10', 'Экспорт РС в 1С', 'POST', '/api/items/3/export-to-1c', 200, 'tarrietsky', None, None,
      {'X-Requested-With': 'XMLHttpRequest'}),
-    ('A11', 'Скачать XML РС', 'GET', '/api/rs/download/RS_ЛМША.301314.010_0002.xml', 200, 'tarrietsky', None, None, None),
+    ('A11', 'Скачать XML РС', 'GET', f'/api/rs/download/{RS_FILENAME}', 200, 'tarrietsky', None, None, None),
     ('A12', 'Создание извещения', 'POST', '/notices/new', 303, 'tarrietsky', None,
      {'number': f'И-A12-{int(time.time())}', 'date':'2026-07-23','reason':'A12 test','affected_item_designation':'ЛМША.301314.010'},
      {'X-Requested-With': 'XMLHttpRequest'}),

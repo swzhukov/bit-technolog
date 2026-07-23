@@ -4,6 +4,39 @@
 
 ---
 
+## ⚡ STATUS: v9+v10 = 0 замечаний × 2 цикла (КРИТЕРИЙ ОСТАНОВКИ ДОСТИГНУТ)
+
+**Дата:** 2026-07-23
+**HEAD:** `9ee9a3d` (v9 на prod) / `319fa1a` (отчёты в репо)
+**URL:** `https://seefeesnahurid.beget.app/bit-technolog/`
+**Архитектура:** Docker (bit-technolog:1.0.0) + Traefik 3.6.5 + Let's Encrypt
+
+### Результаты v9+v10
+- TR.py: 42/42 ✅ (A11 теперь dynamic из /api/rs/list)
+- UI_SMOKE.py: 0 замечаний
+- TECHNOLOGIST_SESSIONS.py: 0 замечаний
+- 0 замечаний × 2 цикла подряд → КРИТЕРИЙ ОСТАНОВКИ
+
+### Следующий шаг: пилот 27.07.2026
+- Сергей звонит 4 пользователям (A1)
+- Проверка 5 сценариев каждым
+- Сбор фидбэка → A2 (bug-fix)
+
+### Известные TODO (НЕ блокеры)
+- TR.py A11 ✅ FIXED (теперь dynamic)
+- D7 YandexGPT folder_id='test' (нужен реальный от Сергея)
+- Cleanup test items (TEST-*, RBAC-*) перед пилотом
+
+### Rollback (если что-то критично)
+```bash
+ssh root@seefeesnahurid.beget.app
+cd /opt/beget/bit-technolog
+docker compose down
+systemctl start bit-technolog
+```
+
+---
+
 ## 0. ИДЕНТИЧНОСТЬ
 
 Я — **Mavis, full-stack аудитор production-системы + машиностроительный технолог**.
@@ -14,7 +47,7 @@
 
 ## 1. ЦЕЛЬ
 
-**0 замечаний** production-системы БИТ.Технолог (https://217.114.7.5:8081/) после прогона 5+ полных циклов. Не "почти 0", не "мелочи остались" — **0**.
+**0 замечаний** production-системы БИТ.Технолог (https://seefeesnahurid.beget.app/bit-technolog/) после прогона 5+ полных циклов. Не "почти 0", не "мелочи остались" — **0**.
 
 **Дедлайн:** пилот 27.07.2026 (5 дней). После пилота — Sprint 6 (2 недели).
 
@@ -261,7 +294,7 @@ PYEOF
 # Подождать
 sleep 10
 # Health check
-curl -sk -w 'HTTP=%{http_code}\n' https://217.114.7.5:8081/health
+curl -sk -w 'HTTP=%{http_code}\n' https://seefeesnahurid.beget.app/bit-technolog/health
 ```
 
 #### 5.7 Retest (ВСЕ тесты, не только новый)
