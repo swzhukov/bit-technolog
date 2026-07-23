@@ -4,28 +4,39 @@
 
 ---
 
-## ⚡ STATUS: v9+v10 = 0 замечаний × 2 цикла (КРИТЕРИЙ ОСТАНОВКИ ДОСТИГНУТ)
+## ⚡ STATUS: v9-v12 = 0 замечаний × 4 цикла (КРИТЕРИЙ ОСТАНОВКИ × 2)
 
 **Дата:** 2026-07-23
-**HEAD:** `9ee9a3d` (v9 на prod) / `319fa1a` (отчёты в репо)
+**HEAD:** `02b2f0e` (Sprint 7: Drawing recognition)
 **URL:** `https://seefeesnahurid.beget.app/bit-technolog/`
-**Архитектура:** Docker (bit-technolog:1.0.0) + Traefik 3.6.5 + Let's Encrypt
+**Architecture:** Docker (bit-technolog:1.0.0) + Traefik 3.6.5 + Let's Encrypt
 
-### Результаты v9+v10
-- TR.py: 42/42 ✅ (A11 теперь dynamic из /api/rs/list)
-- UI_SMOKE.py: 0 замечаний
-- TECHNOLOGIST_SESSIONS.py: 0 замечаний
-- 0 замечаний × 2 цикла подряд → КРИТЕРИЙ ОСТАНОВКИ
+### Sprint 7: Drawing Recognition (D1-D9, D11-D12)
+- ✅ Upload PDF/PNG/JPG (50MB max)
+- ✅ OCR via tesseract -l rus (~15 sec)
+- ✅ LLM extraction (1bitai.ru + regex fallback, ~30 sec)
+- ✅ Auto-create draft item
+- ✅ UI: list, upload (drag & drop), review screen
+- ✅ 9 новых тестов (DRAW-01..DRAW-09)
+
+### Test results (4 cycles подряд 0 замечаний)
+| Cycle | TR.py | UI_SMOKE | TECHNOLOGIST_SESSIONS | Итог |
+|-------|-------|----------|----------------------|------|
+| v9    | 42/42 ✅ | 0 | 0 | ✅ |
+| v10   | 42/42 ✅ | 0 | 0 | ✅ |
+| v11   | 51/51 ✅ | 0 | 0 | ✅ (Sprint 7) |
+| v12   | 51/51 ✅ | 0 | 0 | ✅ |
 
 ### Следующий шаг: пилот 27.07.2026
 - Сергей звонит 4 пользователям (A1)
-- Проверка 5 сценариев каждым
+- Проверка 5 сценариев каждым (включая drawing upload)
 - Сбор фидбэка → A2 (bug-fix)
 
 ### Известные TODO (НЕ блокеры)
-- TR.py A11 ✅ FIXED (теперь dynamic)
 - D7 YandexGPT folder_id='test' (нужен реальный от Сергея)
-- Cleanup test items (TEST-*, RBAC-*) перед пилотом
+- D8 (bulk upload) — пропущен для MVP
+- D10 (performance/кеш) — пропущен для MVP
+- LLM иногда возвращает невалидный JSON → regex fallback работает
 
 ### Rollback (если что-то критично)
 ```bash
@@ -33,6 +44,7 @@ ssh root@seefeesnahurid.beget.app
 cd /opt/beget/bit-technolog
 docker compose down
 systemctl start bit-technolog
+# → вернётся старый https://217.114.7.5:8081/
 ```
 
 ---
