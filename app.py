@@ -1694,7 +1694,7 @@ async def api_tech_card_diff(request: Request, tech_card_id: int):
     # Все edits для этой ТК, сгруппированные по операции
     rows = db.query(
         """SELECT e.id, e.operation_id, e.field, e.old_value, e.new_value, e.user, e.ts, e.reason,
-                  o.operation_no, o.name as op_name
+                  o.op_number, o.name as op_name
            FROM edits e
            LEFT JOIN operations o ON o.id = e.operation_id
            WHERE e.tech_card_id = ?
