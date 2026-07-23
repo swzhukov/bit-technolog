@@ -37,6 +37,24 @@ from fastapi.templating import Jinja2Templates
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
+
+# === Sprint 6 E1: workshop_context.md (реальные операции Техинкома) ===
+def _load_workshop_context() -> str:
+    """Загрузить справочник операций Техинкома для подстановки в prompt LLM.
+
+    Файл лежит в seed/workshop_context.md (скопирован из attachments/).
+    Используется в REFINE_PROMPT через плейсхолдер $workshops_context.
+    """
+    path = ROOT / "seed" / "workshop_context.md"
+    if not path.exists():
+        return "(справочник операций Техинкома не найден — seed/workshop_context.md)"
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return "(ошибка чтения seed/workshop_context.md)"
+
+WORKSHOP_CONTEXT = _load_workshop_context()
+
 # === Модули ===
 from repositories import db  # noqa
 from domain.llm_provider import (  # noqa
@@ -854,6 +872,8 @@ async def item_generate_post(request: Request, item_id: int):
         try:
             from domain.llm_provider import call_llm
             from domain.prompts import REFINE_PROMPT
+            # Sprint 6 E1: подставляем workshops_context (реальные операции Техинкома)
+            refine_system = REFINE_PROMPT.replace("$workshops_context", WORKSHOP_CONTEXT)
             # Готовим контекст для LLM
             etalon_ctx = {
                 "designation": similar_etalon["designation"],
@@ -878,7 +898,7 @@ async def item_generate_post(request: Request, item_id: int):
             llm_result = call_llm(
                 "tech_card_refinement",
                 prompt=prompt,
-                system=REFINE_PROMPT,
+                system=refine_system,
                 temperature=0.2,
                 max_tokens=1500,  # M35r-fix: 3000→1500 (1bitai.ru 3000 токенов = 170 сек)
                 response_format="json",
@@ -1503,9 +1523,12 @@ async def api_regenerate(tech_card_id: int, request: Request):
     if not tc:
         raise HTTPException(404)
     # Mock
+    # Sprint 6 E1: используем REFINE_PROMPT + workshops_context, а не "Ты — главный технолог"
+    from domain.prompts import REFINE_PROMPT as _REFINE
+    refine_system = _REFINE.replace("$workshops_context", WORKSHOP_CONTEXT)
     result = call_llm("tech_card_generation",
                       prompt=f"Сгенерируй ТК для {tc.get('item_designation')}",
-                      system="Ты — главный технолог")
+                      system=refine_system)
     return {"status": "ok", "llm_response": result.parse_json(), "model": result.model}
 
 
