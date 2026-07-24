@@ -79,7 +79,7 @@ from services.notices import (  # noqa
 from services.audit import log_history  # B3 (Sprint 6): audit-trail
 from services.drawing_storage import save_upload, create_drawing_row, get_drawing, update_drawing, list_drawings, get_drawings_dir, MAX_FILE_SIZE, ALLOWED_FORMATS  # Sprint 7 D1
 from services.ocr_pipeline import process_drawing as ocr_process_drawing  # Sprint 7 D2
-from domain.drawing_extractor import extract_with_llm as llm_extract  # Sprint 7 D3
+from domain.drawing_extractor import llm_extract  # Sprint 7 D3
 from services.drawing_to_item import create_item_from_drawing as create_item_svc  # Sprint 7 D4
 from gateways.one_c_gateway import get_gateway, OneCResourceSpec  # noqa
 
