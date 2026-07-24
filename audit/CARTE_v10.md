@@ -1,7 +1,7 @@
-# 🗺️ CARTE v10 — Карта prod БИТ.Технолог (после Sprint 7)
+# 🗺️ CARTE v11 — Карта prod БИТ.Технолог (после Sprint 7)
 
 **Дата:** 2026-07-23
-**HEAD:** `6902cc9` (Sprint 7: bulk + cleanup + T6)
+**HEAD `3ebcc89` (Sprint 7 D8: bulk upload + 8 cycles 0 замечаний) (Sprint 7: bulk + cleanup + T6)
 **URL:** `https://seefeesnahurid.beget.app/bit-technolog/`
 **Architecture:** Docker (bit-technolog:1.0.0) + Traefik 3.6.5 + Let's Encrypt
 
@@ -48,7 +48,7 @@ Internet
 
 | Метрика | Значение |
 |---------|----------|
-| **HEAD** | `6902cc9` |
+| **HEAD `3ebcc89` (Sprint 7 D8: bulk upload + 8 cycles 0 замечаний) |
 | **URL** | `https://seefeesnahurid.beget.app/bit-technolog/` |
 | **SSL** | Let's Encrypt (валидный) |
 | **Порт** | 443 (стандартный) |
@@ -95,6 +95,13 @@ Internet
 
 **Tables (новые):**
 - `drawings` (22 cols, 6 indexes, без FK)
+
+### Sprint 7 D8: Bulk upload
+- **Endpoint:** `POST /api/drawings/bulk-upload` (multipart, до 50 файлов)
+- **UI:** секция "Или загрузить несколько чертежей сразу" на `/drawings/upload`
+- **Multi-file input:** `multiple` + `accept=.pdf,.png,.jpg,.jpeg`
+- **Progress bar + список результатов** (uploaded + errors)
+- **Tests:** BULK-01, BULK-02, BULK-03 (54/54 total)
 
 ## 📈 Метрики качества (Sprint 7)
 
