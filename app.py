@@ -2014,6 +2014,20 @@ async def api_drawings_list(request: Request, limit: int = 50):
     return {"drawings": drawings, "total": len(drawings)}
 
 
+@app.get("/api/drawings/cache-stats")
+async def api_drawings_cache_stats(request: Request):
+    """Sprint 7 D10: статистика LLM extraction cache."""
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401)
+    normalize_user_role(user)
+    if user.role not in ("admin", "main_technologist"):
+        raise HTTPException(403, "Только для admin/main_technologist")
+    
+    from domain.drawing_extractor import cache_stats
+    return cache_stats()
+
+
 @app.get("/api/drawings/{drawing_id}")
 async def api_drawing_get(drawing_id: int, request: Request):
     """Получить чертеж по ID (метаданные + OCR + LLM)."""

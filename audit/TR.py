@@ -147,6 +147,11 @@ TESTS = [
     ('BULK-03', 'Bulk upload empty', 'POST', '/api/drawings/bulk-upload', 400, 'techadmin', None,
      '__bulk__:[]',
      {'X-Requested-With': 'XMLHttpRequest'}),
+    # Sprint 7 D10: LLM cache
+    ('CACHE-01', 'Cache stats endpoint', 'GET', '/api/drawings/cache-stats', 200, 'techadmin', None, None, None),
+    ('CACHE-02', 'Cache stats as workshop_chief (403)', 'GET', '/api/drawings/cache-stats', 403, 'golubev', None, None, None),
+    ('CACHE-03', 'Process re-uses cache', 'POST', '/api/drawings/2/process', 200, 'techadmin', None, None,
+     {'X-Requested-With': 'XMLHttpRequest'}),
 
     # Sprint 7: Drawings (DRAW-01..DRAW-09)
     ('DRAW-01', 'Upload PDF', 'POST', '/api/drawings/upload', 200, 'techadmin', None,

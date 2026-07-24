@@ -1,13 +1,17 @@
 """
 Sprint 7 D3: LLM extraction из OCR text чертежа.
 
-Промт извлекает структурированные данные: designation, name, material,
-dimensions, mass, surface_treatment, gost, raw_components.
+Sprint 7 D10: SQLite-based cache для избежания повторных LLM вызовов
+- key = hash(ocr_text)
+- value = llm_data (JSON)
+- is_fallback = 1 если regex fallback (тоже кешируется)
+- hits_count = сколько раз использовали
 """
 import json
 import logging
 import re
 import time
+import hashlib
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
 
@@ -48,19 +52,91 @@ EXTRACTION_PROMPT = """Ты — инженер-технолог машиност
 5. Материал обычно указан как "Материал: ..." или в графе "Материал"
 6. Размеры могут быть в формате "L=200мм" или "200×100" или "Ø50"
 7. raw_components — это составные части сборочного чертежа (если это сборочный)
+"""
 
-Верни ТОЛЬКО JSON, ничего больше."""
+
+def _get_db_path() -> str:
+    """Получить путь к БД (Sprint 6+: SQLite WAL)."""
+    return "/app/data/bit_technolog_v0_8.db"
 
 
-def extract_with_llm(ocr_text: str, llm_provider: Optional[Any] = None) -> Tuple[bool, Dict[str, Any], str]:
-    """Извлечь structured data из OCR text через LLM.
+def _ocr_hash(ocr_text: str) -> str:
+    """SHA256 hash от нормализованного OCR text.
     
-    Returns: (success, parsed_dict, error_or_empty)
+    Нормализация: strip + lowercase (для устойчивости к разному OCR шуму).
+    """
+    norm = re.sub(r'\s+', ' ', ocr_text.strip().lower())
+    return hashlib.sha256(norm.encode('utf-8')).hexdigest()[:32]  # 32 hex = 128 bit
+
+
+def _cache_lookup(ocr_text: str) -> Optional[Tuple[Dict[str, Any], bool]]:
+    """Поиск в кеше. Возвращает (llm_data, is_fallback) или None."""
+    import sqlite3
+    h = _ocr_hash(ocr_text)
+    try:
+        conn = sqlite3.connect(_get_db_path(), timeout=5)
+        conn.execute("PRAGMA journal_mode=WAL")
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT llm_data, is_fallback, hits_count FROM llm_extraction_cache WHERE ocr_hash = ?",
+            (h,)
+        )
+        row = cur.fetchone()
+        if row:
+            llm_data_str, is_fallback, hits = row
+            # Increment hits
+            cur.execute(
+                "UPDATE llm_extraction_cache SET hits_count = hits_count + 1, last_used_at = CURRENT_TIMESTAMP WHERE ocr_hash = ?",
+                (h,)
+            )
+            conn.commit()
+            conn.close()
+            return json.loads(llm_data_str), bool(is_fallback)
+        conn.close()
+    except Exception as e:
+        logger.warning(f"cache lookup failed: {e}")
+    return None
+
+
+def _cache_store(ocr_text: str, llm_data: Dict[str, Any], is_fallback: bool = False) -> None:
+    """Сохранить в кеш."""
+    import sqlite3
+    h = _ocr_hash(ocr_text)
+    try:
+        conn = sqlite3.connect(_get_db_path(), timeout=5)
+        conn.execute("PRAGMA journal_mode=WAL")
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT OR REPLACE INTO llm_extraction_cache (ocr_hash, ocr_text_preview, llm_data, is_fallback, hits_count, last_used_at)
+               VALUES (?, ?, ?, ?, COALESCE((SELECT hits_count FROM llm_extraction_cache WHERE ocr_hash=?), 0) + 1, CURRENT_TIMESTAMP)""",
+            (h, ocr_text[:100], json.dumps(llm_data, ensure_ascii=False), 1 if is_fallback else 0, h)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"cache store failed: {e}")
+
+
+def llm_extract(ocr_text: str, use_cache: bool = True) -> Tuple[bool, Dict[str, Any], str]:
+    """Извлечь структурированные данные из OCR text через LLM.
+    
+    Sprint 7 D10: использует SQLite кеш. Если ocr_text уже обработан —
+    возьмёт результат из кеша (hit) вместо LLM вызова.
+    
+    Returns: (success, data_dict, error_message)
     """
     if not ocr_text or not ocr_text.strip():
         return False, {}, "empty OCR text"
     
-    # Lazy import
+    # 1. Cache lookup
+    if use_cache:
+        cached = _cache_lookup(ocr_text)
+        if cached is not None:
+            llm_data, is_fallback = cached
+            suffix = " (regex fallback)" if is_fallback else ""
+            return True, llm_data, f"cache_hit{suffix}"
+    
+    # 2. LLM call
     from domain.llm_provider import call_llm
     
     prompt = EXTRACTION_PROMPT.format(ocr_text=ocr_text[:3000])  # limit 3000 chars
@@ -69,11 +145,10 @@ def extract_with_llm(ocr_text: str, llm_provider: Optional[Any] = None) -> Tuple
         result = call_llm(
             task_type="ocr_pdf",
             prompt=prompt,
-            temperature=0.0,  # детерминированный
+            temperature=0.0,
             max_tokens=1000,
         )
         
-        # Парсим JSON из ответа
         text = result.get("text", "").strip() if isinstance(result, dict) else str(result).strip()
         
         # Чистим markdown-обёртки
@@ -87,18 +162,41 @@ def extract_with_llm(ocr_text: str, llm_provider: Optional[Any] = None) -> Tuple
             data = json.loads(text)
         except json.JSONDecodeError as je:
             logger.warning(f"LLM returned invalid JSON, falling back to regex: {je}, text: {text[:200]}")
-            return True, extract_with_regex(ocr_text), f"json_fallback: {je}"
+            data = extract_with_regex(ocr_text)
+            _cache_store(ocr_text, data, is_fallback=True)
+            return True, data, f"json_fallback: {je}"
         
         if not isinstance(data, dict):
             return False, {}, f"LLM returned non-dict: {type(data)}"
         
+        # Cache successful LLM result
+        _cache_store(ocr_text, data, is_fallback=False)
         return True, data, ""
+        
     except json.JSONDecodeError as e:
         logger.error(f"LLM returned invalid JSON: {e}, text: {text[:200]}")
         return False, {}, f"invalid JSON: {e} (raw: {text[:100]})"
     except Exception as e:
         logger.exception("LLM extraction failed")
         return False, {}, f"LLM error: {e}"
+
+
+def cache_stats() -> Dict[str, Any]:
+    """Статистика кеша (для monitoring / debugging)."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(_get_db_path(), timeout=5)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*), SUM(hits_count), SUM(is_fallback) FROM llm_extraction_cache")
+        total, total_hits, total_fallback = cur.fetchone()
+        conn.close()
+        return {
+            "unique_entries": total or 0,
+            "total_hits": total_hits or 0,
+            "fallback_entries": total_fallback or 0,
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def extract_with_regex(ocr_text: str) -> Dict[str, Any]:
