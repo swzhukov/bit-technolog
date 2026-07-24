@@ -2014,7 +2014,7 @@ async def api_drawings_list(request: Request, limit: int = 50):
     return {"drawings": drawings, "total": len(drawings)}
 
 
-@app.get("/api/drawings/cache-stats")
+@app.get("/api/llm-cache-stats")
 async def api_drawings_cache_stats(request: Request):
     """Sprint 7 D10: статистика LLM extraction cache."""
     user = get_user_from_request(request)
