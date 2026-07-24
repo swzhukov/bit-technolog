@@ -4,20 +4,21 @@
 
 ---
 
-## ⚡ STATUS: v9-v14 = 0 замечаний × 6 циклов (КРИТЕРИЙ ОСТАНОВКИ × 3)
+## ⚡ STATUS: v9-v16 = 0 замечаний × 8 циклов (КРИТЕРИЙ ОСТАНОВКИ × 4)
 
-**Дата:** 2026-07-23
-**HEAD:** `2a3493d` (Sprint 7: bulk + cleanup + T6)
+**Дата:** 2026-07-24
+**HEAD:** `92b4e1d` (Sprint 7 D8: bulk upload)
 **URL:** `https://seefeesnahurid.beget.app/bit-technolog/`
 **Architecture:** Docker (bit-technolog:1.0.0) + Traefik 3.6.5 + Let's Encrypt
 
-### Sprint 7: Drawing Recognition — COMPLETE (D1-D9 + D11-D12)
-- ✅ Upload PDF/PNG/JPG (50MB max)
+### Sprint 7: Drawing Recognition — COMPLETE (D1-D8 + D11-D12)
+- ✅ Upload PDF/PNG/JPG (50MB max) — single
+- ✅ **Bulk upload** (D8) — до 50 файлов за раз
 - ✅ OCR via tesseract -l rus (~15 sec)
 - ✅ LLM extraction (1bitai.ru + regex fallback, ~30 sec)
 - ✅ Auto-create draft item
-- ✅ UI: list, upload (drag & drop), review screen
-- ✅ 9 новых тестов (DRAW-01..DRAW-09)
+- ✅ UI: list, upload (drag & drop + bulk), review screen
+- ✅ 12 новых тестов (DRAW-01..09 + BULK-01..03)
 - ✅ T6 scenario в TECHNOLOGIST_SESSIONS (9 ✅)
 - ✅ BULK_DRAWINGS.py — quality assessment
 - ✅ Cleanup 190 test items (245 → 55)
@@ -27,7 +28,7 @@
 - **На спецификациях/планах:** low (out of scope — это не детали)
 - **Avg process time:** 21s (OCR ~12s + LLM ~9s)
 
-### Test results (6 cycles подряд 0 замечаний)
+### Test results (8 cycles подряд 0 замечаний)
 | Cycle | TR.py | UI_SMOKE | TECHNOLOGIST_SESSIONS | Итог |
 |-------|-------|----------|----------------------|------|
 | v9    | 42/42 ✅ | 0 | 0 | ✅ (v9: Docker+Traefik) |
@@ -36,6 +37,8 @@
 | v12   | 51/51 ✅ | 0 | 0 | ✅ |
 | v13   | 51/51 ✅ | 0 | 0 | ✅ (после cleanup 190 items) |
 | v14   | 51/51 ✅ | 0 | 0 | ✅ |
+| v15   | 54/54 ✅ | 0 | 0 | ✅ (Sprint 7 D8: bulk upload) |
+| v16   | 54/54 ✅ | 0 | 0 | ✅ |
 
 ### Следующий шаг: пилот 27.07.2026
 - Сергей звонит 4 пользователям (A1)
