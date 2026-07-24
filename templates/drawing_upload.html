@@ -1,5 +1,85 @@
 {% extends "base.html" %}
-{% block title %}Загрузить чертёж — БИТ.Технолог{% endblock %}
+{% block title %}Загрузить чертёж — БИТ.Технолог<h3>Или загрузить несколько чертежей сразу</h3>
+<form id="bulk-form" enctype="multipart/form-data" style="margin-top: 12px;">
+  <div class="form-group">
+    <input type="file" id="bulk-files" multiple accept=".pdf,.png,.jpg,.jpeg">
+    <small>Можно выбрать до 50 файлов PDF/PNG/JPG. Каждый файл до 50 МБ.</small>
+  </div>
+  <button type="submit" id="bulk-btn" class="btn btn-primary">Загрузить все</button>
+  <div id="bulk-progress" style="display:none; margin-top: 12px;">
+    <div id="bulk-status">Загрузка...</div>
+    <progress id="bulk-bar" value="0" max="100" style="width: 100%;"></progress>
+    <ul id="bulk-results" style="margin-top: 12px;"></ul>
+  </div>
+</form>
+
+<script>
+const bulkForm = document.getElementById('bulk-form');
+const bulkInput = document.getElementById('bulk-files');
+const bulkBtn = document.getElementById('bulk-btn');
+const bulkProgress = document.getElementById('bulk-progress');
+const bulkStatus = document.getElementById('bulk-status');
+const bulkBar = document.getElementById('bulk-bar');
+const bulkResults = document.getElementById('bulk-results');
+
+bulkForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const files = bulkInput.files;
+  if (!files || files.length === 0) {
+    alert('Выберите файлы');
+    return;
+  }
+  if (files.length > 50) {
+    alert('Максимум 50 файлов');
+    return;
+  }
+  
+  bulkBtn.disabled = true;
+  bulkProgress.style.display = 'block';
+  bulkStatus.textContent = `Загружаем ${files.length} файлов...`;
+  bulkBar.value = 0;
+  bulkResults.innerHTML = '';
+  
+  const formData = new FormData();
+  for (let f of files) formData.append('files', f);
+  
+  try {
+    const r = await fetch('/bit-technolog/api/drawings/bulk-upload', {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+      body: formData,
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({detail: r.statusText}));
+      alert('Ошибка: ' + (err.detail || r.status));
+      bulkBtn.disabled = false;
+      return;
+    }
+    const data = await r.json();
+    
+    bulkStatus.textContent = data.summary;
+    bulkBar.value = 100;
+    
+    for (const u of data.uploaded) {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="/bit-technolog/drawings/${u.id}/review">#${u.id} ${u.filename}</a> (${u.size} байт)`;
+      bulkResults.appendChild(li);
+    }
+    for (const e of data.errors) {
+      const li = document.createElement('li');
+      li.style.color = 'red';
+      li.textContent = `❌ ${e.filename}: ${e.error}`;
+      bulkResults.appendChild(li);
+    }
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  } finally {
+    bulkBtn.disabled = false;
+  }
+});
+</script>
+
+{% endblock %}
 {% block content %}
 
 <div class="container">
@@ -9,7 +89,7 @@
   <form id="upload-form" enctype="multipart/form-data">
     <div class="form-group">
       <label for="file-input">Файл чертежа:</label>
-      <input type="file" id="file-input" name="file" accept=".pdf,.png,.jpg,.jpeg" required>
+      <input type="file" id="file-input" multiple accept=".pdf,.png,.jpg,.jpeg">
     </div>
     <button type="submit" class="btn btn-primary" id="submit-btn">Загрузить</button>
   </form>

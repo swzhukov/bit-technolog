@@ -1877,6 +1877,76 @@ from fastapi import UploadFile, File
 from typing import List as _List
 
 
+@app.post("/api/drawings/bulk-upload")
+async def api_drawings_bulk_upload(request: Request):
+    """Sprint 7 D8: загрузить несколько чертежей сразу.
+    
+    Content-Type: multipart/form-data, field "files" (multiple)
+    Возвращает: {"uploaded": [drawing_id, ...], "errors": [{filename, error}, ...]}
+    """
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Auth required")
+    normalize_user_role(user)
+    if user.role not in ("admin", "main_technologist", "technologist", "workshop_chief"):
+        raise HTTPException(403, "Недостаточно прав")
+    if request.headers.get("x-requested-with") != "XMLHttpRequest":
+        raise HTTPException(403, "CSRF check failed")
+    
+    form = await request.form()
+    files = form.getlist("files")
+    if not files:
+        raise HTTPException(400, "Файлы не выбраны")
+    if len(files) > 50:
+        raise HTTPException(400, "Максимум 50 файлов за раз")
+    
+    uploaded = []
+    errors = []
+    
+    for f in files:
+        try:
+            content = await f.read()
+            saved = save_upload(f.filename or "unnamed", content, f.content_type)
+            drawing_id = create_drawing_row(
+                uuid_str=saved["uuid"],
+                file_path=saved["file_path"],
+                original_filename=saved["original_filename"],
+                fmt=saved["format"],
+                file_size_bytes=saved["file_size_bytes"],
+                uploaded_by=user.id,
+            )
+            log_history("drawing", drawing_id, "bulk_upload", user.username, {
+                "filename": saved["original_filename"],
+                "format": saved["format"],
+                "size": saved["file_size_bytes"],
+                "batch": True,
+            })
+            uploaded.append({
+                "id": drawing_id,
+                "uuid": saved["uuid"],
+                "filename": saved["original_filename"],
+                "format": saved["format"],
+                "size": saved["file_size_bytes"],
+            })
+        except ValueError as e:
+            errors.append({"filename": f.filename, "error": str(e)})
+        except Exception as e:
+            logger.exception(f"bulk upload failed for {f.filename}")
+            errors.append({"filename": f.filename, "error": str(e)})
+    
+    log_history("drawing", 0, "bulk_upload_batch", user.username, {
+        "total": len(files),
+        "uploaded": len(uploaded),
+        "errors": len(errors),
+    })
+    
+    return {
+        "uploaded": uploaded,
+        "errors": errors,
+        "summary": f"Загружено {len(uploaded)} из {len(files)} чертежей",
+    }
+
+
 @app.post("/api/drawings/upload")
 async def api_drawings_upload(request: Request, file: UploadFile = File(...)):
     """Загрузить чертёж (PDF/PNG/JPG, max 50MB).
