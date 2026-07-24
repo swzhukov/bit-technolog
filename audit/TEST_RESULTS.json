@@ -192,6 +192,30 @@
     "comment": ""
   },
   {
+    "id": "BULK-01",
+    "name": "Bulk upload 1 file",
+    "expected": 200,
+    "got": 200,
+    "status": "pass",
+    "comment": ""
+  },
+  {
+    "id": "BULK-02",
+    "name": "Bulk upload 2 files",
+    "expected": 200,
+    "got": 200,
+    "status": "pass",
+    "comment": ""
+  },
+  {
+    "id": "BULK-03",
+    "name": "Bulk upload empty",
+    "expected": 400,
+    "got": 400,
+    "status": "pass",
+    "comment": ""
+  },
+  {
     "id": "DRAW-01",
     "name": "Upload PDF",
     "expected": 200,

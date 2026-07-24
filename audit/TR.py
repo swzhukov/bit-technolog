@@ -27,6 +27,12 @@ def curl(method, path, user=None, form_data=None, json_data=None, hdr=None, time
         if isinstance(form_data, str) and form_data.startswith('__file__:'):
             file_path = form_data.replace('__file__:', '')
             cmd += ['-F', f'file=@{file_path}']
+        # Sprint 7 D8: bulk upload via __bulk__:[path1,path2,...] marker
+        elif isinstance(form_data, str) and form_data.startswith('__bulk__:'):
+            import json as _json
+            files_list = _json.loads(form_data.replace('__bulk__:', ''))
+            for f in files_list:
+                cmd += ['-F', f'files=@{f}']
         else:
             for k, v in form_data.items():
                 cmd += ['--data-urlencode', f'{k}={v}']
@@ -72,6 +78,7 @@ print(f'[TR.py] A11: {RS_FILENAME}')
 # Per-test timeout override (Sprint 7: DRAW-05 = OCR+LLM ~60s)
 DRAW_TIMEOUTS = {
     'DRAW-05': 120,
+    'BULK-01': 30, 'BULK-02': 60,
 }
 
 # Тесты
@@ -129,6 +136,16 @@ TESTS = [
      {'X-Requested-With': 'XMLHttpRequest'}),
     ('B20', 'Пустое name', 'POST', '/details/new', 400, 'tarrietsky', None,
      {'designation': f'TEST-B20-{int(time.time())}', 'name':'', 'level':'detail'},
+     {'X-Requested-With': 'XMLHttpRequest'}),
+    # Sprint 7 D8: Bulk upload (D8)
+    ('BULK-01', 'Bulk upload 1 file', 'POST', '/api/drawings/bulk-upload', 200, 'techadmin', None,
+     '__bulk__:["/opt/beget/bit-technolog/attachments/2f8e70aa__84405203-5c79-497f-92f5-79bfd98684dc.pdf"]',
+     {'X-Requested-With': 'XMLHttpRequest'}),
+    ('BULK-02', 'Bulk upload 2 files', 'POST', '/api/drawings/bulk-upload', 200, 'techadmin', None,
+     '__bulk__:["/opt/beget/bit-technolog/attachments/3180da73__942b9103-a43a-4bac-a136-84be1719d796.pdf","/opt/beget/bit-technolog/attachments/5c6e1e30__60905589-c0d4-402a-a939-46a4221d2183.pdf"]',
+     {'X-Requested-With': 'XMLHttpRequest'}),
+    ('BULK-03', 'Bulk upload empty', 'POST', '/api/drawings/bulk-upload', 400, 'techadmin', None,
+     '__bulk__:[]',
      {'X-Requested-With': 'XMLHttpRequest'}),
 
     # Sprint 7: Drawings (DRAW-01..DRAW-09)
