@@ -219,16 +219,16 @@
     "id": "CACHE-01",
     "name": "Cache stats endpoint",
     "expected": 200,
-    "got": 422,
-    "status": "fail",
+    "got": 200,
+    "status": "pass",
     "comment": ""
   },
   {
     "id": "CACHE-02",
     "name": "Cache stats as workshop_chief (403)",
     "expected": 403,
-    "got": 422,
-    "status": "fail",
+    "got": 403,
+    "status": "pass",
     "comment": ""
   },
   {
